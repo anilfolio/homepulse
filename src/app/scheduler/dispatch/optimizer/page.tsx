@@ -224,7 +224,7 @@ export default function SchedulerTrackerPage() {
         </div>
 
         {/* Right Column (Queue) */}
-        <div className="w-[380px] shrink-0 h-full flex flex-col">
+        <div className="w-[340px] shrink-0 h-full flex flex-col">
           <VisitQueue
             visits={visits}
             selectedVisitId={selectedVisitId}
@@ -234,6 +234,7 @@ export default function SchedulerTrackerPage() {
             onDragOverVisit={setDragOverVisitId}
             onCompareRoutes={setComparingVisitId}
             caregivers={caregivers}
+            className="w-full h-full"
           />
         </div>
       </div>

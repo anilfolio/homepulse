@@ -15,11 +15,23 @@ interface VisitQueueProps {
   onDragOverVisit?: (visitId: string | null) => void;
   onCompareRoutes?: (visitId: string) => void;
   caregivers?: Caregiver[];
+  className?: string;
 }
 
-export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, activeCaregiver, onDragOverVisit, onCompareRoutes, caregivers = [] }: VisitQueueProps) {
+export function VisitQueue({
+  visits,
+  selectedVisitId,
+  onSelectVisit,
+  onAssign,
+  activeCaregiver,
+  onDragOverVisit,
+  onCompareRoutes,
+  caregivers = [],
+  className,
+}: VisitQueueProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"All" | "Unassigned" | "Assigned" | "Completed">("All");
+  const [filterStatus, setFilterStatus] = useState<"All" | "Unassigned" | "Assigned">("All");
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   // Group visits (mocking a single "TODAY" group for simplicity)
@@ -27,7 +39,7 @@ export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, a
     const matchesSearch = v.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || v.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "All"
       || (filterStatus === "Assigned" && (v.status === "Assigned" || v.status === "In Progress"))
-      || v.status === filterStatus;
+      || (filterStatus === "Unassigned" && v.status === "Unassigned");
     return matchesSearch && matchesStatus;
   });
 
@@ -53,8 +65,8 @@ export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, a
   const getColorForStatus = (status: Visit["status"]) => {
     switch (status) {
       case "Unassigned": return "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]";
-      case "Completed": return "bg-brand-teal shadow-[0_0_10px_rgba(14,163,131,0.4)]";
-      default: return "bg-brand-teal shadow-[0_0_10px_rgba(14,163,131,0.4)]";
+      case "Completed": return "bg-brand-teal shadow-[0_0_10px_rgba(108,136,255,0.4)]";
+      default: return "bg-brand-teal shadow-[0_0_10px_rgba(108,136,255,0.4)]";
     }
   };
 
@@ -70,19 +82,26 @@ export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, a
   };
 
   return (
-    <div className="relative w-full h-full transition-all duration-300 shrink-0 z-30">
-      <div className="absolute inset-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-lg overflow-hidden bg-white border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)]">
-        <div className="w-full h-full flex flex-col">
+    <div
+      className={clsx(
+        "relative transition-all duration-300 shrink-0 z-30",
+        className || (isCollapsed ? "w-0 h-screen" : "w-[340px] h-screen")
+      )}
+    >
+      <div
+        className={clsx(
+          "absolute inset-0 overflow-hidden bg-white shadow-[0_6px_32px_rgba(0,0,0,0.06)]",
+          className ? "rounded-2xl border border-slate-200" : "border-l border-slate-200"
+        )}
+      >
+        <div className={clsx("h-full flex flex-col", className ? "w-full" : "w-[340px]")}>
           {/* Header */}
           <div className="p-3 border-b border-slate-100 shrink-0">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Visits Queue</h2>
-              <div className="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
-                Filter: 
-                <button onClick={() => setFilterStatus("All")} className={clsx("px-1.5 py-0.5 rounded transition-colors", filterStatus === "All" ? "bg-slate-200 text-slate-800" : "text-slate-400 hover:text-slate-600")}>All ({counts.All})</button>
-                |
-                <button onClick={() => setFilterStatus("Unassigned")} className={clsx("px-1.5 py-0.5 rounded transition-colors", filterStatus === "Unassigned" ? "bg-red-100 text-red-700" : "text-slate-400 hover:text-slate-600")}>Unassigned ({counts.Unassigned})</button>
-              </div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold text-slate-800">Visits Queue</h2>
+              <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <Filter className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="relative">
@@ -94,6 +113,43 @@ export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, a
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all placeholder:text-slate-400"
               />
+            </div>
+
+            {/* Quick Status Filters */}
+            <div className="flex gap-1.5 mt-2.5">
+              <button
+                onClick={() => setFilterStatus("All")}
+                className={clsx(
+                  "flex-1 py-1 text-[11px] font-medium rounded-md border text-center transition-all",
+                  filterStatus === "All"
+                    ? "bg-brand-teal/10 text-brand-teal border-brand-teal/30 font-semibold"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                All ({counts.All})
+              </button>
+              <button
+                onClick={() => setFilterStatus("Unassigned")}
+                className={clsx(
+                  "flex-1 py-1 text-[11px] font-medium rounded-md border text-center transition-all",
+                  filterStatus === "Unassigned"
+                    ? "bg-red-50 text-red-600 border-red-200 font-semibold"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                Unassigned ({counts.Unassigned})
+              </button>
+              <button
+                onClick={() => setFilterStatus("Assigned")}
+                className={clsx(
+                  "flex-1 py-1 text-[11px] font-medium rounded-md border text-center transition-all",
+                  filterStatus === "Assigned"
+                    ? "bg-brand-teal/10 text-brand-teal border-brand-teal/30 font-semibold"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                Assigned ({counts.Assigned})
+              </button>
             </div>
           </div>
 
@@ -259,6 +315,17 @@ export function VisitQueue({ visits, selectedVisitId, onSelectVisit, onAssign, a
         </div>
       </div>
 
+      {/* Collapse Toggle */}
+      {!className && (
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute top-1/2 -translate-y-1/2 -left-3 bg-white border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] rounded-full w-6 h-6 flex items-center justify-center text-slate-500 hover:text-brand-teal transition-colors z-50 cursor-pointer"
+          title={isCollapsed ? "Expand Visits Queue" : "Collapse Visits Queue"}
+          aria-label={isCollapsed ? "Expand Visits Queue" : "Collapse Visits Queue"}
+        >
+          {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+      )}
     </div>
   );
 }
