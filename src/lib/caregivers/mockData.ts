@@ -1,0 +1,296 @@
+export type CaregiverStatus = "Active" | "Onboarding" | "Inactive" | "On Leave" | "Leave of Absence" | "Terminated";
+export type EmploymentType = "W2" | "1099";
+
+export interface Certification {
+  id: string;
+  name: string;
+  issueDate: string;
+  expiryDate: string;
+  status: "Active" | "Expiring Soon" | "Expired";
+  issuer: string;
+}
+
+export interface Shift {
+  id: string;
+  patientId: string;
+  patientName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: "Completed" | "Upcoming" | "Missed";
+}
+
+export interface CaregiverPolicyAck {
+  id: string;
+  policyName: string;
+  category: string;
+  version: string;
+  status: "Signed" | "Pending" | "Overdue";
+  signedDate?: string;
+  dueDate?: string;
+}
+
+export interface Caregiver {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  role: string;
+  status: CaregiverStatus;
+  rating: number;
+  yearsWithAgency: number;
+  phone: string;
+  email: string;
+  address: string;
+  emergencyContact: string;
+  languages: string[];
+  skills: string[];
+  hireDate: string;
+  employmentType: EmploymentType;
+  payRate: number;
+  complianceScore: number;
+  assignedPatientsCount: number;
+  lastActiveDate: string;
+  certifications: Certification[];
+  recentShifts: Shift[];
+  policyAcknowledgments?: CaregiverPolicyAck[];
+}
+
+export const mockCaregivers: Record<string, Caregiver> = {
+  "1": {
+    id: "1",
+    name: "Amanda Riley",
+    avatarUrl: "",
+    role: "Registered Nurse (RN)",
+    status: "Onboarding",
+    rating: 5.0,
+    yearsWithAgency: 0,
+    phone: "(555) 234-5678",
+    email: "amanda.riley@homepulse.com",
+    address: "567 Health Blvd, Medical City, ST 12345",
+    emergencyContact: "John Riley (Spouse) - (555) 999-8888",
+    languages: ["English"],
+    skills: ["Wound Care", "Medication Administration", "Patient Assessment"],
+    hireDate: "2026-10-15",
+    employmentType: "W2",
+    payRate: 48.00,
+    complianceScore: 75,
+    assignedPatientsCount: 0,
+    lastActiveDate: "Today",
+    certifications: [
+      { id: "cert-a1", name: "RN License", issueDate: "2024-01-01", expiryDate: "2028-01-01", status: "Active", issuer: "State Nursing Board" },
+      { id: "cert-a2", name: "CPR Certification", issueDate: "2024-06-01", expiryDate: "2026-06-01", status: "Expiring Soon", issuer: "AHA" }
+    ],
+    recentShifts: []
+  },
+  "2": {
+    id: "2",
+    name: "James Wilson",
+    avatarUrl: "",
+    role: "Home Health Aide (HHA)",
+    status: "Onboarding",
+    rating: 4.5,
+    yearsWithAgency: 0,
+    phone: "(555) 876-5432",
+    email: "j.wilson@homepulse.com",
+    address: "890 Care Ave, Health Town, ST 54321",
+    emergencyContact: "Mary Wilson (Mother) - (555) 777-6666",
+    languages: ["English", "Spanish"],
+    skills: ["Personal Care", "Bathing & Dressing", "Companion Care"],
+    hireDate: "2026-10-22",
+    employmentType: "W2",
+    payRate: 23.00,
+    complianceScore: 25,
+    assignedPatientsCount: 0,
+    lastActiveDate: "Today",
+    certifications: [
+      { id: "cert-j1", name: "HHA State Cert", issueDate: "2025-03-01", expiryDate: "2027-03-01", status: "Active", issuer: "Department of Health" }
+    ],
+    recentShifts: []
+  },
+  "3": {
+    id: "3",
+    name: "Elena Rodriguez",
+    avatarUrl: "",
+    role: "Certified Nursing Assistant",
+    status: "Active",
+    rating: 4.9,
+    yearsWithAgency: 3,
+    phone: "(555) 345-6789",
+    email: "elena.r@homepulse.com",
+    address: "123 Healthcare Ave, Wellness City, ST 12345",
+    emergencyContact: "Carlos Rodriguez (Husband) - (555) 987-6543",
+    languages: ["English", "Spanish"],
+    skills: ["Wound Care", "Medication Management", "IV Therapy", "Dementia Care"],
+    hireDate: "2023-01-15",
+    employmentType: "W2",
+    payRate: 45.00,
+    complianceScore: 100,
+    assignedPatientsCount: 4,
+    lastActiveDate: "2026-07-15",
+    certifications: [
+      { id: "cert-e1", name: "CNA License", issueDate: "2022-05-01", expiryDate: "2027-05-01", status: "Active", issuer: "State Board of Nursing" },
+      { id: "cert-e2", name: "BLS/CPR", issueDate: "2025-01-10", expiryDate: "2027-01-10", status: "Active", issuer: "American Heart Association" }
+    ],
+    recentShifts: []
+  },
+  "4": {
+    id: "4",
+    name: "Marcus Vance",
+    avatarUrl: "",
+    role: "Physical Therapist",
+    status: "Onboarding",
+    rating: 4.8,
+    yearsWithAgency: 0,
+    phone: "(555) 901-2345",
+    email: "marcus.v@homepulse.com",
+    address: "432 Rehab Road, Wellness City, ST 12345",
+    emergencyContact: "Lisa Vance (Wife) - (555) 444-3333",
+    languages: ["English"],
+    skills: ["Physical Therapy", "Post-op Recovery", "Mobility Rehab"],
+    hireDate: "2026-11-10",
+    employmentType: "W2",
+    payRate: 52.00,
+    complianceScore: 50,
+    assignedPatientsCount: 0,
+    lastActiveDate: "Today",
+    certifications: [
+      { id: "cert-m1", name: "PT License", issueDate: "2023-08-01", expiryDate: "2028-08-01", status: "Active", issuer: "PT Board" }
+    ],
+    recentShifts: []
+  },
+  "cg-001": {
+    id: "cg-001",
+    name: "Elena Rodriguez",
+    avatarUrl: "",
+    role: "Registered Nurse (RN)",
+    status: "Active",
+    rating: 4.9,
+    yearsWithAgency: 3,
+    phone: "(555) 123-4567",
+    email: "elena.r@homepulse.com",
+    address: "123 Healthcare Ave, Wellness City, ST 12345",
+    emergencyContact: "Carlos Rodriguez (Husband) - (555) 987-6543",
+    languages: ["English", "Spanish"],
+    skills: ["Wound Care", "Medication Management", "IV Therapy", "Dementia Care"],
+    hireDate: "2023-01-15",
+    employmentType: "W2",
+    payRate: 45.00,
+    complianceScore: 100,
+    assignedPatientsCount: 4,
+    lastActiveDate: "2026-07-15",
+    certifications: [
+      { id: "cert-1", name: "RN License", issueDate: "2022-05-01", expiryDate: "2027-05-01", status: "Active", issuer: "State Board of Nursing" },
+      { id: "cert-2", name: "BLS/CPR", issueDate: "2025-01-10", expiryDate: "2027-01-10", status: "Active", issuer: "American Heart Association" },
+    ],
+    recentShifts: [
+      { id: "s-1", patientId: "c-001", patientName: "Robert Hayes", date: "2026-07-14", startTime: "09:00", endTime: "13:00", status: "Completed" },
+      { id: "s-2", patientId: "c-002", patientName: "Mary Johnson", date: "2026-07-15", startTime: "14:00", endTime: "18:00", status: "Upcoming" },
+    ],
+    policyAcknowledgments: [
+      { id: "pa-1", policyName: "Agency Code of Conduct", category: "Corporate Governance", version: "v3.2", status: "Pending", dueDate: "2026-07-30" },
+      { id: "pa-2", policyName: "HIPAA Privacy & Security Policy", category: "Regulatory Compliance", version: "v4.1", status: "Signed", signedDate: "2025-07-21" },
+      { id: "pa-3", policyName: "Emergency Response & Evacuation Plan", category: "Safety & Emergency", version: "v2.0", status: "Overdue", dueDate: "2026-07-10" },
+      { id: "pa-4", policyName: "Infection Prevention & PPE Protocol", category: "Clinical Protocols", version: "v3.0", status: "Signed", signedDate: "2025-05-06" },
+      { id: "pa-5", policyName: "Workplace Violence & Safety Policy", category: "Employee Safety", version: "v1.8", status: "Signed", signedDate: "2025-06-03" }
+    ]
+  },
+  "cg-002": {
+    id: "cg-002",
+    name: "Marcus Johnson",
+    avatarUrl: "",
+    role: "Home Health Aide (HHA)",
+    status: "Active",
+    rating: 4.7,
+    yearsWithAgency: 1.5,
+    phone: "(555) 234-5678",
+    email: "marcus.j@homepulse.com",
+    address: "456 Caregiver Blvd, Health Town, ST 54321",
+    emergencyContact: "Sarah Johnson (Sister) - (555) 876-5432",
+    languages: ["English"],
+    skills: ["Mobility Assistance", "Personal Care", "Meal Prep"],
+    hireDate: "2025-02-10",
+    employmentType: "1099",
+    payRate: 22.50,
+    complianceScore: 92,
+    assignedPatientsCount: 6,
+    lastActiveDate: "2026-07-14",
+    certifications: [
+      { id: "cert-3", name: "HHA Certification", issueDate: "2024-06-01", expiryDate: "2026-06-01", status: "Active", issuer: "State Health Dept" },
+      { id: "cert-4", name: "First Aid", issueDate: "2024-08-15", expiryDate: "2026-08-15", status: "Active", issuer: "Red Cross" },
+    ],
+    recentShifts: [
+      { id: "s-3", patientId: "c-003", patientName: "John Doe", date: "2026-07-13", startTime: "08:00", endTime: "16:00", status: "Completed" }
+    ],
+    policyAcknowledgments: [
+      { id: "pa-1", policyName: "Agency Code of Conduct", category: "Corporate Governance", version: "v3.2", status: "Signed", signedDate: "2025-07-21" },
+      { id: "pa-2", policyName: "HIPAA Privacy & Security Policy", category: "Regulatory Compliance", version: "v4.1", status: "Signed", signedDate: "2025-07-21" },
+      { id: "pa-3", policyName: "Emergency Response & Evacuation Plan", category: "Safety & Emergency", version: "v2.0", status: "Signed", signedDate: "2025-06-12" },
+      { id: "pa-4", policyName: "Infection Prevention & PPE Protocol", category: "Clinical Protocols", version: "v3.0", status: "Signed", signedDate: "2025-05-05" },
+      { id: "pa-5", policyName: "Workplace Violence & Safety Policy", category: "Employee Safety", version: "v1.8", status: "Signed", signedDate: "2025-06-02" }
+    ]
+  },
+  "cg-003": {
+    id: "cg-003",
+    name: "Sarah Jenkins",
+    avatarUrl: "",
+    role: "Certified Nursing Assistant (CNA)",
+    status: "Onboarding",
+    rating: 0,
+    yearsWithAgency: 0,
+    phone: "(555) 345-6789",
+    email: "sarah.j@homepulse.com",
+    address: "789 Newbie Lane, Care City, ST 67890",
+    emergencyContact: "Tom Jenkins (Father) - (555) 765-4321",
+    languages: ["English", "French"],
+    skills: ["Vital Signs", "Patient Positioning", "Basic Care"],
+    hireDate: "2026-07-01",
+    employmentType: "W2",
+    payRate: 25.00,
+    complianceScore: 65,
+    assignedPatientsCount: 0,
+    lastActiveDate: "2026-07-15",
+    certifications: [
+      { id: "cert-5", name: "CNA License", issueDate: "2026-05-20", expiryDate: "2028-05-20", status: "Active", issuer: "State Nursing Board" },
+      { id: "cert-6", name: "CPR", issueDate: "2024-07-01", expiryDate: "2026-07-01", status: "Expiring Soon", issuer: "American Heart Association" }
+    ],
+    recentShifts: [],
+    policyAcknowledgments: [
+      { id: "pa-1", policyName: "Agency Code of Conduct", category: "Corporate Governance", version: "v3.2", status: "Signed", signedDate: "2025-07-21" },
+      { id: "pa-2", policyName: "HIPAA Privacy & Security Policy", category: "Regulatory Compliance", version: "v4.1", status: "Signed", signedDate: "2025-07-21" },
+      { id: "pa-3", policyName: "Emergency Response & Evacuation Plan", category: "Safety & Emergency", version: "v2.0", status: "Signed", signedDate: "2025-06-10" },
+      { id: "pa-4", policyName: "Infection Prevention & PPE Protocol", category: "Clinical Protocols", version: "v3.0", status: "Signed", signedDate: "2025-05-04" },
+      { id: "pa-5", policyName: "Workplace Violence & Safety Policy", category: "Employee Safety", version: "v1.8", status: "Signed", signedDate: "2025-06-01" }
+    ]
+  },
+  "cg-004": {
+    id: "cg-004",
+    name: "David Chen",
+    avatarUrl: "",
+    role: "Physical Therapist",
+    status: "Active",
+    rating: 4.8,
+    yearsWithAgency: 5,
+    phone: "(555) 456-7890",
+    email: "david.c@homepulse.com",
+    address: "321 Therapy Way, Rehab City, ST 13579",
+    emergencyContact: "Linda Chen (Wife) - (555) 654-3210",
+    languages: ["English", "Mandarin"],
+    skills: ["Orthopedic Rehab", "Neurological PT", "Gait Training"],
+    hireDate: "2021-09-01",
+    employmentType: "W2",
+    payRate: 55.00,
+    complianceScore: 100,
+    assignedPatientsCount: 8,
+    lastActiveDate: "2026-07-15",
+    certifications: [
+      { id: "cert-7", name: "PT License", issueDate: "2020-09-01", expiryDate: "2030-09-01", status: "Active", issuer: "State PT Board" }
+    ],
+    recentShifts: [],
+    policyAcknowledgments: [
+      { id: "pa-1", policyName: "Agency Code of Conduct", category: "Corporate Governance", version: "v3.2", status: "Signed", signedDate: "2025-07-18" },
+      { id: "pa-2", policyName: "HIPAA Privacy & Security Policy", category: "Regulatory Compliance", version: "v4.1", status: "Signed", signedDate: "2025-07-18" },
+      { id: "pa-3", policyName: "Emergency Response & Evacuation Plan", category: "Safety & Emergency", version: "v2.0", status: "Overdue", dueDate: "2026-07-05" },
+      { id: "pa-5", policyName: "Workplace Violence & Safety Policy", category: "Employee Safety", version: "v1.8", status: "Signed", signedDate: "2025-06-03" }
+    ]
+  }
+};

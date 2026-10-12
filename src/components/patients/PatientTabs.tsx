@@ -1,0 +1,116 @@
+"use client";
+
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Patient } from "@/lib/patients/mockData";
+import { OverviewTab } from "@/components/patients/tabs/OverviewTab";
+import { CarePlanTab } from "@/components/patients/tabs/CarePlanTab";
+import { VisitsTab } from "@/components/patients/tabs/VisitsTab";
+import { MedicationsTab } from "@/components/patients/tabs/MedicationsTab";
+import { DocumentsTab } from "@/components/patients/tabs/DocumentsTab";
+import { BillingTab } from "@/components/patients/tabs/BillingTab";
+import { CommunicationTab } from "@/components/patients/tabs/CommunicationTab";
+import { ChronologyTab } from "./tabs/ChronologyTab";
+import { AssessmentsTab } from "@/components/patients/tabs/AssessmentsTab";
+import { useAuth } from "@/hooks/useAuth";
+
+const allTabs = [
+  { id: "overview", label: "Overview" },
+  { id: "careplan", label: "Care Plan" },
+  { id: "visits", label: "Visits" },
+  { id: "medications", label: "Medications" },
+  { id: "documents", label: "Documents" },
+  { id: "billing", label: "Billing" },
+  { id: "communication", label: "Communication" },
+  { id: "chronology", label: "Chronology" },
+  { id: "assessments", label: "Assessments" },
+];
+
+function PatientTabsContent({ patient }: { patient: Patient }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { currentUser } = useAuth();
+
+  const tabs = currentUser?.role === "INTAKE_COORDINATOR"
+    ? allTabs.filter(t => ["overview", "documents", "billing", "communication"].includes(t.id))
+    : currentUser?.role === "CLINICAL_SUPERVISOR_RN"
+      ? allTabs.filter(t => t.id !== "billing")
+      : allTabs;
+
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab = tabFromUrl && tabs.some(t => t.id === tabFromUrl) ? tabFromUrl : "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (tabFromUrl && tabs.some(t => t.id === tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    router.replace(`${pathname}?tab=${tabId}`, { scroll: false });
+  };
+
+  return (
+    <div className="w-full">
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 p-1 sm:p-1.5 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.04)] rounded-2xl mb-4 overflow-x-auto no-scrollbar border border-slate-200/90 w-full max-w-full">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`relative px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap rounded-xl shrink-0 ${isActive ? "text-brand-teal font-bold" : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
+                }`}
+            >
+              <span className="relative z-10">{tab.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="patient-tab-indicator"
+                  className="absolute inset-0 bg-brand-teal/10 rounded-xl border border-brand-teal/20 shadow-[0_6px_32px_rgba(0,0,0,0.04)]"
+                  initial={false}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === "overview" && <OverviewTab patient={patient} />}
+            {activeTab === "careplan" && <CarePlanTab patient={patient} />}
+            {activeTab === "visits" && <VisitsTab patient={patient} />}
+            {activeTab === "medications" && <MedicationsTab patient={patient} />}
+            {activeTab === "documents" && <DocumentsTab patient={patient} />}
+            {activeTab === "billing" && <BillingTab patient={patient} />}
+            {activeTab === "communication" && <CommunicationTab patient={patient} />}
+            {activeTab === "chronology" && <ChronologyTab patient={patient} />}
+            {activeTab === "assessments" && <AssessmentsTab patient={patient} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export function PatientTabs({ patient }: { patient: Patient }) {
+  return (
+    <Suspense fallback={<div>Loading tabs...</div>}>
+      <PatientTabsContent patient={patient} />
+    </Suspense>
+  );
+}

@@ -1,0 +1,110 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import { Caregiver } from "@/lib/caregivers/mockData";
+import { Card } from "@/components/ui/Card";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { Users, Calendar, ArrowRight, Activity } from "lucide-react";
+import { mockPatients } from "@/lib/patients/mockData";
+
+interface AssignedPatientsTabProps {
+  caregiver: Caregiver;
+  onAssignPatient?: () => void;
+}
+
+export function AssignedPatientsTab({ caregiver, onAssignPatient }: AssignedPatientsTabProps) {
+  // Mock grabbing assigned patients from the existing patient mock data
+  const assignedPatients = Object.values(mockPatients).slice(0, caregiver.assignedPatientsCount || 2);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-slate-800">Assigned Patients ({assignedPatients.length})</h3>
+        <button
+          onClick={onAssignPatient}
+          className="flex items-center gap-2 bg-brand-teal text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-emerald-600 transition-colors shadow-[0_6px_32px_rgba(0,0,0,0.06)] cursor-pointer active:scale-95"
+        >
+          Assign New Patient
+        </button>
+      </div>
+
+      {assignedPatients.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {assignedPatients.map((patient) => (
+            <Card key={patient.id} className="p-0 overflow-hidden hover:border-brand-teal/30 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] transition-all group">
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar src={patient.avatarUrl} alt={patient.name} fallback={patient.name.substring(0, 2)} size="lg" />
+                    <div>
+                      <h4 className="font-semibold text-slate-800 group-hover:text-brand-teal transition-colors">{patient.name}</h4>
+                      <div className="text-xs text-slate-500 mt-0.5">{patient.address}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Schedule</span>
+                    <span className="font-medium text-slate-700">3x / week</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 flex items-center gap-1.5"><Activity className="w-4 h-4" /> Risk Level</span>
+                    <Badge variant={patient.riskLevel === "High" ? "error" : patient.riskLevel === "Medium" ? "warning" : "success"}>
+                      {patient.riskLevel}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Since</span>
+                    <span className="font-medium text-slate-700">Jan 2026</span>
+                  </div>
+                </div>
+              </div>
+              <Link href={`/patients/${patient.id}`} className="block w-full text-center py-3 rounded-xl bg-slate-100 hover:bg-brand-teal text-brand-teal hover:text-white font-medium text-sm transition-colors border border-slate-200 group-hover:border-transparent flex items-center justify-center gap-2">
+                View Patient Profile <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="p-12 flex flex-col items-center justify-center text-center border-dashed border-2">
+          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+            <Users className="w-8 h-8 text-slate-300" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">No Patients Assigned</h3>
+          <p className="text-slate-500 max-w-md">
+            This caregiver does not currently have any active patient assignments. They are ready for scheduling.
+          </p>
+          <button
+            onClick={onAssignPatient}
+            className="mt-6 bg-brand-teal text-white px-6 py-2.5 rounded-xl font-medium shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] transition-all active:scale-95 cursor-pointer"
+          >
+            Find Matching Patients
+          </button>
+        </Card>
+      )}
+
+      {/* Visit History Summary */}
+      <Card className="p-6 mt-8">
+        <h3 className="text-lg font-semibold text-slate-800 mb-4">Visit History Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="text-sm font-medium text-slate-500 mb-1">Total Visits Completed</div>
+            <div className="text-3xl font-bold text-slate-800">142</div>
+          </div>
+          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+            <div className="text-sm font-medium text-emerald-700 mb-1">On-Time Arrival Rate</div>
+            <div className="text-3xl font-bold text-emerald-600">98%</div>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="text-sm font-medium text-slate-500 mb-1">Missed/Cancelled</div>
+            <div className="text-3xl font-bold text-slate-800">3</div>
+            <div className="text-xs text-slate-500 mt-1">In the last 90 days</div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}

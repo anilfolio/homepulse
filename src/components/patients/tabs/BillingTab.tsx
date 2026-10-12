@@ -1,0 +1,84 @@
+import React from "react";
+import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { Patient } from "@/lib/patients/mockData";
+import { ArrowUpRight } from "lucide-react";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Badge } from "@/components/ui/Badge";
+
+export function BillingTab({ patient }: { patient: Patient }) {
+  if (!patient.billing) {
+    return (
+      <div className="space-y-6">
+        <Card className="p-8 text-center bg-slate-50 border-dashed border border-slate-300">
+          <h3 className="text-lg font-medium text-slate-700 mb-2">No billing records</h3>
+        </Card>
+      </div>
+    );
+  }
+
+  const { billing } = patient;
+  const progressPercent = (billing.authorization.used / billing.authorization.total) * 100;
+  const remainingHours = billing.authorization.total - billing.authorization.used;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Authorization */}
+        <Card className="bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden md:col-span-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-semibold text-slate-700">Authorization hours</h3>
+            <span className="text-xs text-slate-500 font-medium">{billing.authorization.used} / {billing.authorization.total} hrs</span>
+          </div>
+          <ProgressBar progress={progressPercent} color="bg-amber-500" className="mb-2" />
+          <p className="text-xs text-amber-600 font-medium">{remainingHours} hours remaining</p>
+        </Card>
+
+        {/* Outstanding Balance */}
+        <Card className="bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4">Outstanding balance</h3>
+          <div className="text-3xl font-bold text-amber-500 mb-1">${billing.balance}</div>
+          <p className="text-xs text-slate-500">Patient responsibility</p>
+        </Card>
+      </div>
+
+      {/* Linked claims */}
+      <Card className="bg-white backdrop-blur-xl rounded-2xl border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden">
+        <div className="flex justify-between items-center p-4 pb-4">
+          <h3 className="text-sm font-semibold text-slate-700">Linked claims</h3>
+          <Link href="/billing" className="flex items-center text-xs font-semibold text-brand-teal hover:text-emerald-600 transition-colors">
+            Open Billing <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 text-xs text-slate-500 font-semibold uppercase tracking-wider border-y border-slate-100">
+              <tr>
+                <th className="px-4 py-3">Claim</th>
+                <th className="px-4 py-3">Service Dates</th>
+                <th className="px-4 py-3">Payer</th>
+                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {billing.claims.map((claim) => (
+                <tr key={claim.id} className="hover:bg-slate-50/50">
+                  <td className="px-4 py-3 font-medium text-slate-800">{claim.id}</td>
+                  <td className="px-4 py-3">{claim.serviceDates}</td>
+                  <td className="px-4 py-3">{claim.payer}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">{claim.amount}</td>
+                  <td className="px-4 py-3">
+                    {claim.status === "Draft" && <Badge variant="default" className="text-slate-500"><span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>Draft</Badge>}
+                    {claim.status === "Pending" && <Badge variant="warning" className="bg-amber-50 text-amber-600"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>Pending</Badge>}
+                    {claim.status === "Paid" && <Badge variant="success" className="bg-emerald-50 text-emerald-600"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>Paid</Badge>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
