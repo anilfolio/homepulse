@@ -36,8 +36,8 @@ export function EvvCompliance() {
                 dataKey="value"
                 stroke="none"
               >
-                <Cell fill="#0EA383" />
-                <Cell fill="#E5E9EC" />
+                <Cell fill="#57EAB6" />
+                <Cell fill="#E2E6F3" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>

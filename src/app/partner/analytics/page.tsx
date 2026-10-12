@@ -44,7 +44,7 @@ export default function AnalyticsPage() {
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                 />
-                <Bar dataKey="volume" fill="#0ea383" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="volume" fill="#6C88FF" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                   formatter={(value: any) => [`${value}%`, 'Conversion Rate']}
                 />
-                <Bar dataKey="conversion" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="conversion" fill="#57EAB6" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -7,8 +7,8 @@ import { ArrowUp } from "lucide-react";
 import { clsx } from "clsx";
 
 const payers = [
-  { name: "Medicare", value: 168000, percentage: 34, color: "#0EA383", trend: "+4.2%" },
-  { name: "Medicaid", value: 252000, percentage: 52, color: "#3B82F6", trend: "+1.4%" },
+  { name: "Medicare", value: 168000, percentage: 34, color: "#6C88FF", trend: "+4.2%" },
+  { name: "Medicaid", value: 252000, percentage: 52, color: "#57EAB6", trend: "+1.4%" },
   { name: "Private Pay", value: 136000, percentage: 28, color: "#8B5CF6", trend: "+2.8%" },
   { name: "Commercial", value: 58000, percentage: 12, color: "#F97316", trend: "+0.9%" },
 ];

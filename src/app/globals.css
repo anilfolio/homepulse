@@ -1,20 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --color-sidebar-bg: #0B2A3D;
-  --color-sidebar-active: #123C50;
-  --color-brand-teal: #0EA383;
+  --color-sidebar-bg: #141D3C;
+  --color-sidebar-active: #1E2B58;
+  --color-brand-primary: #6C88FF;
+  --color-brand-teal: #6C88FF;
+  --color-brand-blue: #6C88FF;
+  --color-brand-mint: #57EAB6;
+  --color-brand-navy: #141D3C;
   --color-accent-purple: #8B5CF6;
-  --color-accent-blue: #3B82F6;
+  --color-accent-blue: #6C88FF;
   --color-accent-orange: #F97316;
-  --color-accent-green: #10B981;
+  --color-accent-green: #57EAB6;
   --color-accent-red: #EF4444;
   --color-accent-amber: #F59E0B;
   --color-surface: #FFFFFF;
-  --color-page-bg: #F4F6F8;
-  --color-border-subtle: #E5E9EC;
-  --color-text-primary: #0F1B24;
-  --color-text-secondary: #6B7684;
+  --color-page-bg: #F4F6FC;
+  --color-border-subtle: #E2E6F3;
+  --color-text-primary: #141D3C;
+  --color-text-secondary: #5E6D8A;
+
+  /* Harmonize teal and emerald with new brand blue and mint */
+  --color-teal-50: #EEF2FF;
+  --color-teal-100: #E0E7FF;
+  --color-teal-200: #C7D2FE;
+  --color-teal-300: #A5B4FC;
+  --color-teal-400: #818CF8;
+  --color-teal-500: #6C88FF;
+  --color-teal-600: #5371F3;
+  --color-teal-700: #3F5BD9;
+  --color-teal-800: #2F45B5;
+  --color-teal-900: #141D3C;
+
+  --color-emerald-400: #7EF1C8;
+  --color-emerald-500: #57EAB6;
+  --color-emerald-600: #36D49D;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 

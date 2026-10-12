@@ -580,11 +580,11 @@ export default function LoginPage() {
   const RoleSelectorGrid = () => (
     <div className="flex flex-col space-y-2.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-200/90 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-[#2dd4bf]" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#C7D2FE] flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#57EAB6]" />
           Select Workspace Role:
         </span>
-        <span className="text-[11px] text-emerald-300/70 hidden sm:inline-block">
+        <span className="text-[11px] text-[#A8B7DC]/80 hidden sm:inline-block">
           Auto-fills demo credentials
         </span>
       </div>
@@ -600,12 +600,12 @@ export default function LoginPage() {
               type="button"
               onClick={() => handleRoleSelect(roleKey)}
               className={`p-2 sm:px-3 sm:py-2 rounded-xl border text-left transition-all duration-150 flex items-center space-x-2 cursor-pointer ${isSel
-                ? "bg-[#0e4d4c] border-[#2dd4bf] text-white shadow-md ring-1 ring-[#2dd4bf]/40"
-                : "bg-[#0a2f30]/60 hover:bg-[#0e4d4c]/50 border-[#144747] text-gray-300 hover:text-white"
+                ? "bg-[#1E2B58] border-[#6C88FF] text-white shadow-md ring-1 ring-[#6C88FF]/40"
+                : "bg-[#182348]/60 hover:bg-[#1E2B58]/50 border-[#223164] text-slate-300 hover:text-white"
                 }`}
             >
               <div
-                className={`p-1.5 rounded-lg shrink-0 ${isSel ? "bg-[#2dd4bf] text-[#062425]" : "bg-[#144747] text-emerald-200"
+                className={`p-1.5 rounded-lg shrink-0 ${isSel ? "bg-[#6C88FF] text-white" : "bg-[#223164] text-[#A8B7DC]"
                   }`}
               >
                 <RIcon className="w-4 h-4" />
@@ -614,7 +614,7 @@ export default function LoginPage() {
                 <div className="font-bold text-xs truncate leading-tight">
                   {rItem.title.split(" ")[0]}
                 </div>
-                <div className="text-[10px] text-emerald-200/60 truncate">
+                <div className="text-[10px] text-[#A8B7DC]/70 truncate">
                   {rItem.badge}
                 </div>
               </div>
@@ -626,51 +626,51 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#E5F4F3] font-sans flex items-center justify-center p-2 sm:p-4 lg:p-6 relative overflow-x-hidden select-none">
+    <div className="min-h-screen w-full bg-[#F4F6FC] font-sans flex items-center justify-center p-2 sm:p-4 lg:p-6 relative overflow-x-hidden select-none">
       {/* Ambient Enterprise Backdrop */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-40 -left-40 w-[750px] h-[750px] rounded-full bg-[#0EA383]/15 blur-[150px]" />
-        <div className="absolute top-1/2 -right-40 w-[750px] h-[750px] rounded-full bg-[#0B2A3D]/15 blur-[160px]" />
-        <div className="absolute bottom-0 left-1/3 w-[600px] h-[600px] rounded-full bg-[#0EA383]/12 blur-[130px]" />
+        <div className="absolute -top-40 -left-40 w-[750px] h-[750px] rounded-full bg-[#6C88FF]/15 blur-[150px]" />
+        <div className="absolute top-1/2 -right-40 w-[750px] h-[750px] rounded-full bg-[#141D3C]/15 blur-[160px]" />
+        <div className="absolute bottom-0 left-1/3 w-[600px] h-[600px] rounded-full bg-[#57EAB6]/12 blur-[130px]" />
 
         {/* Subtle grid pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.035]"
           style={{
-            backgroundImage: `radial-gradient(#0B2A3D 1px, transparent 1px)`,
-            backgroundSize: "30px 30px",
+            backgroundImage: `radial-gradient(#141D3C 1px, transparent 1px)`,
+            backgroundSize: "24px 24px",
           }}
         />
       </div>
 
       {/* Main Responsive Container Card */}
-      <div className="relative z-10 w-full max-w-[1560px] min-h-0 lg:min-h-[calc(100vh-3rem)] rounded-2xl sm:rounded-3xl lg:rounded-[36px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] shadow-teal-500/10 overflow-hidden flex flex-col justify-between">
+      <div className="relative z-10 w-full max-w-[1560px] min-h-0 lg:min-h-[calc(100vh-3rem)] rounded-2xl sm:rounded-3xl lg:rounded-[36px] shadow-[0_8px_30px_rgb(0,0,0,0.06)] shadow-[#6C88FF]/10 overflow-hidden flex flex-col justify-between">
 
         {/* Main Header (Visible on Mobile & Tablet above split, hidden on Desktop left panel) */}
-        <div className="lg:hidden w-full bg-gradient-to-r from-[#062425] via-[#0b3336] to-[#041d1f] rounded-xl sm:rounded-2xl p-3 sm:p-3 text-white mb-3 sm:mb-3 border border-teal-200/40 flex items-center justify-between shadow-xs">
+        <div className="lg:hidden w-full bg-gradient-to-r from-[#141D3C] via-[#1A254B] to-[#0E152E] rounded-xl sm:rounded-2xl p-3 sm:p-3 text-white mb-3 sm:mb-3 border border-[#6C88FF]/30 flex items-center justify-between shadow-xs">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-brand-teal text-xl font-bold text-white flex items-center justify-center border border-[#166361] shadow-brand-teal/30 shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-brand-teal text-xl font-bold text-white flex items-center justify-center border border-[#2A3B75] shadow-brand-teal/30 shrink-0">
               H
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-lg sm:text-xl tracking-wide text-white block leading-snug">
                 HomePulse
               </span>
-              <span className="text-[10px] sm:text-xs text-emerald-200/70 font-medium">
+              <span className="text-[10px] sm:text-xs text-[#A8B7DC] font-medium">
                 Healthcare Enterprise Platform
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 bg-[#0e4d4c]/80 text-[#2dd4bf] px-3 py-1 rounded-full border border-[#166361]/60 text-[11px] font-semibold">
-            <span className="w-2 h-2 rounded-full bg-[#2dd4bf] animate-pulse" />
+          <div className="flex items-center space-x-2 bg-[#1E2B58]/80 text-[#57EAB6] px-3 py-1 rounded-full border border-[#2A3B75]/60 text-[11px] font-semibold">
+            <span className="w-2 h-2 rounded-full bg-[#57EAB6] animate-pulse" />
             <span className="hidden sm:inline">Systems Operational (99.99%)</span>
             <span className="sm:hidden">99.99%</span>
           </div>
         </div>
 
         {/* MOBILE & TABLET ROLE SELECTOR CONTAINER (Appears directly ABOVE the login form on mobile/tablet) */}
-        <div className="lg:hidden w-full bg-[#062425] rounded-xl sm:rounded-2xl p-3.5 sm:p-5 text-white mb-3 sm:mb-4 border border-teal-200/30 shadow-xs">
+        <div className="lg:hidden w-full bg-[#141D3C] rounded-xl sm:rounded-2xl p-3.5 sm:p-5 text-white mb-3 sm:mb-4 border border-[#6C88FF]/20 shadow-xs">
           <RoleSelectorGrid />
         </div>
 
@@ -680,31 +680,31 @@ export default function LoginPage() {
           {/* ========================================================================= */}
           {/* LEFT PANEL: Enterprise Spotlight & Details (Desktop 70% | Tablet 50% | Mobile Stacked) */}
           {/* ========================================================================= */}
-          <div className="order-2 md:order-1 w-full md:w-1/2 lg:w-[67%] xl:w-[70%] bg-gradient-to-br from-[#062425] via-[#0b3336] to-[#041d1f] rounded-xl sm:rounded-2xl lg:rounded-[32px] p-4 sm:p-6 lg:p-10 flex flex-col justify-between text-white relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-teal-200/80">
+          <div className="order-2 md:order-1 w-full md:w-1/2 lg:w-[67%] xl:w-[70%] bg-gradient-to-br from-[#141D3C] via-[#1A254B] to-[#0E152E] rounded-xl sm:rounded-2xl lg:rounded-[32px] p-4 sm:p-6 lg:p-10 flex flex-col justify-between text-white relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-[#2A3B75]/70">
             {/* Background Ambient Spotlight Glow */}
-            <div className="absolute -top-20 -right-20 w-96 h-96 bg-[#22d3ee]/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-[#0EA383]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-96 h-96 bg-[#6C88FF]/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-[#57EAB6]/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="h-full flex flex-col justify-between lg:gap-4">
               {/* Desktop Header Bar (Hidden on mobile/tablet as they have top header) */}
               <div className="hidden lg:flex justify-between w-full gap-4">
                 <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 rounded-2xl bg-brand-teal text-2xl font-bold text-white flex items-center justify-center border border-[#166361] shadow-brand-teal/30 shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-teal text-2xl font-bold text-white flex items-center justify-center border border-[#2A3B75] shadow-brand-teal/30 shrink-0">
                     H
                   </div>
                   <div>
                     <span className="font-bold text-2xl tracking-wide text-white block">
                       HomePulse
                     </span>
-                    <span className="text-[11px] text-emerald-200/70 font-medium">
+                    <span className="text-[11px] text-[#A8B7DC] font-medium">
                       Healthcare Enterprise Platform
                     </span>
                   </div>
                 </div>
 
                 {/* System Telemetry Pill */}
-                <div className="flex items-center space-x-2 bg-[#0e4d4c]/80 text-[#2dd4bf] px-3.5 py-1.5 rounded-full border border-[#166361]/60 text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-[#2dd4bf] animate-pulse" />
+                <div className="flex items-center space-x-2 bg-[#1E2B58]/80 text-[#57EAB6] px-3.5 py-1.5 rounded-full border border-[#2A3B75]/60 text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-[#57EAB6] animate-pulse" />
                   <span>Systems Operational (99.99%)</span>
                 </div>
               </div>
@@ -724,18 +724,18 @@ export default function LoginPage() {
                   transition={{ duration: 0.2 }}
                   className="mb-4 lg:mb-6"
                 >
-                  <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#2dd4bf]/10 text-[#2dd4bf] border border-[#2dd4bf]/20 mb-3">
+                  <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#57EAB6]/15 text-[#57EAB6] border border-[#57EAB6]/30 mb-3">
                     <CurrentRoleIcon className="w-3.5 h-3.5" />
                     <span>{currentRoleInfo.title}</span>
                   </div>
 
                   <h1 className="text-xl sm:text-3xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15] mb-2 sm:mb-4">
                     {currentRoleInfo.spotlightTitle}{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0EA383] via-[#2dd4bf] to-[#38bdf8]">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6C88FF] via-[#57EAB6] to-[#818CF8]">
                       {currentRoleInfo.spotlightHighlight}
                     </span>
                   </h1>
-                  <p className="text-xs sm:text-sm text-emerald-100/75 max-w-2xl leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#C7D2FE]/90 max-w-2xl leading-relaxed">
                     {currentRoleInfo.description}
                   </p>
                 </motion.div>
@@ -756,16 +756,16 @@ export default function LoginPage() {
                     return (
                       <div
                         key={idx}
-                        className="bg-[#0a2f30]/50 border border-[#144747]/70 p-3 rounded-xl flex flex-col lg:flex-row gap-3 lg:gap-4 justify-between space-y-1.5"
+                        className="bg-[#182348]/60 border border-[#2A3B75]/70 p-3 rounded-xl flex flex-col lg:flex-row gap-3 lg:gap-4 justify-between space-y-1.5"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#0e4d4c] text-[#2dd4bf] flex items-center justify-center shrink-0 border border-[#166361]">
+                        <div className="w-7 h-7 rounded-lg bg-[#1E2B58] text-[#57EAB6] flex items-center justify-center shrink-0 border border-[#2A3B75]">
                           <FeatIcon className="w-4 h-4" />
                         </div>
                         <div>
                           <div className="font-bold text-xs text-white mb-0.5 leading-snug">
                             {feat.title}
                           </div>
-                          <div className="text-[10px] sm:text-[11px] text-emerald-100/60 leading-relaxed line-clamp-2 sm:line-clamp-3">
+                          <div className="text-[10px] sm:text-[11px] text-[#A8B7DC]/80 leading-relaxed line-clamp-2 sm:line-clamp-3">
                             {feat.desc}
                           </div>
                         </div>
@@ -776,11 +776,11 @@ export default function LoginPage() {
               </AnimatePresence>
             </div>
             {/* Left Panel Footer */}
-            <div className="pt-4 lg:pt-6 mt-6 border-t border-[#124445] flex flex-wrap flex-col lg:flex-row items-center justify-between w-full text-xs text-[#527d7e] gap-2">
+            <div className="pt-4 lg:pt-6 mt-6 border-t border-[#223164] flex flex-wrap flex-col lg:flex-row items-center justify-between w-full text-xs text-[#8E9CBE] gap-2">
               <span>&copy; 2026 HomePulse. All rights reserved.</span>
-              <div className="flex items-center space-x-3 text-[11px] text-emerald-200/60">
+              <div className="flex items-center space-x-3 text-[11px] text-[#A8B7DC]/70">
                 <span className="flex items-center space-x-1">
-                  <LockKeyhole className="w-3.5 h-3.5 text-[#2dd4bf]" />
+                  <LockKeyhole className="w-3.5 h-3.5 text-[#57EAB6]" />
                   <span>256-Bit SSL</span>
                 </span>
                 <span>•</span>
@@ -796,14 +796,14 @@ export default function LoginPage() {
               {/* Form Header */}
               <div className="mb-3 sm:mb-4">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#0EA383]/10 text-[#0EA383] border border-[#0EA383]/20">
+                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#6C88FF]/10 text-[#6C88FF] border border-[#6C88FF]/20">
                     <CurrentRoleIcon className="w-3.5 h-3.5" />
                     <span>{currentRoleInfo.title}</span>
                   </span>
                   <button
                     type="button"
                     onClick={handleResetCredentials}
-                    className="text-xs font-medium text-[#0EA383] hover:text-[#0EA383]/80 flex items-center space-x-1 bg-[#0EA383]/5 hover:bg-[#0EA383]/10 px-2.5 py-1 rounded-full transition-colors border border-[#0EA383]/15 cursor-pointer"
+                    className="text-xs font-medium text-[#6C88FF] hover:text-[#5371F3] flex items-center space-x-1 bg-[#6C88FF]/5 hover:bg-[#6C88FF]/10 px-2.5 py-1 rounded-full transition-colors border border-[#6C88FF]/15 cursor-pointer"
                     title="Reset credentials to role default"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -814,10 +814,10 @@ export default function LoginPage() {
               <div className="flex-1 flex flex-col justify-center gap-3 lg:gap-4">
                 {/* Header Text */}
                 <div className="flex flex-col mb-3">
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-[#141D3C] tracking-tight">
                     Welcome Back
                   </h2>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-[#5E6D8A] mt-1">
                     Sign-in to your account to continue
                   </p>
                 </div>
@@ -825,7 +825,7 @@ export default function LoginPage() {
                 <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
                   {/* Email Address */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 block">
+                    <label className="text-xs font-semibold text-[#141D3C] block">
                       Email Address
                     </label>
                     <div className="relative">
@@ -838,7 +838,7 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@company.com"
-                        className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-gray-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA383] focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#141D3C] placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C88FF] focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -846,13 +846,13 @@ export default function LoginPage() {
                   {/* Password Field */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3">
-                      <label className="text-xs font-semibold text-gray-700 block">
+                      <label className="text-xs font-semibold text-[#141D3C] block">
                         Password
                       </label>
                       <button
                         type="button"
                         onClick={() => setShowForgotModal(true)}
-                        className="text-xs font-semibold text-[#0EA383] hover:underline cursor-pointer"
+                        className="text-xs font-semibold text-[#6C88FF] hover:underline cursor-pointer"
                       >
                         Forgot Password?
                       </button>
@@ -867,7 +867,7 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full pl-10 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-gray-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA383] focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#141D3C] placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C88FF] focus:border-transparent transition-all"
                       />
                       <button
                         type="button"
@@ -886,17 +886,16 @@ export default function LoginPage() {
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 text-[#0EA383] border-gray-300 rounded focus:ring-[#0EA383] accent-[#0EA383] cursor-pointer"
+                        className="w-4 h-4 text-[#6C88FF] border-gray-300 rounded focus:ring-[#6C88FF] accent-[#6C88FF] cursor-pointer"
                       />
                       <span className="text-xs text-gray-600 font-medium">Keep me signed in</span>
                     </label>
                   </div>
 
-                  {/* Sign In Button */}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full mt-2 bg-[#0EA383] hover:bg-[#0c8c70] active:scale-[0.99] text-white font-bold py-3 sm:py-3.5 px-4 rounded-xl transition-all duration-150 flex items-center justify-center space-x-2 shadow-lg shadow-[#0EA383]/20 border border-[#0EA383]/30 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full mt-2 bg-[#6C88FF] hover:bg-[#5371F3] active:scale-[0.99] text-white font-bold py-3 sm:py-3.5 px-4 rounded-xl transition-all duration-150 flex items-center justify-center space-x-2 shadow-lg shadow-[#6C88FF]/25 border border-[#6C88FF]/30 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isLoading ? (
                       <>
@@ -919,7 +918,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="font-bold text-[#0EA383] hover:underline cursor-pointer"
+                    className="font-bold text-[#6C88FF] hover:underline cursor-pointer"
                   >
                     Request Access
                   </button>
@@ -940,15 +939,15 @@ export default function LoginPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative"
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Request Corporate Access / Reset</h3>
+              <h3 className="text-lg font-bold text-[#141D3C] mb-1">Request Corporate Access / Reset</h3>
               <p className="text-xs text-gray-500 mb-4">
                 Enter your work email address below and our security administrator will verify your credentials.
               </p>
 
               {resetSent ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs space-y-2 mb-4">
+                <div className="p-4 bg-[#57EAB6]/10 border border-[#57EAB6]/30 rounded-xl text-[#0D6B4E] text-xs space-y-2 mb-4">
                   <div className="flex items-center space-x-2 font-semibold text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-4 h-4 text-[#57EAB6]" />
                     <span>Access Request Submitted!</span>
                   </div>
                   <p>Check your inbox at <strong>{email}</strong> for authorization instructions.</p>
@@ -961,7 +960,7 @@ export default function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA383]"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6C88FF]"
                     />
                   </div>
                 </div>
@@ -982,7 +981,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setResetSent(true)}
-                    className="px-4 py-2 text-xs font-semibold bg-[#0EA383] text-white rounded-xl hover:bg-[#0EA383]/90 transition-colors shadow-sm cursor-pointer"
+                    className="px-4 py-2 text-xs font-semibold bg-[#6C88FF] text-white rounded-xl hover:bg-[#5371F3] transition-colors shadow-sm cursor-pointer"
                   >
                     Submit Request
                   </button>

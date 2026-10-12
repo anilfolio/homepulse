@@ -16,8 +16,8 @@ export function BottomGlance() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={[{ value: 87 }, { value: 13 }]} cx="50%" cy="50%" innerRadius={26} outerRadius={34} startAngle={90} endAngle={-270} dataKey="value" stroke="none">
-                  <Cell fill="#0EA383" />
-                  <Cell fill="#E5E9EC" />
+                  <Cell fill="#6C88FF" />
+                  <Cell fill="#E2E6F3" />
                 </Pie>
               </PieChart>
             </ResponsiveContainer>

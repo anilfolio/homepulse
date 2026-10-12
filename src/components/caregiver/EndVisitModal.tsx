@@ -79,7 +79,7 @@ export function EndVisitModal({
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.strokeStyle = "#0EA383";
+        ctx.strokeStyle = "#6C88FF";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";

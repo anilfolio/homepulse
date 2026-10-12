@@ -197,7 +197,7 @@ export function ClockInOutCard({
                     {/* Simulated Map Graphic */}
                     <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:12px_12px] opacity-40"></div>
                     <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="50%" cy="50%" r="38" fill="rgba(14, 163, 131, 0.15)" stroke="#0EA383" strokeWidth="1.5" strokeDasharray="3 3" />
+                      <circle cx="50%" cy="50%" r="38" fill="rgba(108, 136, 255, 0.15)" stroke="#6C88FF" strokeWidth="1.5" strokeDasharray="3 3" />
                       <line x1="50%" y1="50%" x2="72%" y2="30%" stroke="#F59E0B" strokeWidth="2" strokeDasharray="4 2" />
                     </svg>
 

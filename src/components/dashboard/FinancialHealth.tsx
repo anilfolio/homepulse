@@ -6,8 +6,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Card, CardHeader } from "@/components/ui/Card";
 
 const payerData = [
-  { name: "Medicare", value: 65, color: "#0EA383" },
-  { name: "Medicaid", value: 20, color: "#3B82F6" },
+  { name: "Medicare", value: 65, color: "#6C88FF" },
+  { name: "Medicaid", value: 20, color: "#57EAB6" },
   { name: "Private Pay", value: 10, color: "#8B5CF6" },
   { name: "Commercial", value: 5, color: "#F59E0B" },
 ];

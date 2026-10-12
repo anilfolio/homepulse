@@ -33,8 +33,8 @@ export function VisitsChart() {
               contentStyle={{ borderRadius: "12px", border: "1px solid #E5E9EC", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}
             />
             <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", color: "#6B7684", paddingTop: "20px" }} />
-            <Bar dataKey="Scheduled" fill="#E5E9EC" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Completed" fill="#0EA383" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Scheduled" fill="#E2E6F3" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Completed" fill="#6C88FF" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

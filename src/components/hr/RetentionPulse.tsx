@@ -177,8 +177,8 @@ export function RetentionPulse({ data }: RetentionPulseProps) {
                   <AreaChart data={data.turnoverTrend} margin={{ top: 12, right: 12, left: -24, bottom: 0 }}>
                     <defs>
                       <linearGradient id="turnoverTealGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0EA383" stopOpacity={0.45} />
-                        <stop offset="95%" stopColor="#0EA383" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#6C88FF" stopOpacity={0.45} />
+                        <stop offset="95%" stopColor="#6C88FF" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" strokeOpacity={0.7} />
@@ -213,20 +213,20 @@ export function RetentionPulse({ data }: RetentionPulseProps) {
                     <Area
                       type="monotone"
                       dataKey="rate"
-                      stroke="#0EA383"
+                      stroke="#6C88FF"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#turnoverTealGrad)"
-                      dot={{ r: 4, fill: "#0EA383", stroke: "#FFFFFF", strokeWidth: 2 }}
-                      activeDot={{ r: 7, fill: "#0EA383", stroke: "#FFFFFF", strokeWidth: 3 }}
+                      dot={{ r: 4, fill: "#6C88FF", stroke: "#FFFFFF", strokeWidth: 2 }}
+                      activeDot={{ r: 7, fill: "#6C88FF", stroke: "#FFFFFF", strokeWidth: 3 }}
                     />
                   </AreaChart>
                 ) : (
                   <BarChart data={data.turnoverTrend} margin={{ top: 12, right: 12, left: -24, bottom: 0 }}>
                     <defs>
                       <linearGradient id="turnoverBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0EA383" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#10B981" stopOpacity={0.8} />
+                        <stop offset="0%" stopColor="#6C88FF" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#57EAB6" stopOpacity={0.8} />
                       </linearGradient>
                       <linearGradient id="turnoverBarMuted" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#94A3B8" stopOpacity={0.7} />

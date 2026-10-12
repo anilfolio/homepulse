@@ -174,7 +174,7 @@ export function LiveMap({
                 y1={`${conn.y1}%`}
                 x2={`${conn.x2}%`}
                 y2={`${conn.y2}%`}
-                stroke="#0d9488"
+                stroke="#6C88FF"
                 strokeWidth={conn.isActive ? 6 : 4}
                 strokeDasharray="8 12"
                 strokeLinecap="round"
@@ -208,13 +208,13 @@ export function LiveMap({
           <div className="relative w-[18px] h-[18px] bg-[#0f172a] rounded-full flex items-center justify-center border-[1.5px] border-slate-600 shadow-md">
             {poi.type === 'shopping' && <ShoppingBag className="w-2.5 h-2.5 text-orange-500" />}
             {poi.type === 'food' && <Utensils className="w-2.5 h-2.5 text-blue-400" />}
-            {poi.type === 'medical' && <Stethoscope className="w-2.5 h-2.5 text-teal-400" />}
+            {poi.type === 'medical' && <Stethoscope className="w-2.5 h-2.5 text-[#57EAB6]" />}
             {poi.type === 'office' && <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
           </div>
           <div
             className="ml-1.5 text-[9px] font-medium tracking-wide whitespace-nowrap"
             style={{
-              color: poi.type === 'shopping' ? '#f97316' : poi.type === 'food' ? '#60a5fa' : poi.type === 'medical' ? '#2dd4bf' : '#94a3b8',
+              color: poi.type === 'shopping' ? '#f97316' : poi.type === 'food' ? '#60a5fa' : poi.type === 'medical' ? '#57EAB6' : '#94a3b8',
               textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,1)'
             }}
           >
@@ -277,10 +277,10 @@ export function LiveMap({
             <div className="relative flex items-center justify-center">
               {/* Radar Wave for Active Caregivers */}
               {!isOffline && (
-                <div className="absolute w-16 h-16 rounded-full bg-[#0d9488]/30 animate-[ping_3s_ease-in-out_infinite]" />
+                <div className="absolute w-16 h-16 rounded-full bg-[#6C88FF]/30 animate-[ping_3s_ease-in-out_infinite]" />
               )}
               {!isOffline && (
-                <div className="absolute w-16 h-16 rounded-full bg-[#0d9488]/40" />
+                <div className="absolute w-16 h-16 rounded-full bg-[#6C88FF]/40" />
               )}
 
               {/* Inner Icon Container */}

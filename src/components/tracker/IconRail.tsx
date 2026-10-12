@@ -44,11 +44,11 @@ export function IconRail() {
   const logoHref = isScheduler ? "/scheduler" : "/dashboard";
 
   return (
-    <div className="w-16 flex-shrink-0 bg-[#0B2A3D] text-white flex flex-col items-center py-6 h-screen relative z-40 border-r border-[#0e354a] select-none">
+    <div className="w-16 flex-shrink-0 bg-[#141D3C] text-white flex flex-col items-center py-6 h-screen relative z-40 border-r border-[#1E2B58] select-none">
       {/* Logo */}
       <Link
         href={logoHref}
-        className="w-10 h-10 rounded-xl bg-brand-teal flex items-center justify-center font-bold text-lg mb-8 hover:brightness-110 transition-all shadow-md shadow-brand-teal/30 shrink-0"
+        className="w-10 h-10 rounded-xl bg-brand-teal flex items-center justify-center font-bold text-lg mb-8 hover:brightness-110 transition-all shadow-md shadow-[#6C88FF]/30 shrink-0"
         title={isScheduler ? "HomePulse - Scheduler Portal" : "HomePulse"}
       >
         H
@@ -67,11 +67,11 @@ export function IconRail() {
               title={item.title}
               className={clsx(
                 "relative flex items-center justify-center w-12 h-12 rounded-xl transition-all group",
-                isActive ? "text-white" : "text-slate-400 hover:text-white hover:bg-[#1a3d53]"
+                isActive ? "text-white" : "text-slate-400 hover:text-white hover:bg-[#1E2B58]"
               )}
             >
               {isActive && (
-                <div className="absolute inset-0 bg-brand-teal rounded-xl opacity-100 shadow-[0_0_15px_rgba(14,163,131,0.4)]" />
+                <div className="absolute inset-0 bg-brand-teal rounded-xl opacity-100 shadow-[0_0_15px_rgba(108,136,255,0.4)]" />
               )}
               <Icon className={clsx("w-5 h-5 relative z-10")} />
 
