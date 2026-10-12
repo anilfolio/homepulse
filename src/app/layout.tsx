@@ -13,6 +13,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "HomePulse",
   description: "Comprehensive home and property care platform",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

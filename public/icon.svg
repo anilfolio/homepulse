@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="hpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA383" />
+      <stop offset="100%" stop-color="#095D4A" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="url(#hpGrad)" />
+  <g filter="url(#shadow)">
+    <!-- Left Pillar -->
+    <rect x="22" y="22" width="12" height="56" rx="6" fill="#FFFFFF" />
+    <!-- Right Pillar -->
+    <rect x="66" y="22" width="12" height="56" rx="6" fill="#FFFFFF" />
+    <!-- Pulse Wave Crossbar -->
+    <path d="M 31 50 L 41 50 L 44 42 L 49 62 L 54 36 L 58 50 L 69 50" fill="none" stroke="#FFFFFF" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>
