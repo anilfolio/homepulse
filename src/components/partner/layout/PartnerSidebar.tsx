@@ -21,6 +21,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useAuth } from "@/hooks/useAuth";
+import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
 import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
 
 const NAV_ITEMS = [
@@ -112,14 +113,13 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
           )}
         >
           <Link href="/partner" className="flex items-center gap-3 overflow-hidden group">
-            <div className="w-9 h-9 rounded-xl bg-brand-teal flex items-center justify-center font-bold text-lg text-white shadow-md shadow-brand-teal/30 shrink-0 group-hover:scale-105 transition-transform">
-              H
-            </div>
+            <HomePulseLogo variant="icon-only" size={36} animated />
             {!isCollapsed && (
               <div className="flex flex-col truncate pr-4">
-                <span className="font-bold text-base tracking-wide text-white block leading-tight truncate">
-                  HomePulse
-                </span>
+                <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
+                  <span>Home</span>
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
+                </div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
                   Partner Portal
                 </span>

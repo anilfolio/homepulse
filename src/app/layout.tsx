@@ -12,7 +12,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "HomePulse",
-  description: "Comprehensive home and property care platform",
+  description: "Enterprise healthcare platform for home health care, patient monitoring, caregiver management, and verified EVV tracking",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },

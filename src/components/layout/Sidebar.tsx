@@ -37,6 +37,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useAuth } from "@/hooks/useAuth";
+import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
 
 const getNavGroups = (role?: string) => {
   if (role === "CLIENT") {
@@ -436,14 +437,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           )}
         >
           <Link href={safeUser?.role === "CLIENT" || safeUser?.role === "FAMILY" ? "/portal" : safeUser?.role === "CAREGIVER" ? "/caregiver" : safeUser?.role === "HR" ? "/hr/dashboard" : safeUser?.role === "SCHEDULER" ? "/scheduler" : safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/dashboard" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor" : safeUser?.role === "TRAINER" ? "/training-admin" : "/dashboard"} className="flex items-center gap-3 overflow-hidden group">
-            <div className="w-9 h-9 rounded-xl bg-brand-teal flex items-center justify-center font-bold text-lg text-white shadow-md shadow-brand-teal/30 shrink-0 group-hover:scale-105 transition-transform">
-              H
-            </div>
+            <HomePulseLogo variant="icon-only" size={36} animated />
             {!isCollapsed && (
               <div className="flex flex-col truncate pr-4">
-                <span className="font-bold text-base tracking-wide text-white block leading-tight truncate">
-                  HomePulse
-                </span>
+                <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
+                  <span>Home</span>
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
+                </div>
                 {safeUser?.role === "CAREGIVER" && (
                   <span className="text-[10px] font-medium uppercase tracking-wider text-brand-teal flex items-center gap-1 mt-0.5">
                     <HeartHandshake className="w-3 h-3 inline" /> Caregiver Portal

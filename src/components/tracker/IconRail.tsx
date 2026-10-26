@@ -16,6 +16,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import clsx from "clsx";
+import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
 
 const adminNavItems = [
   { id: "dashboard", icon: LayoutDashboard, href: "/dashboard", title: "Dashboard" },
@@ -48,10 +49,10 @@ export function IconRail() {
       {/* Logo */}
       <Link
         href={logoHref}
-        className="w-10 h-10 rounded-xl bg-brand-teal flex items-center justify-center font-bold text-lg mb-8 hover:brightness-110 transition-all shadow-md shadow-[#6C88FF]/30 shrink-0"
+        className="mb-8 hover:brightness-110 transition-all shrink-0"
         title={isScheduler ? "HomePulse - Scheduler Portal" : "HomePulse"}
       >
-        H
+        <HomePulseLogo variant="icon-only" size={38} animated />
       </Link>
 
       {/* Nav */}

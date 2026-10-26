@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Role } from "@/types/rbac";
+import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
 
 type LoginRole = Role;
 
@@ -648,19 +649,14 @@ export default function LoginPage() {
 
         {/* Main Header (Visible on Mobile & Tablet above split, hidden on Desktop left panel) */}
         <div className="lg:hidden w-full bg-gradient-to-r from-[#141D3C] via-[#1A254B] to-[#0E152E] rounded-xl sm:rounded-2xl p-3 sm:p-3 text-white mb-3 sm:mb-3 border border-[#6C88FF]/30 flex items-center justify-between shadow-xs">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-brand-teal text-xl font-bold text-white flex items-center justify-center border border-[#2A3B75] shadow-brand-teal/30 shrink-0">
-              H
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg sm:text-xl tracking-wide text-white block leading-snug">
-                HomePulse
-              </span>
-              <span className="text-[10px] sm:text-xs text-[#A8B7DC] font-medium">
-                Healthcare Enterprise Platform
-              </span>
-            </div>
-          </div>
+          <HomePulseLogo
+            variant="horizontal"
+            size="sm"
+            showSubtitle={true}
+            subtitleText="Healthcare Enterprise Platform"
+            theme="dark"
+            animated
+          />
 
           <div className="flex items-center space-x-2 bg-[#1E2B58]/80 text-[#57EAB6] px-3 py-1 rounded-full border border-[#2A3B75]/60 text-[11px] font-semibold">
             <span className="w-2 h-2 rounded-full bg-[#57EAB6] animate-pulse" />
@@ -688,19 +684,14 @@ export default function LoginPage() {
             <div className="h-full flex flex-col justify-between lg:gap-4">
               {/* Desktop Header Bar (Hidden on mobile/tablet as they have top header) */}
               <div className="hidden lg:flex justify-between w-full gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 rounded-2xl bg-brand-teal text-2xl font-bold text-white flex items-center justify-center border border-[#2A3B75] shadow-brand-teal/30 shrink-0">
-                    H
-                  </div>
-                  <div>
-                    <span className="font-bold text-2xl tracking-wide text-white block">
-                      HomePulse
-                    </span>
-                    <span className="text-[11px] text-[#A8B7DC] font-medium">
-                      Healthcare Enterprise Platform
-                    </span>
-                  </div>
-                </div>
+                <HomePulseLogo
+                  variant="horizontal"
+                  size="lg"
+                  showSubtitle={true}
+                  subtitleText="Healthcare Enterprise Platform"
+                  theme="dark"
+                  animated
+                />
 
                 {/* System Telemetry Pill */}
                 <div className="flex items-center space-x-2 bg-[#1E2B58]/80 text-[#57EAB6] px-3.5 py-1.5 rounded-full border border-[#2A3B75]/60 text-xs font-semibold">

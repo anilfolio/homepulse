@@ -1,20 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
   <defs>
-    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="hpBadgeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141D3C" />
+      <stop offset="100%" stop-color="#0E152E" />
+    </linearGradient>
+    <linearGradient id="hpPulseGlow" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#6C88FF" />
       <stop offset="100%" stop-color="#57EAB6" />
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.3" />
+    <filter id="hpShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3" />
     </filter>
   </defs>
-  <rect width="100" height="100" rx="22" fill="#141D3C" />
-  <g filter="url(#shadow)">
-    <!-- Left Pillar (Healtho Blue #6C88FF) -->
-    <rect x="22" y="22" width="12" height="56" rx="6" fill="#6C88FF" />
-    <!-- Right Pillar (Healtho Mint #57EAB6) -->
-    <rect x="66" y="22" width="12" height="56" rx="6" fill="#57EAB6" />
-    <!-- Pulse Waveform Crossbar (Gradient Blue to Mint) -->
-    <path d="M 31 50 L 41 50 L 44 42 L 49 62 L 54 36 L 58 50 L 69 50" fill="none" stroke="url(#pulseGrad)" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Dark Squircle Badge -->
+  <rect width="100" height="100" rx="24" fill="url(#hpBadgeBg)" stroke="#2A3B75" stroke-width="1.5" />
+
+  <g filter="url(#hpShadow)">
+    <!-- Roof Silhouette -->
+    <path d="M 22 45 L 50 22 L 78 45" stroke="#6C88FF" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Chimney -->
+    <path d="M 68 28 V 37" stroke="#6C88FF" stroke-width="5" stroke-linecap="round" />
+    <!-- Pillars -->
+    <path d="M 27 45 V 72" stroke="#6C88FF" stroke-width="6" stroke-linecap="round" />
+    <path d="M 73 45 V 72" stroke="#57EAB6" stroke-width="6" stroke-linecap="round" />
+    <!-- Heartbeat Pulse Waveform -->
+    <path d="M 18 64 L 32 64 L 38 52 L 46 76 L 55 38 L 63 68 L 68 64 L 82 64" stroke="url(#hpPulseGlow)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Pulse Peak Node -->
+    <circle cx="55" cy="38" r="3.5" fill="#57EAB6" />
   </g>
 </svg>
