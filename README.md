@@ -35,8 +35,12 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Project Rules & Compliance
+## Project Governance & Documentation
 
-This project adheres to strict infrastructure, architectural, and compliance guidelines, including **HIPAA** and **COPPA** requirements. 
+This project adheres to strict infrastructure, architectural, and compliance guidelines, including **HIPAA** and **COPPA** requirements.
 
-Before contributing, all team members **must** read and follow the [Architecture & Compliance Rules](RULES.md).
+Before contributing, team members must consult the core documentation:
+- 🏗️ **System Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md) — Technical blueprint, Mermaid diagrams, 13-role RBAC matrix, and domain subsystems.
+- 🎨 **UI & Layout Styleguide**: [STYLEGUIDE.md](STYLEGUIDE.md) — Design system tokens, typography hierarchy, component library, and better layout patterns.
+- 🔒 **Compliance & Security Rules**: [RULES.md](RULES.md) — Infrastructure, deployment, HIPAA, and COPPA requirements.
+- ⚡ **Interactive Styleguide**: Available at [http://localhost:3000/styleguide](http://localhost:3000/styleguide).

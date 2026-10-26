@@ -31,6 +31,7 @@ import {
   List,
   Clock,
   UserCheck,
+  Sparkles,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -276,6 +277,7 @@ const getNavGroups = (role?: string) => {
         { name: "Communications", icon: MessageSquare, id: "communications" },
         { name: "Reports & BI", icon: BarChart3, id: "reports" },
         { name: "Payroll", icon: Receipt, id: "payroll" },
+        { name: "UI Styleguide", icon: Sparkles, id: "styleguide" },
       ],
     },
   ];
@@ -376,6 +378,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     if (pathname?.startsWith("/patients") || pathname?.startsWith("/intake/patients")) return "patients";
     if (pathname?.startsWith("/evv-monitoring")) return "evv-monitoring";
     if (pathname?.startsWith("/quality-assurance")) return "qa";
+    if (pathname?.startsWith("/styleguide")) return "styleguide";
     if (pathname?.startsWith("/field-supervisor/visits")) return "visits";
     if (pathname?.startsWith("/field-supervisor/caregivers")) return "caregivers";
     if (pathname?.startsWith("/incidents")) return "incidents";
@@ -533,6 +536,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   if (item.id === "course-builder") href = "/training-admin/courses/builder";
                   if (item.id === "courses") href = "/training-admin/courses";
                   if (item.id === "quizzes") href = "/training-admin/quizzes";
+                  if (item.id === "styleguide") href = "/styleguide";
 
                   return (
                     <li key={item.id} className="relative group">
@@ -692,6 +696,14 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 )}
               >
                 <div className="flex flex-col gap-1">
+                  <Link
+                    href="/styleguide"
+                    className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-sidebar-active rounded-xl transition-colors"
+                    onClick={() => setIsProfileOpen(false)}
+                  >
+                    <Sparkles className="w-4 h-4 text-[#57EAB6]" />
+                    UI Styleguide
+                  </Link>
                   <Link
                     href={safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance/settings" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/settings" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing/settings" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical/settings" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor/settings" : safeUser?.role === "TRAINER" ? "/training-admin/settings" : "/settings"}
                     className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-sidebar-active rounded-xl transition-colors"
