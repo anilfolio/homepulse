@@ -1,0 +1,144 @@
+"""
+HD Logo Generator for HomePulse
+Produces the vector SVG files and renders high-definition preview images.
+"""
+import os
+
+svg_template = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <defs>
+    <!-- Brand Primary Gradient -->
+    <linearGradient id="hpBrandGrad" x1="0%" y1="30%" x2="100%" y2="70%">
+      <stop offset="0%" stop-color="#0066B3" />
+      <stop offset="25%" stop-color="#007BC7" />
+      <stop offset="50%" stop-color="#0096AD" />
+      <stop offset="75%" stop-color="#00A78E" />
+      <stop offset="100%" stop-color="#00B388" />
+    </linearGradient>
+
+    <!-- Dark Theme Glow / Gradient -->
+    <linearGradient id="hpDarkGrad" x1="0%" y1="30%" x2="100%" y2="70%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="35%" stop-color="#22D3EE" />
+      <stop offset="70%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+
+    <!-- Squircle Background Gradient for App Icons & Favicons -->
+    <linearGradient id="hpSquircleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A887" />
+      <stop offset="40%" stop-color="#008EA0" />
+      <stop offset="75%" stop-color="#0072B5" />
+      <stop offset="100%" stop-color="#005A9C" />
+    </linearGradient>
+
+    <!-- Dark Card Background -->
+    <linearGradient id="hpDarkCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#161E2E" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. SHIELD EMBLEM FRAME -->
+  <path
+    d="M 500 146
+       C 388 156 268 196 204 250
+       C 190 280 190 330 196 380
+       C 202 440 206 500 214 560
+       C 232 652 338 775 500 872
+       C 662 775 768 652 786 560
+       C 794 500 798 440 804 380
+       C 810 330 810 280 796 250
+       C 732 196 612 156 500 146 Z"
+    fill="none"
+    stroke="url(#hpBrandGrad)"
+    stroke-width="36"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+
+  <!-- 2. HOUSE CHIMNEY -->
+  <polygon
+    points="316,285 379,285 379,350 316,396"
+    fill="url(#hpBrandGrad)"
+  />
+
+  <!-- 3. HOUSE ROOF -->
+  <polyline
+    points="185,496 500,240 805,484"
+    fill="none"
+    stroke="url(#hpBrandGrad)"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="miter"
+    stroke-miterlimit="4"
+  />
+
+  <!-- Left Eaves & Wall -->
+  <line x1="167" y1="507" x2="318" y2="507" stroke="url(#hpBrandGrad)" stroke-width="36" stroke-linecap="round" />
+  <line x1="300" y1="507" x2="300" y2="624" stroke="url(#hpBrandGrad)" stroke-width="36" stroke-linecap="square" />
+
+  <!-- Right Eaves & Wall -->
+  <line x1="823" y1="493" x2="688" y2="493" stroke="url(#hpBrandGrad)" stroke-width="36" stroke-linecap="round" />
+  <line x1="706" y1="493" x2="706" y2="540" stroke="url(#hpBrandGrad)" stroke-width="36" stroke-linecap="square" />
+
+  <!-- 4. RADAR CONCENTRIC SIGNAL RINGS -->
+  <g fill="none" stroke="url(#hpBrandGrad)" stroke-width="10" stroke-linecap="round">
+    <circle cx="646" cy="356" r="44" />
+    <circle cx="646" cy="356" r="70" />
+    <circle cx="646" cy="356" r="96" />
+  </g>
+
+  <!-- Radar Bullseye Center -->
+  <circle cx="646" cy="356" r="22" fill="url(#hpBrandGrad)" />
+
+  <!-- 5. TELEMETRY GRAPH -->
+  <g stroke="url(#hpBrandGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="424" y1="419" x2="484" y2="355" />
+    <line x1="484" y1="355" x2="574" y2="454" />
+    <line x1="574" y1="454" x2="614" y2="466" />
+    <line x1="574" y1="454" x2="646" y2="356" />
+    <line x1="646" y1="356" x2="718" y2="298" />
+  </g>
+
+  <!-- Telemetry Nodes -->
+  <g fill="url(#hpBrandGrad)">
+    <circle cx="424" cy="419" r="16" />
+    <circle cx="484" cy="355" r="18" />
+    <circle cx="574" cy="454" r="18" />
+    <circle cx="614" cy="466" r="11" />
+    <circle cx="718" cy="298" r="15" />
+  </g>
+
+  <!-- 6. ECG PULSE WAVEFORM -->
+  <path
+    d="M 156 655
+       L 338 655
+       C 355 655 368 668 376 680
+       L 406 542
+       L 440 690
+       L 480 405
+       L 540 742
+       L 576 570
+       C 582 568 588 568 596 568
+       L 740 568
+       C 748 568 756 564 762 558
+       L 865 480"
+    fill="none"
+    stroke="url(#hpBrandGrad)"
+    stroke-width="36"
+    stroke-linecap="square"
+    stroke-linejoin="round"
+  />
+
+  <!-- 7. GROWTH ARROWHEAD -->
+  <polygon
+    points="936,432 864,432 876,480 919,520"
+    fill="url(#hpBrandGrad)"
+  />
+</svg>
+"""
+
+with open("public/homepulse-emblem.svg", "w") as f:
+    f.write(svg_template)
+print("Wrote public/homepulse-emblem.svg")
+

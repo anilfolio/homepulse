@@ -491,9 +491,8 @@ export default function StyleguidePage() {
                   <label className="text-xs font-semibold text-slate-600 block mb-1.5">Concept Variant</label>
                   <div className="space-y-1">
                     {[
-                      { id: "home-pulse", label: "Concept 1: Home & Pulse (Selected)" },
-                      { id: "h-monogram", label: "Concept 2: Geometric H-Monogram" },
-                      { id: "heart-sanctuary", label: "Concept 3: Heart Sanctuary" },
+                      { id: "home-pulse", label: "Official HD Brand Mark (Shield + Pulse)" },
+                      { id: "app-icon", label: "Favicon & App Icon Squircle" },
                     ].map((c) => (
                       <button
                         key={c.id}

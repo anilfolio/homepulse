@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import clsx from "clsx";
 
-export type LogoConcept = "home-pulse" | "h-monogram" | "heart-sanctuary";
+export type LogoConcept = "home-pulse" | "app-icon" | "h-monogram" | "heart-sanctuary";
 export type LogoVariant = "icon-only" | "horizontal" | "stacked";
-export type LogoTheme = "dark" | "light" | "white" | "gradient";
+export type LogoTheme = "dark" | "light" | "white" | "monochrome" | "monochrome-dark" | "gradient";
 export type LogoSize = "xs" | "sm" | "md" | "lg" | "xl" | number;
 
 interface HomePulseLogoProps {
@@ -27,6 +27,10 @@ const SIZE_MAP: Record<"xs" | "sm" | "md" | "lg" | "xl", { icon: number; text: s
   xl: { icon: 64, text: "text-3xl", sub: "text-sm" },
 };
 
+/**
+ * Authentic HomePulse HD Logo Component
+ * Recreated with exact vector fidelity matching the official brand identity.
+ */
 export function HomePulseLogo({
   concept = "home-pulse",
   variant = "horizontal",
@@ -37,181 +41,232 @@ export function HomePulseLogo({
   animated = false,
   className,
 }: HomePulseLogoProps) {
+  const uniqueId = useId().replace(/:/g, "_");
   const pixelSize = typeof size === "number" ? size : SIZE_MAP[size].icon;
   const sizeClasses = typeof size === "number" ? { text: "text-xl", sub: "text-xs" } : SIZE_MAP[size];
 
   // Theme text styling
-  const titleColor =
-    theme === "white"
-      ? "text-white"
-      : theme === "light"
-      ? "text-[#141D3C]"
-      : "text-white";
+  const isDark = theme === "dark" || theme === "monochrome-dark";
+  const isWhite = theme === "white";
 
-  const subtitleColor =
-    theme === "white"
-      ? "text-slate-300"
-      : theme === "light"
-      ? "text-[#5E6D8A]"
-      : "text-[#A8B7DC]";
+  const homeColor = isWhite
+    ? "text-white"
+    : isDark
+    ? "text-[#7DD3FC]"
+    : theme === "monochrome"
+    ? "text-[#0066B3]"
+    : "text-[#0066B3]";
+
+  const pulseColor = isWhite
+    ? "text-white"
+    : isDark
+    ? "text-[#34D399]"
+    : theme === "monochrome"
+    ? "text-[#0066B3]"
+    : "text-[#00A887]";
+
+  const subtitleColor = isWhite
+    ? "text-slate-200"
+    : isDark
+    ? "text-[#94A3B8]"
+    : theme === "monochrome"
+    ? "text-[#0066B3]/80"
+    : "text-[#0D7A75]";
 
   const renderIconMark = () => {
-    if (concept === "h-monogram") {
-      // Concept 1: The Modern H-Monogram with ECG Pulse Waveform
+    const brandGradId = `hpBrand_${uniqueId}`;
+    const darkGradId = `hpDark_${uniqueId}`;
+    const squircleGradId = `hpSq_${uniqueId}`;
+
+    // Color definitions based on theme
+    const strokeGrad =
+      theme === "white"
+        ? "#FFFFFF"
+        : theme === "monochrome"
+        ? "#0066B3"
+        : theme === "monochrome-dark"
+        ? "#FFFFFF"
+        : isDark
+        ? `url(#${darkGradId})`
+        : `url(#${brandGradId})`;
+
+    const fillGrad = strokeGrad;
+
+    // 1. App Icon / Squircle variant (matches 16x16 - 128x128 brand tiles)
+    if (concept === "app-icon") {
       return (
         <svg
           width={pixelSize}
           height={pixelSize}
-          viewBox="0 0 100 100"
+          viewBox="0 0 1000 1000"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className={clsx("shrink-0 transition-transform duration-300", animated && "group-hover:scale-105")}
         >
           <defs>
-            <linearGradient id="hpGradH" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#6C88FF" />
-              <stop offset="100%" stopColor="#57EAB6" />
+            <linearGradient id={squircleGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#00A887" />
+              <stop offset="40%" stopColor="#008EA0" />
+              <stop offset="75%" stopColor="#0072B5" />
+              <stop offset="100%" stopColor="#005A9C" />
             </linearGradient>
-            <filter id="hpShadowH" x="-10%" y="-10%" width="120%" height="120%">
-              <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#000000" floodOpacity="0.25" />
-            </filter>
           </defs>
-          <rect width="100" height="100" rx="24" fill="#141D3C" />
-          <g filter="url(#hpShadowH)">
-            {/* Left Pillar */}
-            <rect x="22" y="22" width="13" height="56" rx="6.5" fill="#6C88FF" />
-            {/* Right Pillar */}
-            <rect x="65" y="22" width="13" height="56" rx="6.5" fill="#57EAB6" />
-            {/* Pulse Waveform Crossbar */}
+          <rect width="1000" height="1000" rx="220" fill={`url(#${squircleGradId})`} />
+          <g transform="translate(140, 140) scale(0.72)">
+            {/* Shield */}
             <path
-              d="M 30 50 L 39 50 L 43 42 L 49 64 L 54 36 L 59 52 L 67 50"
+              d="M 500 146 C 388 156 268 196 204 250 C 190 280 190 330 196 380 C 202 440 206 500 214 560 C 232 652 338 775 500 872 C 662 775 768 652 786 560 C 794 500 798 440 804 380 C 810 330 810 280 796 250 C 732 196 612 156 500 146 Z"
               fill="none"
-              stroke="url(#hpGradH)"
-              strokeWidth="7"
+              stroke="#FFFFFF"
+              strokeWidth="36"
+              strokeLinejoin="round"
               strokeLinecap="round"
+            />
+            {/* Chimney */}
+            <polygon points="316,285 379,285 379,350 316,396" fill="#FFFFFF" />
+            {/* Roof */}
+            <polyline
+              points="185,496 500,240 805,484"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="38"
+              strokeLinecap="round"
+              strokeLinejoin="miter"
+              strokeMiterlimit="4"
+            />
+            {/* Eaves & Walls */}
+            <line x1="167" y1="507" x2="318" y2="507" stroke="#FFFFFF" strokeWidth="36" strokeLinecap="round" />
+            <line x1="300" y1="507" x2="300" y2="624" stroke="#FFFFFF" strokeWidth="36" strokeLinecap="square" />
+            <line x1="823" y1="493" x2="688" y2="493" stroke="#FFFFFF" strokeWidth="36" strokeLinecap="round" />
+            <line x1="706" y1="493" x2="706" y2="540" stroke="#FFFFFF" strokeWidth="36" strokeLinecap="square" />
+            {/* Radar Signal Rings */}
+            <circle cx="646" cy="356" r="44" stroke="#FFFFFF" strokeWidth="10" strokeLinecap="round" fill="none" />
+            <circle cx="646" cy="356" r="70" stroke="#FFFFFF" strokeWidth="10" strokeLinecap="round" fill="none" />
+            <circle cx="646" cy="356" r="96" stroke="#FFFFFF" strokeWidth="10" strokeLinecap="round" fill="none" />
+            <circle cx="646" cy="356" r="22" fill="#FFFFFF" />
+            {/* Telemetry */}
+            <g stroke="#FFFFFF" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="424" y1="419" x2="484" y2="355" />
+              <line x1="484" y1="355" x2="574" y2="454" />
+              <line x1="574" y1="454" x2="614" y2="466" />
+              <line x1="574" y1="454" x2="646" y2="356" />
+              <line x1="646" y1="356" x2="718" y2="298" />
+            </g>
+            <circle cx="424" cy="419" r="16" fill="#FFFFFF" />
+            <circle cx="484" cy="355" r="18" fill="#FFFFFF" />
+            <circle cx="574" cy="454" r="18" fill="#FFFFFF" />
+            <circle cx="614" cy="466" r="11" fill="#FFFFFF" />
+            <circle cx="718" cy="298" r="15" fill="#FFFFFF" />
+            {/* Pulse */}
+            <path
+              d="M 156 655 L 338 655 C 355 655 368 668 376 680 L 406 542 L 440 690 L 480 405 L 540 742 L 576 570 C 582 568 588 568 596 568 L 740 568 C 748 568 756 564 762 558 L 865 480"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="36"
+              strokeLinecap="square"
               strokeLinejoin="round"
             />
+            {/* Arrowhead */}
+            <polygon points="936,432 864,432 876,480 919,520" fill="#FFFFFF" />
           </g>
         </svg>
       );
     }
 
-    if (concept === "heart-sanctuary") {
-      // Concept 2: Care Sanctuary (House outline sheltering a pulsing heart)
-      return (
-        <svg
-          width={pixelSize}
-          height={pixelSize}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className={clsx("shrink-0 transition-transform duration-300", animated && "group-hover:scale-105")}
-        >
-          <defs>
-            <linearGradient id="hpGradHeart" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#6C88FF" />
-              <stop offset="100%" stopColor="#57EAB6" />
-            </linearGradient>
-            <linearGradient id="hpHeartFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FF6584" />
-              <stop offset="100%" stopColor="#FFB199" />
-            </linearGradient>
-          </defs>
-          <rect width="100" height="100" rx="24" fill="#141D3C" />
-          {/* House Roofline */}
-          <path
-            d="M 22 42 L 50 20 L 78 42"
-            fill="none"
-            stroke="#6C88FF"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Chimney */}
-          <path d="M 68 25 V 34" stroke="#6C88FF" strokeWidth="4.5" strokeLinecap="round" />
-          {/* Stylized Heart with Pulse */}
-          <path
-            d="M 50 78 C 30 65 24 50 32 38 C 39 28 50 36 50 42 C 50 36 61 28 68 38 C 76 50 70 65 50 78 Z"
-            fill="url(#hpHeartFill)"
-            opacity="0.9"
-          />
-          {/* Pulse Line across Heart */}
-          <path
-            d="M 33 52 L 42 52 L 46 44 L 51 60 L 56 38 L 60 52 L 67 52"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
-    }
-
-    // Default / Concept 1: The Integrated Home & Pulse Line (Primary Signature Mark)
+    // 2. Primary HD Vector Shield & Pulse Emblem
     return (
       <svg
         width={pixelSize}
         height={pixelSize}
-        viewBox="0 0 100 100"
+        viewBox="0 0 1000 1000"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={clsx("shrink-0 transition-transform duration-300", animated && "group-hover:scale-105")}
       >
         <defs>
-          <linearGradient id="hpBadgeBg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#141D3C" />
-            <stop offset="100%" stopColor="#0E152E" />
+          <linearGradient id={brandGradId} x1="0%" y1="30%" x2="100%" y2="70%">
+            <stop offset="0%" stopColor="#0066B3" />
+            <stop offset="25%" stopColor="#007BC7" />
+            <stop offset="50%" stopColor="#0096AD" />
+            <stop offset="75%" stopColor="#00A78E" />
+            <stop offset="100%" stopColor="#00B388" />
           </linearGradient>
-          <linearGradient id="hpStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6C88FF" />
-            <stop offset="50%" stopColor="#818CF8" />
-            <stop offset="100%" stopColor="#57EAB6" />
+
+          <linearGradient id={darkGradId} x1="0%" y1="30%" x2="100%" y2="70%">
+            <stop offset="0%" stopColor="#38BDF8" />
+            <stop offset="35%" stopColor="#22D3EE" />
+            <stop offset="70%" stopColor="#2DD4BF" />
+            <stop offset="100%" stopColor="#34D399" />
           </linearGradient>
-          <linearGradient id="hpPulseGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6C88FF" />
-            <stop offset="100%" stopColor="#57EAB6" />
-          </linearGradient>
-          <filter id="hpSoftGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
         </defs>
 
-        {/* Badge Background */}
-        <rect width="100" height="100" rx="24" fill="url(#hpBadgeBg)" stroke="#2A3B75" strokeWidth="1.5" />
-
-        {/* Roof Structure */}
+        {/* 1. Shield Frame */}
         <path
-          d="M 22 45 L 50 22 L 78 45"
+          d="M 500 146 C 388 156 268 196 204 250 C 190 280 190 330 196 380 C 202 440 206 500 214 560 C 232 652 338 775 500 872 C 662 775 768 652 786 560 C 794 500 798 440 804 380 C 810 330 810 280 796 250 C 732 196 612 156 500 146 Z"
           fill="none"
-          stroke="#6C88FF"
-          strokeWidth="6"
+          stroke={strokeGrad}
+          strokeWidth="36"
+          strokeLinejoin="round"
           strokeLinecap="round"
+        />
+
+        {/* 2. House Chimney */}
+        <polygon points="316,285 379,285 379,350 316,396" fill={fillGrad} />
+
+        {/* 3. House Roof */}
+        <polyline
+          points="185,496 500,240 805,484"
+          fill="none"
+          stroke={strokeGrad}
+          strokeWidth="38"
+          strokeLinecap="round"
+          strokeLinejoin="miter"
+          strokeMiterlimit="4"
+        />
+
+        {/* House Eaves & Walls */}
+        <line x1="167" y1="507" x2="318" y2="507" stroke={strokeGrad} strokeWidth="36" strokeLinecap="round" />
+        <line x1="300" y1="507" x2="300" y2="624" stroke={strokeGrad} strokeWidth="36" strokeLinecap="square" />
+
+        <line x1="823" y1="493" x2="688" y2="493" stroke={strokeGrad} strokeWidth="36" strokeLinecap="round" />
+        <line x1="706" y1="493" x2="706" y2="540" stroke={strokeGrad} strokeWidth="36" strokeLinecap="square" />
+
+        {/* 4. Radar Concentric Signal Rings */}
+        <g fill="none" stroke={strokeGrad} strokeWidth="10" strokeLinecap="round">
+          <circle cx="646" cy="356" r="44" />
+          <circle cx="646" cy="356" r="70" />
+          <circle cx="646" cy="356" r="96" />
+        </g>
+        <circle cx="646" cy="356" r="22" fill={fillGrad} />
+
+        {/* 5. Telemetry Graph */}
+        <g stroke={strokeGrad} strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="424" y1="419" x2="484" y2="355" />
+          <line x1="484" y1="355" x2="574" y2="454" />
+          <line x1="574" y1="454" x2="614" y2="466" />
+          <line x1="574" y1="454" x2="646" y2="356" />
+          <line x1="646" y1="356" x2="718" y2="298" />
+        </g>
+        <g fill={fillGrad}>
+          <circle cx="424" cy="419" r="16" />
+          <circle cx="484" cy="355" r="18" />
+          <circle cx="574" cy="454" r="18" />
+          <circle cx="614" cy="466" r="11" />
+          <circle cx="718" cy="298" r="15" />
+        </g>
+
+        {/* 6. ECG Vital Pulse Waveform */}
+        <path
+          d="M 156 655 L 338 655 C 355 655 368 668 376 680 L 406 542 L 440 690 L 480 405 L 540 742 L 576 570 C 582 568 588 568 596 568 L 740 568 C 748 568 756 564 762 558 L 865 480"
+          fill="none"
+          stroke={strokeGrad}
+          strokeWidth="36"
+          strokeLinecap="square"
           strokeLinejoin="round"
         />
 
-        {/* Roof Chimney Detail */}
-        <path d="M 68 28 V 37" stroke="#6C88FF" strokeWidth="4.5" strokeLinecap="round" />
-
-        {/* Home Base Left Pillar */}
-        <path d="M 27 45 V 72" stroke="#6C88FF" strokeWidth="6" strokeLinecap="round" />
-
-        {/* Home Base Right Pillar */}
-        <path d="M 73 45 V 72" stroke="#57EAB6" strokeWidth="6" strokeLinecap="round" />
-
-        {/* Dynamic Heartbeat / Pulse Waveform bridging the home foundation */}
-        <path
-          d="M 18 64 L 32 64 L 38 52 L 46 76 L 55 38 L 63 68 L 68 64 L 82 64"
-          fill="none"
-          stroke="url(#hpPulseGlow)"
-          strokeWidth="5.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* Pulse Heartbeat Node / Glow dot at peak */}
-        <circle cx="55" cy="38" r="3.5" fill="#57EAB6" />
+        {/* 7. Growth Telemetry Arrowhead */}
+        <polygon points="936,432 864,432 876,480 919,520" fill={fillGrad} />
       </svg>
     );
   };
@@ -232,21 +287,22 @@ export function HomePulseLogo({
 
       <div className={clsx("flex flex-col", variant === "stacked" && "items-center")}>
         <div className="flex items-center tracking-tight leading-none">
-          <span className={clsx("font-extrabold tracking-tight", sizeClasses.text, titleColor)}>
+          <span className={clsx("font-extrabold tracking-tight", sizeClasses.text, homeColor)}>
             Home
           </span>
-          <span
-            className={clsx(
-              "font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]",
-              sizeClasses.text
-            )}
-          >
+          <span className={clsx("font-extrabold tracking-tight", sizeClasses.text, pulseColor)}>
             Pulse
           </span>
         </div>
 
         {showSubtitle && (
-          <span className={clsx("font-medium tracking-wide mt-1 block uppercase", sizeClasses.sub, subtitleColor)}>
+          <span
+            className={clsx(
+              "font-semibold tracking-normal mt-1 block",
+              sizeClasses.sub,
+              subtitleColor
+            )}
+          >
             {subtitleText}
           </span>
         )}
