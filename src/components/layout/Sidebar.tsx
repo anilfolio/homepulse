@@ -301,6 +301,28 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     setMounted(true);
   }, []);
 
+  // Close sidebar on Escape key
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
+  // Lock body scroll on mobile drawer open
+  React.useEffect(() => {
+    if (isOpen && typeof window !== "undefined") {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   const safeUser = mounted ? currentUser : null;
 
   const handleLogout = () => {
@@ -413,69 +435,79 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       <aside
         className={clsx(
-          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 transition-all duration-300 ease-in-out min-[1120px]:translate-x-0 min-[1120px]:sticky min-[1120px]:top-0 shadow-[4px_0_24px_rgba(0,0,0,0.15)] min-[1120px]:shadow-none select-none",
+          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 transition-all duration-300 ease-in-out select-none",
+          "min-[1120px]:translate-x-0 min-[1120px]:sticky min-[1120px]:top-0 shadow-[4px_0_24px_rgba(0,0,0,0.25)] min-[1120px]:shadow-none",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "min-[1120px]:w-[76px] w-[240px]" : "w-[240px]"
+          isCollapsed ? "min-[1120px]:w-[76px] w-[280px] sm:w-[300px] max-w-[85vw]" : "min-[1120px]:w-[260px] w-[280px] sm:w-[300px] max-w-[85vw]"
         )}
       >
-        {/* Floating Edge Toggle Button matching requested screenshot */}
+        {/* Floating Edge Toggle Button for Desktop */}
         <button
           onClick={toggleCollapse}
           title={isCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
-          className="hidden min-[1120px]:flex absolute -right-4 top-4 z-50 w-7 h-7 rounded-full bg-brand-teal text-white items-center justify-center shadow-lg border-1 border-white ring-1.5 ring-slate-900/80 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+          className="hidden min-[1120px]:flex absolute -right-3.5 top-5 z-50 w-7 h-7 rounded-full bg-brand-teal text-white items-center justify-center shadow-lg border border-white/20 ring-2 ring-slate-900/60 hover:scale-110 active:scale-95 transition-all cursor-pointer"
           aria-label="Toggle Sidebar"
         >
           {isCollapsed ? (
-            <PanelLeftOpen className="w-4.5 h-4.5" />
+            <PanelLeftOpen className="w-4 h-4" />
           ) : (
-            <PanelLeftClose className="w-4.5 h-4.5" />
+            <PanelLeftClose className="w-4 h-4" />
           )}
         </button>
 
         {/* Header / Logo Area */}
         <div
           className={clsx(
-            "flex items-center h-20 border-b border-sidebar-active/40 transition-all duration-300 relative",
-            isCollapsed ? "px-3 justify-center" : "px-5 justify-start"
+            "flex items-center h-16 sm:h-20 border-b border-sidebar-active/40 transition-all duration-300 relative px-4 min-[1120px]:px-5",
+            isCollapsed && "min-[1120px]:px-3 min-[1120px]:justify-center"
           )}
         >
-          <Link href={safeUser?.role === "CLIENT" || safeUser?.role === "FAMILY" ? "/portal" : safeUser?.role === "CAREGIVER" ? "/caregiver" : safeUser?.role === "HR" ? "/hr/dashboard" : safeUser?.role === "SCHEDULER" ? "/scheduler" : safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/dashboard" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor" : safeUser?.role === "TRAINER" ? "/training-admin" : "/dashboard"} className="flex items-center gap-3 overflow-hidden group">
+          <Link
+            href={safeUser?.role === "CLIENT" || safeUser?.role === "FAMILY" ? "/portal" : safeUser?.role === "CAREGIVER" ? "/caregiver" : safeUser?.role === "HR" ? "/hr/dashboard" : safeUser?.role === "SCHEDULER" ? "/scheduler" : safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/dashboard" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor" : safeUser?.role === "TRAINER" ? "/training-admin" : "/dashboard"}
+            className="flex items-center gap-3 overflow-hidden group min-w-0"
+          >
             <HomePulseLogo variant="icon-only" size={36} animated />
-            {!isCollapsed && (
-              <div className="flex flex-col truncate pr-4">
-                <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
-                  <span>Home</span>
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
-                </div>
-                {safeUser?.role === "CAREGIVER" && (
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-brand-teal flex items-center gap-1 mt-0.5">
-                    <HeartHandshake className="w-3 h-3 inline" /> Caregiver Portal
-                  </span>
-                )}
-                {safeUser?.role === "HR" && (
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
-                    HR Portal
-                  </span>
-                )}
-                {safeUser?.role === "SCHEDULER" && (
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
-                    Dispatch Portal
-                  </span>
-                )}
+            <div className={clsx("flex flex-col truncate pr-2", isCollapsed && "min-[1120px]:hidden")}>
+              <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
+                <span>Home</span>
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
               </div>
-            )}
+              {safeUser?.role === "CAREGIVER" && (
+                <span className="text-[10px] font-medium uppercase tracking-wider text-brand-teal flex items-center gap-1 mt-0.5">
+                  <HeartHandshake className="w-3 h-3 inline" /> Caregiver Portal
+                </span>
+              )}
+              {safeUser?.role === "HR" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
+                  HR Portal
+                </span>
+              )}
+              {safeUser?.role === "SCHEDULER" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
+                  Dispatch Portal
+                </span>
+              )}
+              {safeUser?.role === "ADMIN" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
+                  Agency Admin
+                </span>
+              )}
+              {!safeUser?.role && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
+                  Enterprise Platform
+                </span>
+              )}
+            </div>
           </Link>
 
-          {/* Mobile Close Button */}
-          {!isCollapsed && (
-            <button
-              onClick={onClose}
-              className="absolute right-4 min-[1120px]:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              aria-label="Close sidebar"
-            >
-              <PanelLeftClose className="w-5 h-5" />
-            </button>
-          )}
+          {/* Mobile Close Button - ALWAYS visible on mobile & tablet drawer */}
+          <button
+            onClick={onClose}
+            className="min-[1120px]:hidden ml-auto p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+            aria-label="Close navigation"
+          >
+            <PanelLeftClose className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -483,14 +515,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           {getNavGroups(safeUser?.role).map((group, index) => (
             <div key={index}>
               {group.label ? (
-                !isCollapsed ? (
-                  <div className="px-3 text-[11px] font-semibold text-text-secondary tracking-wider uppercase mb-2 truncate">
-                    {group.label}
-                  </div>
-                ) : (
-                  <div className="h-px bg-slate-800 my-2 mx-2" />
-                )
+                <div className={clsx("px-3 text-[11px] font-semibold text-text-secondary tracking-wider uppercase mb-2 truncate", isCollapsed && "min-[1120px]:hidden")}>
+                  {group.label}
+                </div>
               ) : null}
+              {group.label && isCollapsed && (
+                <div className="hidden min-[1120px]:block h-px bg-slate-800 my-2 mx-2" />
+              )}
 
               <ul className="space-y-1">
                 {group.items.map((item) => {
@@ -556,13 +587,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                         }}
                         className={clsx(
                           "relative flex items-center justify-between rounded-xl text-sm font-medium transition-colors z-10",
-                          isCollapsed ? "p-3" : "px-3.5 py-2.5",
+                          isCollapsed ? "min-[1120px]:p-3 p-3.5" : "px-3.5 py-2.5",
                           isActive ? "text-white font-semibold" : "text-slate-300 hover:text-white hover:bg-sidebar-active/60"
                         )}
                       >
-                        <div className={clsx("flex items-center gap-2", isCollapsed && "justify-center w-full")}>
-                          <Icon className="w-4 h-4 shrink-0" />
-                          {!isCollapsed && <span className="truncate">{item.name}</span>}
+                        <div className={clsx("flex items-center gap-2.5", isCollapsed ? "min-[1120px]:justify-center min-[1120px]:w-full" : "")}>
+                          <Icon className="w-4.5 h-4.5 shrink-0" />
+                          <span className={clsx("truncate", isCollapsed && "min-[1120px]:hidden")}>{item.name}</span>
                         </div>
                         {/* Badge */}
                         {(item as any).badge && (item as any).badge > 0 && (
@@ -570,7 +601,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                             className={clsx(
                               "flex items-center justify-center font-bold rounded-full transition-colors",
                               isCollapsed
-                                ? "absolute -top-1 -right-1 w-5 h-5 text-[10px] bg-brand-teal text-white ring-2 ring-sidebar-bg"
+                                ? "min-[1120px]:absolute min-[1120px]:-top-1 min-[1120px]:-right-1 min-[1120px]:w-5 min-[1120px]:h-5 min-[1120px]:text-[10px] min-[1120px]:bg-brand-teal min-[1120px]:text-white min-[1120px]:ring-2 min-[1120px]:ring-sidebar-bg px-2 py-0.5 text-xs bg-brand-teal/20 text-brand-teal border border-brand-teal/30"
                                 : "px-2 py-0.5 text-xs",
                               !isCollapsed && (isActive
                                 ? "bg-white text-brand-teal"
@@ -582,9 +613,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                         )}
                       </Link>
 
-                      {/* Tooltip for Mini View */}
+                      {/* Tooltip for Mini View (Only on desktop >= 1120px when collapsed) */}
                       {isCollapsed && (
-                        <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-2xl border border-slate-700/80 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 flex items-center gap-2 translate-x-1 group-hover:translate-x-0">
+                        <div className="hidden min-[1120px]:flex absolute left-full ml-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-2xl border border-slate-700/80 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 items-center gap-2 translate-x-1 group-hover:translate-x-0">
                           <span>{item.name}</span>
                           {(item as any).badge && (item as any).badge > 0 && (
                             <span className="bg-brand-teal text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
@@ -603,12 +634,26 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         {/* HIPAA Card */}
         {safeUser?.role !== "CLIENT" && safeUser?.role !== "FAMILY" && (
-          <div className="px-3 mb-3 relative group">
-            {isCollapsed ? (
+          <div className="px-3 mb-2.5 relative group">
+            {/* Expanded & Mobile view */}
+            <div className={clsx("bg-[#0e354a] rounded-xl p-3.5 flex items-start gap-3 border border-sidebar-active/70", isCollapsed && "min-[1120px]:hidden")}>
+              <ShieldCheck className="w-5 h-5 text-brand-teal shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white truncate">
+                  {safeUser?.role === "CAREGIVER" ? "EVV & HIPAA Compliant" : safeUser?.role === "SCHEDULER" ? "HIPAA Protected" : "HIPAA Compliant"}
+                </div>
+                <div className="text-[11px] text-slate-300/80 mt-0.5 leading-snug">
+                  {safeUser?.role === "SCHEDULER" ? "Role-scoped scheduler view." : "256-bit AES encryption & audit trail."}
+                </div>
+              </div>
+            </div>
+
+            {/* Collapsed desktop mini icon */}
+            {isCollapsed && (
               <div
                 onMouseEnter={() => setShowHipaaTooltip(true)}
                 onMouseLeave={() => setShowHipaaTooltip(false)}
-                className="bg-[#0e354a] rounded-xl p-3 flex items-center justify-center border border-sidebar-active/60 cursor-pointer hover:bg-sidebar-active/50 transition-colors relative"
+                className="hidden min-[1120px]:flex bg-[#0e354a] rounded-xl p-3 items-center justify-center border border-sidebar-active/60 cursor-pointer hover:bg-sidebar-active/50 transition-colors relative"
               >
                 <div className="relative">
                   <ShieldCheck className="w-5 h-5 text-brand-teal" />
@@ -635,50 +680,38 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   )}
                 </AnimatePresence>
               </div>
-            ) : (
-              <div className="bg-[#0e354a] rounded-xl p-4 flex items-start gap-3 border border-sidebar-active">
-                <ShieldCheck className="w-5 h-5 text-brand-teal shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-white">
-                    {safeUser?.role === "CAREGIVER" ? "EVV & HIPAA Compliant" : safeUser?.role === "SCHEDULER" ? "HIPAA Protected" : "HIPAA Compliant"}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">
-                    {safeUser?.role === "SCHEDULER" ? "Role-scoped scheduler view." : "Data encrypted in transit and at rest."}
-                  </div>
-                </div>
-              </div>
             )}
           </div>
         )}
 
         {/* User Profile */}
-        <div className="p-3 border-t border-sidebar-active/60 relative">
+        <div className="p-3 border-t border-sidebar-active/60 relative pb-[max(12px,env(safe-area-inset-bottom))]">
           <button
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className={clsx(
               "flex items-center gap-3 w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer",
-              isCollapsed && "justify-center"
+              isCollapsed ? "min-[1120px]:justify-center" : ""
             )}
             title={isCollapsed ? `${safeUser?.name || "Agency Admin"}` : undefined}
           >
             <div className="w-9 h-9 rounded-full bg-slate-600 shrink-0 overflow-hidden flex items-center justify-center ring-2 ring-brand-teal/40">
               <User className="w-4.5 h-4.5 text-slate-300" />
             </div>
-            {!isCollapsed && (
-              <>
-                <div className="flex-1 overflow-hidden">
-                  <div className="text-sm font-medium text-white truncate">
-                    {safeUser?.name || "Agency Executive"}
-                  </div>
-                  <div className="text-xs text-slate-400 truncate">
-                    {safeUser?.role === "CLIENT" ? "Patient" : safeUser?.role === "FAMILY" ? "Family Member" : safeUser?.role === "CAREGIVER" ? "Caregiver (Field Staff)" : safeUser?.role === "SCHEDULER" ? "Scheduler / Dispatcher" : safeUser?.role === "HR" ? "HR Recruiter" : safeUser?.role === "TRAINER" ? "Trainer / LMS Admin" : safeUser?.role || "ADMIN"}
-                  </div>
-                </div>
-                <ChevronDown
-                  className={clsx("w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200", isProfileOpen && "rotate-180")}
-                />
-              </>
-            )}
+            <div className={clsx("flex-1 overflow-hidden min-w-0", isCollapsed && "min-[1120px]:hidden")}>
+              <div className="text-sm font-medium text-white truncate">
+                {safeUser?.name || "Agency Executive"}
+              </div>
+              <div className="text-xs text-slate-400 truncate">
+                {safeUser?.role === "CLIENT" ? "Patient" : safeUser?.role === "FAMILY" ? "Family Member" : safeUser?.role === "CAREGIVER" ? "Caregiver (Field Staff)" : safeUser?.role === "SCHEDULER" ? "Scheduler / Dispatcher" : safeUser?.role === "HR" ? "HR Recruiter" : safeUser?.role === "TRAINER" ? "Trainer / LMS Admin" : safeUser?.role || "ADMIN"}
+              </div>
+            </div>
+            <ChevronDown
+              className={clsx(
+                "w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200",
+                isProfileOpen && "rotate-180",
+                isCollapsed && "min-[1120px]:hidden"
+              )}
+            />
           </button>
 
           <AnimatePresence>
@@ -691,8 +724,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 className={clsx(
                   "absolute bg-slate-800 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden z-50 p-1.5",
                   isCollapsed
-                    ? "left-full ml-4 bottom-3 w-48"
-                    : "bottom-[calc(100%-10px)] left-3 right-3 mb-2"
+                    ? "min-[1120px]:left-full min-[1120px]:ml-4 min-[1120px]:bottom-3 min-[1120px]:w-52 bottom-[calc(100%-6px)] left-3 right-3 mb-2"
+                    : "bottom-[calc(100%-6px)] left-3 right-3 mb-2"
                 )}
               >
                 <div className="flex flex-col gap-1">

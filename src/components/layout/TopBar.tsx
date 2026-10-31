@@ -10,6 +10,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
 
   const getPageTitle = () => {
+    if (pathname.startsWith("/admin/command-center")) return "Agency Command Center";
+    if (pathname.startsWith("/admin")) return "Administrative Governance";
     if (pathname.startsWith("/hr/recruiting")) return "HR Recruiting & Onboarding";
     if (pathname.startsWith("/hr/caregivers")) return "HR Caregiver Roster";
     if (pathname.startsWith("/hr/training")) return "HR Training & LMS";
@@ -54,14 +56,22 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <button
           onClick={onMenuClick}
-          className="p-2 -ml-1 rounded-xl text-slate-600 hover:bg-slate-200/70 min-[1120px]:hidden transition-colors active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 -ml-1 rounded-xl text-slate-600 hover:bg-slate-200/70 min-[1120px]:hidden transition-colors active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           aria-label="Open Navigation Menu"
         >
           <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
-        <h1 suppressHydrationWarning className="text-base sm:text-xl font-bold text-text-primary truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">
-          {getPageTitle()}
-        </h1>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h1 suppressHydrationWarning className="text-sm xs:text-base sm:text-xl font-bold text-text-primary truncate max-w-[170px] xs:max-w-[240px] sm:max-w-none">
+            {getPageTitle()}
+          </h1>
+          {pathname.startsWith("/admin") && (
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#141D3C] text-[#57EAB6] border border-[#2A3B75]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#57EAB6] animate-pulse" />
+              Executive Ops
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
