@@ -2,20 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Menu,
   Bell,
   Wifi,
   WifiOff,
   Clock,
-  MapPin,
   CheckCircle2,
   AlertTriangle,
-  ChevronDown,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Avatar } from "@/components/ui/Avatar";
+import { SidebarToggleButton } from "@/components/layout/SidebarToggleButton";
 
 interface CaregiverTopBarProps {
   onMenuClick: () => void;
@@ -34,7 +30,6 @@ export function CaregiverTopBar({
   onToggleOffline,
   pendingSyncCount = 0,
 }: CaregiverTopBarProps) {
-  const { currentUser } = useAuth();
   const [timerSeconds, setTimerSeconds] = useState(2535); // ~42 mins
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -57,14 +52,8 @@ export function CaregiverTopBar({
 
   return (
     <header className="h-16 bg-white border-b border-gray-200/80 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 min-[1120px]:hidden transition-colors"
-          aria-label="Toggle Menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <SidebarToggleButton onMobileMenuClick={onMenuClick} />
 
         {/* Active Clock-in Status Pill */}
         {isClockedIn ? (

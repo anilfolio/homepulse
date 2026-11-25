@@ -148,36 +148,36 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* TRIGGER (Desktop: Fake Input, Mobile: Icon Button) */}
+      {/* TRIGGER (Fluid Search Pill across Mobile, Tablet, Laptop & Desktop) */}
       <div
-        className="relative flex items-center bg-white border border-border-subtle rounded-full transition-all duration-300 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] cursor-text w-10 h-10 min-[1120px]:w-[480px] min-[1120px]:h-10 group"
+        className="relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 bg-white border border-border-subtle rounded-full transition-all duration-300 shadow-[0_4px_20px_rgba(20,29,60,0.05)] hover:shadow-[0_6px_24px_rgba(108,136,255,0.12)] hover:border-brand-primary/40 cursor-text w-full h-10 group"
         onClick={() => setIsOpen(true)}
       >
-        <Search className="w-5 h-5 absolute left-2.5 min-[1120px]:left-3 text-slate-400 group-hover:text-brand-teal transition-colors" />
+        <Search className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0 text-slate-400 group-hover:text-brand-teal transition-colors" />
 
-        {/* Ghost Placeholder & Initial Animation (Desktop Only) */}
-        <div className="hidden min-[1120px]:flex absolute left-10 pointer-events-none items-center h-full text-sm text-slate-400 overflow-hidden pr-[120px] whitespace-nowrap">
+        {/* Ghost Placeholder & Initial Animation */}
+        <div className="flex-1 min-w-0 flex items-center h-full text-xs sm:text-sm text-slate-400 overflow-hidden whitespace-nowrap pointer-events-none">
           {showInitialAnimation ? (
             <div className="flex items-center gap-2 animate-[slideRight_1.5s_ease-out_forwards]">
-              <Users className="w-4 h-4 text-accent-blue opacity-50" />
-              <Pill className="w-4 h-4 text-accent-purple opacity-50" />
-              <FileText className="w-4 h-4 text-accent-green opacity-50" />
-              <span className="opacity-0 animate-[fadeIn_0.5s_ease-in_1.5s_forwards]">Initializing search...</span>
+              <Users className="w-4 h-4 text-accent-blue opacity-50 shrink-0" />
+              <Pill className="w-4 h-4 text-accent-purple opacity-50 shrink-0" />
+              <FileText className="w-4 h-4 text-accent-green opacity-50 shrink-0" />
+              <span className="opacity-0 animate-[fadeIn_0.5s_ease-in_1.5s_forwards] truncate">Initializing search...</span>
             </div>
           ) : (
-            <span className={`transition-opacity duration-300 ${fadePlaceholder ? 'opacity-100' : 'opacity-0'}`}>
+            <span className={`truncate transition-opacity duration-300 ${fadePlaceholder ? 'opacity-100' : 'opacity-0'}`}>
               {placeholders[placeholderIndex]}
             </span>
           )}
         </div>
 
         {/* Search Everything Micro-badge & Shortcut */}
-        <div className="hidden min-[1120px]:flex absolute right-2 items-center pointer-events-none gap-2">
-          <div className="flex items-center gap-1 bg-brand-teal/10 text-brand-teal text-[10px] font-semibold px-2 py-1 rounded-full uppercase tracking-wider">
+        <div className="hidden sm:flex items-center pointer-events-none gap-1.5 shrink-0">
+          <div className="hidden md:flex items-center gap-1 bg-brand-teal/10 text-brand-teal text-[10px] font-semibold px-2 py-1 rounded-full uppercase tracking-wider">
             <Sparkles className="w-3 h-3" />
             <span>Global</span>
           </div>
-          <div className="flex items-center gap-0.5 text-sm text-slate-400 font-medium px-1.5 py-0.5 bg-slate-100 rounded-full border border-slate-200">
+          <div className="flex items-center gap-0.5 text-xs text-slate-400 font-medium px-1.5 py-0.5 bg-slate-100 rounded-full border border-slate-200">
             <span>⌘</span>
             <span>K</span>
           </div>

@@ -60,7 +60,7 @@ export function MobileBottomNav() {
   const currentNavItems = getNavItems();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 min-[1120px]:hidden bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] text-white shadow-2xl">
+    <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] text-white shadow-2xl">
       <div className="flex items-center justify-around max-w-lg mx-auto">
         {currentNavItems.map((item) => {
           const active = isItemActive(item.pattern);

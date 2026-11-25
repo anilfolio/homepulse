@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -22,7 +23,6 @@ import {
   LogOut,
   User,
   PanelLeftClose,
-  PanelLeftOpen,
   FileText,
   UserPlus,
   MapPin,
@@ -30,7 +30,6 @@ import {
   Repeat,
   List,
   Clock,
-  UserCheck,
   Sparkles,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,8 +38,21 @@ import clsx from "clsx";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useAuth } from "@/hooks/useAuth";
 import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
+import { SidebarTooltip, type SidebarTooltipData } from "@/components/layout/SidebarTooltip";
 
-const getNavGroups = (role?: string) => {
+interface NavItem {
+  name: string;
+  icon: LucideIcon;
+  id: string;
+  badge?: number;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const getNavGroups = (role?: string): NavGroup[] => {
   if (role === "CLIENT") {
     return [
       {
@@ -292,29 +304,70 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, logout } = useAuth();
-  const { isCollapsed, toggleCollapse } = useSidebarCollapse();
+  const { isCollapsed, hasMounted } = useSidebarCollapse();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [showHipaaTooltip, setShowHipaaTooltip] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [tooltip, setTooltip] = useState<SidebarTooltipData | null>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    setMounted(true);
+  const showMiniTooltip = useCallback(
+    (el: HTMLElement, label: string, options?: { badge?: number; description?: string }) => {
+      if (hasMounted && !isCollapsed) return;
+      if (typeof window !== "undefined" && window.innerWidth < 768) return;
+      const rect = el.getBoundingClientRect();
+      setTooltip({
+        label,
+        badge: options?.badge,
+        description: options?.description,
+        top: rect.top + rect.height / 2,
+        left: rect.right + 12,
+      });
+    },
+    [hasMounted, isCollapsed]
+  );
+
+  const hideMiniTooltip = useCallback(() => {
+    setTooltip(null);
   }, []);
 
-  // Close sidebar on Escape key
-  React.useEffect(() => {
+  // Close drawer / profile popover on Escape key
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && onClose) {
-        onClose();
+      if (e.key === "Escape") {
+        if (isProfileOpen) setIsProfileOpen(false);
+        if (isOpen && onClose) onClose();
       }
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isProfileOpen, onClose]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    if (!isProfileOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isProfileOpen]);
+
+  // Close mobile drawer when crossing into md+ docked sidebar mode
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [isOpen, onClose]);
 
-  // Lock body scroll on mobile drawer open
-  React.useEffect(() => {
-    if (isOpen && typeof window !== "undefined") {
+  // Lock body scroll only on mobile drawer open
+  useEffect(() => {
+    if (isOpen && typeof window !== "undefined" && window.innerWidth < 768) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => {
@@ -323,7 +376,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     }
   }, [isOpen]);
 
-  const safeUser = mounted ? currentUser : null;
+  const safeUser = hasMounted ? currentUser : null;
 
   const handleLogout = () => {
     setIsProfileOpen(false);
@@ -417,6 +470,42 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return "dashboard";
   }, [pathname, safeUser?.role]);
 
+  const collapsedWordmarkClass = !hasMounted
+    ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none min-[1400px]:opacity-100 min-[1400px]:max-w-[180px] min-[1400px]:ml-3 min-[1400px]:pointer-events-auto"
+    : isCollapsed
+      ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none"
+      : "md:opacity-100 md:max-w-[180px] md:ml-3";
+
+  const collapsedNavTextClass = !hasMounted
+    ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none min-[1400px]:opacity-100 min-[1400px]:max-w-[175px] min-[1400px]:ml-2.5 min-[1400px]:pointer-events-auto"
+    : isCollapsed
+      ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none"
+      : "md:opacity-100 md:max-w-[175px] md:ml-2.5";
+
+  const collapsedGroupLabelClass = !hasMounted
+    ? "md:opacity-0 md:max-h-0 md:mb-0 min-[1400px]:opacity-100 min-[1400px]:max-h-6 min-[1400px]:mb-2"
+    : isCollapsed
+      ? "md:opacity-0 md:max-h-0 md:mb-0"
+      : "md:opacity-100 md:max-h-6 md:mb-2";
+
+  const collapsedDividerClass = !hasMounted
+    ? "hidden md:block min-[1400px]:hidden h-px bg-slate-800/90 my-2 mx-2"
+    : isCollapsed
+      ? "hidden md:block h-px bg-slate-800/90 my-2 mx-2"
+      : "hidden";
+
+  const isDesktopMini = hasMounted && isCollapsed;
+  const hipaaTitle =
+    safeUser?.role === "CAREGIVER"
+      ? "EVV & HIPAA Compliant"
+      : safeUser?.role === "SCHEDULER"
+        ? "HIPAA Protected"
+        : "HIPAA Compliant";
+  const hipaaDescription =
+    safeUser?.role === "SCHEDULER"
+      ? "Role-scoped scheduler view."
+      : "256-bit AES encryption & audit trail.";
+
   return (
     <>
       {/* Mobile overlay */}
@@ -426,8 +515,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="fixed inset-0 bg-slate-900/60 z-40 min-[1120px]:hidden backdrop-blur-sm"
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm"
             onClick={onClose}
           />
         )}
@@ -435,46 +524,43 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       <aside
         className={clsx(
-          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 transition-all duration-300 ease-in-out select-none",
-          "min-[1120px]:translate-x-0 min-[1120px]:sticky min-[1120px]:top-0 shadow-[4px_0_24px_rgba(0,0,0,0.25)] min-[1120px]:shadow-none",
+          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 select-none will-change-[width,transform]",
+          "transition-[width,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "md:translate-x-0 md:sticky md:top-0 shadow-[4px_0_28px_rgba(0,0,0,0.28)] md:shadow-[2px_0_16px_rgba(20,29,60,0.08)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "min-[1120px]:w-[76px] w-[280px] sm:w-[300px] max-w-[85vw]" : "min-[1120px]:w-[260px] w-[280px] sm:w-[300px] max-w-[85vw]"
+          "w-[260px] max-w-[min(260px,85vw)] md:max-w-[260px]",
+          !hasMounted
+            ? "md:w-[76px] min-[1400px]:w-[260px]"
+            : isCollapsed
+              ? "md:w-[76px]"
+              : "md:w-[260px]"
         )}
       >
-        {/* Floating Edge Toggle Button for Desktop */}
-        <button
-          onClick={toggleCollapse}
-          title={isCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
-          className="hidden min-[1120px]:flex absolute -right-3.5 top-5 z-50 w-7 h-7 rounded-full bg-brand-teal text-white items-center justify-center shadow-lg border border-white/20 ring-2 ring-slate-900/60 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-          aria-label="Toggle Sidebar"
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
-
         {/* Header / Logo Area */}
-        <div
-          className={clsx(
-            "flex items-center h-16 sm:h-20 border-b border-sidebar-active/40 transition-all duration-300 relative px-4 min-[1120px]:px-5",
-            isCollapsed && "min-[1120px]:px-3 min-[1120px]:justify-center"
-          )}
-        >
+        <div className="flex items-center h-16 sm:h-20 border-b border-sidebar-active/40 relative px-5 shrink-0">
           <Link
             href={safeUser?.role === "CLIENT" || safeUser?.role === "FAMILY" ? "/portal" : safeUser?.role === "CAREGIVER" ? "/caregiver" : safeUser?.role === "HR" ? "/hr/dashboard" : safeUser?.role === "SCHEDULER" ? "/scheduler" : safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/dashboard" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor" : safeUser?.role === "TRAINER" ? "/training-admin" : "/dashboard"}
-            className="flex items-center gap-3 overflow-hidden group min-w-0"
+            onClick={() => {
+              if (onClose) onClose();
+            }}
+            className="flex items-center overflow-hidden group min-w-0"
           >
-            <HomePulseLogo variant="icon-only" size={36} animated />
-            <div className={clsx("flex flex-col truncate pr-2", isCollapsed && "min-[1120px]:hidden")}>
+            <div className="shrink-0">
+              <HomePulseLogo variant="icon-only" size={36} animated />
+            </div>
+            <div
+              className={clsx(
+                "flex flex-col overflow-hidden whitespace-nowrap ml-3 pr-2 transition-[opacity,max-width,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                collapsedWordmarkClass
+              )}
+            >
               <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
                 <span>Home</span>
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
               </div>
               {safeUser?.role === "CAREGIVER" && (
                 <span className="text-[10px] font-medium uppercase tracking-wider text-brand-teal flex items-center gap-1 mt-0.5">
-                  <HeartHandshake className="w-3 h-3 inline" /> Caregiver Portal
+                  <HeartHandshake className="w-3 h-3 inline shrink-0" /> Caregiver Portal
                 </span>
               )}
               {safeUser?.role === "HR" && (
@@ -500,10 +586,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </div>
           </Link>
 
-          {/* Mobile Close Button - ALWAYS visible on mobile & tablet drawer */}
+          {/* Mobile Close Button - visible only on < md drawer */}
           <button
+            type="button"
             onClick={onClose}
-            className="min-[1120px]:hidden ml-auto p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+            className="md:hidden ml-auto p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
             aria-label="Close navigation"
           >
             <PanelLeftClose className="w-5 h-5" />
@@ -511,22 +598,31 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/80">
+        <nav
+          onScroll={hideMiniTooltip}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-3.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/80"
+        >
           {getNavGroups(safeUser?.role).map((group, index) => (
             <div key={index}>
               {group.label ? (
-                <div className={clsx("px-3 text-[11px] font-semibold text-text-secondary tracking-wider uppercase mb-2 truncate", isCollapsed && "min-[1120px]:hidden")}>
-                  {group.label}
-                </div>
+                <>
+                  <div
+                    className={clsx(
+                      "px-3 text-[11px] font-semibold text-text-secondary tracking-wider uppercase truncate whitespace-nowrap overflow-hidden transition-[opacity,max-height,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] mb-2",
+                      collapsedGroupLabelClass
+                    )}
+                  >
+                    {group.label}
+                  </div>
+                  <div className={collapsedDividerClass} />
+                </>
               ) : null}
-              {group.label && isCollapsed && (
-                <div className="hidden min-[1120px]:block h-px bg-slate-800 my-2 mx-2" />
-              )}
 
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const isActive = activeItem === item.id;
                   const Icon = item.icon;
+                  const badgeCount = item.badge ?? 0;
 
                   let href = "#";
                   if (item.id === "dashboard") href = safeUser?.role === "QA_COMPLIANCE_OFFICER" ? "/compliance" : safeUser?.role === "INTAKE_COORDINATOR" ? "/intake/dashboard" : safeUser?.role === "BILLING_FINANCE_STAFF" ? "/billing" : safeUser?.role === "CLINICAL_SUPERVISOR_RN" ? "/clinical" : safeUser?.role === "FIELD_SUPERVISOR" ? "/field-supervisor" : safeUser?.role === "TRAINER" ? "/training-admin" : safeUser?.role === "HR" ? "/hr/dashboard" : safeUser?.role === "SCHEDULER" ? "/scheduler" : "/dashboard";
@@ -576,54 +672,70 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                           layoutId="active-nav"
                           className="absolute inset-0 bg-brand-teal rounded-xl shadow-md shadow-brand-teal/20"
                           initial={false}
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                         />
                       )}
 
                       <Link
                         href={href}
                         onClick={() => {
+                          hideMiniTooltip();
                           if (onClose) onClose();
                         }}
+                        onMouseEnter={(e) =>
+                          showMiniTooltip(e.currentTarget, item.name, {
+                            badge: badgeCount > 0 ? badgeCount : undefined,
+                          })
+                        }
+                        onMouseLeave={hideMiniTooltip}
+                        onFocus={(e) =>
+                          showMiniTooltip(e.currentTarget, item.name, {
+                            badge: badgeCount > 0 ? badgeCount : undefined,
+                          })
+                        }
+                        onBlur={hideMiniTooltip}
                         className={clsx(
-                          "relative flex items-center justify-between rounded-xl text-sm font-medium transition-colors z-10",
-                          isCollapsed ? "min-[1120px]:p-3 p-3.5" : "px-3.5 py-2.5",
+                          "relative flex items-center rounded-xl text-sm font-medium transition-colors z-10 pl-[17px] pr-3 py-3 md:py-2.5",
                           isActive ? "text-white font-semibold" : "text-slate-300 hover:text-white hover:bg-sidebar-active/60"
                         )}
                       >
-                        <div className={clsx("flex items-center gap-2.5", isCollapsed ? "min-[1120px]:justify-center min-[1120px]:w-full" : "")}>
-                          <Icon className="w-4.5 h-4.5 shrink-0" />
-                          <span className={clsx("truncate", isCollapsed && "min-[1120px]:hidden")}>{item.name}</span>
-                        </div>
-                        {/* Badge */}
-                        {(item as any).badge && (item as any).badge > 0 && (
-                          <span
-                            className={clsx(
-                              "flex items-center justify-center font-bold rounded-full transition-colors",
-                              isCollapsed
-                                ? "min-[1120px]:absolute min-[1120px]:-top-1 min-[1120px]:-right-1 min-[1120px]:w-5 min-[1120px]:h-5 min-[1120px]:text-[10px] min-[1120px]:bg-brand-teal min-[1120px]:text-white min-[1120px]:ring-2 min-[1120px]:ring-sidebar-bg px-2 py-0.5 text-xs bg-brand-teal/20 text-brand-teal border border-brand-teal/30"
-                                : "px-2 py-0.5 text-xs",
-                              !isCollapsed && (isActive
-                                ? "bg-white text-brand-teal"
-                                : "bg-brand-teal/20 text-brand-teal border border-brand-teal/30")
+                        <Icon className="w-[18px] h-[18px] shrink-0" />
+                        <span
+                          className={clsx(
+                            "truncate whitespace-nowrap ml-2.5 transition-[opacity,max-width,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                            collapsedNavTextClass
+                          )}
+                        >
+                          {item.name}
+                        </span>
+
+                        {badgeCount > 0 && (
+                          <>
+                            <span
+                              className={clsx(
+                                "ml-auto shrink-0 flex items-center justify-center font-bold rounded-full px-2 py-0.5 text-xs transition-opacity duration-200",
+                                isDesktopMini && "md:hidden",
+                                !hasMounted && "md:hidden min-[1400px]:flex",
+                                isActive
+                                  ? "bg-white text-brand-teal"
+                                  : "bg-brand-teal/20 text-brand-teal border border-brand-teal/30"
+                              )}
+                            >
+                              {badgeCount}
+                            </span>
+                            {(isDesktopMini || !hasMounted) && (
+                              <span
+                                className={clsx(
+                                  "hidden items-center justify-center font-bold rounded-full absolute top-1 right-1.5 w-4 h-4 text-[9px] bg-brand-teal text-white ring-2 ring-sidebar-bg",
+                                  !hasMounted ? "md:flex min-[1400px]:hidden" : "md:flex"
+                                )}
+                              >
+                                {badgeCount}
+                              </span>
                             )}
-                          >
-                            {(item as any).badge}
-                          </span>
+                          </>
                         )}
                       </Link>
-
-                      {/* Tooltip for Mini View (Only on desktop >= 1120px when collapsed) */}
-                      {isCollapsed && (
-                        <div className="hidden min-[1120px]:flex absolute left-full ml-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-2xl border border-slate-700/80 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 items-center gap-2 translate-x-1 group-hover:translate-x-0">
-                          <span>{item.name}</span>
-                          {(item as any).badge && (item as any).badge > 0 && (
-                            <span className="bg-brand-teal text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                              {(item as any).badge}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </li>
                   );
                 })}
@@ -634,84 +746,92 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         {/* HIPAA Card */}
         {safeUser?.role !== "CLIENT" && safeUser?.role !== "FAMILY" && (
-          <div className="px-3 mb-2.5 relative group">
-            {/* Expanded & Mobile view */}
-            <div className={clsx("bg-[#0e354a] rounded-xl p-3.5 flex items-start gap-3 border border-sidebar-active/70", isCollapsed && "min-[1120px]:hidden")}>
-              <ShieldCheck className="w-5 h-5 text-brand-teal shrink-0 mt-0.5" />
-              <div className="min-w-0">
+          <div className="px-3 mb-2.5 relative shrink-0">
+            <div
+              onMouseEnter={(e) =>
+                showMiniTooltip(e.currentTarget, hipaaTitle, {
+                  description:
+                    safeUser?.role === "SCHEDULER"
+                      ? "Role-scoped scheduler view."
+                      : "Data encrypted in transit and at rest.",
+                })
+              }
+              onMouseLeave={hideMiniTooltip}
+              className={clsx(
+                "bg-[#0e354a] rounded-xl border border-sidebar-active/70 flex items-start overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                !hasMounted
+                  ? "p-3.5 md:p-3 md:justify-center min-[1400px]:p-3.5 min-[1400px]:justify-start"
+                  : isCollapsed
+                    ? "p-3.5 md:p-3 md:justify-center cursor-pointer hover:bg-sidebar-active/50"
+                    : "p-3.5"
+              )}
+            >
+              <div className="relative shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-brand-teal" />
+                {(isDesktopMini || !hasMounted) && (
+                  <span
+                    className={clsx(
+                      "hidden absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-sidebar-bg",
+                      !hasMounted ? "md:block min-[1400px]:hidden" : "md:block"
+                    )}
+                  />
+                )}
+              </div>
+              <div
+                className={clsx(
+                  "min-w-0 ml-3 overflow-hidden transition-[opacity,max-width,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  collapsedWordmarkClass
+                )}
+              >
                 <div className="text-xs font-semibold text-white truncate">
-                  {safeUser?.role === "CAREGIVER" ? "EVV & HIPAA Compliant" : safeUser?.role === "SCHEDULER" ? "HIPAA Protected" : "HIPAA Compliant"}
+                  {hipaaTitle}
                 </div>
                 <div className="text-[11px] text-slate-300/80 mt-0.5 leading-snug">
-                  {safeUser?.role === "SCHEDULER" ? "Role-scoped scheduler view." : "256-bit AES encryption & audit trail."}
+                  {hipaaDescription}
                 </div>
               </div>
             </div>
-
-            {/* Collapsed desktop mini icon */}
-            {isCollapsed && (
-              <div
-                onMouseEnter={() => setShowHipaaTooltip(true)}
-                onMouseLeave={() => setShowHipaaTooltip(false)}
-                className="hidden min-[1120px]:flex bg-[#0e354a] rounded-xl p-3 items-center justify-center border border-sidebar-active/60 cursor-pointer hover:bg-sidebar-active/50 transition-colors relative"
-              >
-                <div className="relative">
-                  <ShieldCheck className="w-5 h-5 text-brand-teal" />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-sidebar-bg"></span>
-                </div>
-
-                <AnimatePresence>
-                  {showHipaaTooltip && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -5 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -5 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute left-full ml-4 bottom-0 w-56 bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-2xl z-50 text-left pointer-events-none"
-                    >
-                      <div className="flex items-center gap-2 text-xs font-bold text-white mb-1">
-                        <ShieldCheck className="w-4 h-4 text-brand-teal" />
-                        {safeUser?.role === "CAREGIVER" ? "EVV & HIPAA Compliant" : safeUser?.role === "SCHEDULER" ? "HIPAA Protected" : "HIPAA Compliant"}
-                      </div>
-                      <p className="text-[11px] text-slate-300 leading-normal">
-                        {safeUser?.role === "SCHEDULER" ? "Role-scoped scheduler view." : "Data encrypted in transit and at rest."}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
           </div>
         )}
 
         {/* User Profile */}
-        <div className="p-3 border-t border-sidebar-active/60 relative pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div
+          ref={profileRef}
+          className="p-3 border-t border-sidebar-active/60 relative shrink-0 pb-[max(12px,env(safe-area-inset-bottom))]"
+        >
           <button
+            type="button"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className={clsx(
-              "flex items-center gap-3 w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer",
-              isCollapsed ? "min-[1120px]:justify-center" : ""
-            )}
-            title={isCollapsed ? `${safeUser?.name || "Agency Admin"}` : undefined}
+            onMouseEnter={(e) =>
+              showMiniTooltip(e.currentTarget, safeUser?.name || "Agency Executive")
+            }
+            onMouseLeave={hideMiniTooltip}
+            className="flex items-center w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer"
           >
             <div className="w-9 h-9 rounded-full bg-slate-600 shrink-0 overflow-hidden flex items-center justify-center ring-2 ring-brand-teal/40">
               <User className="w-4.5 h-4.5 text-slate-300" />
             </div>
-            <div className={clsx("flex-1 overflow-hidden min-w-0", isCollapsed && "min-[1120px]:hidden")}>
-              <div className="text-sm font-medium text-white truncate">
-                {safeUser?.name || "Agency Executive"}
-              </div>
-              <div className="text-xs text-slate-400 truncate">
-                {safeUser?.role === "CLIENT" ? "Patient" : safeUser?.role === "FAMILY" ? "Family Member" : safeUser?.role === "CAREGIVER" ? "Caregiver (Field Staff)" : safeUser?.role === "SCHEDULER" ? "Scheduler / Dispatcher" : safeUser?.role === "HR" ? "HR Recruiter" : safeUser?.role === "TRAINER" ? "Trainer / LMS Admin" : safeUser?.role || "ADMIN"}
-              </div>
-            </div>
-            <ChevronDown
+            <div
               className={clsx(
-                "w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200",
-                isProfileOpen && "rotate-180",
-                isCollapsed && "min-[1120px]:hidden"
+                "flex items-center flex-1 overflow-hidden min-w-0 ml-3 transition-[opacity,max-width,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                collapsedWordmarkClass
               )}
-            />
+            >
+              <div className="flex-1 overflow-hidden min-w-0">
+                <div className="text-sm font-medium text-white truncate">
+                  {safeUser?.name || "Agency Executive"}
+                </div>
+                <div className="text-xs text-slate-400 truncate">
+                  {safeUser?.role === "CLIENT" ? "Patient" : safeUser?.role === "FAMILY" ? "Family Member" : safeUser?.role === "CAREGIVER" ? "Caregiver (Field Staff)" : safeUser?.role === "SCHEDULER" ? "Scheduler / Dispatcher" : safeUser?.role === "HR" ? "HR Recruiter" : safeUser?.role === "TRAINER" ? "Trainer / LMS Admin" : safeUser?.role || "ADMIN"}
+                </div>
+              </div>
+              <ChevronDown
+                className={clsx(
+                  "w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-200",
+                  isProfileOpen && "rotate-180"
+                )}
+              />
+            </div>
           </button>
 
           <AnimatePresence>
@@ -720,11 +840,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className={clsx(
                   "absolute bg-slate-800 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden z-50 p-1.5",
                   isCollapsed
-                    ? "min-[1120px]:left-full min-[1120px]:ml-4 min-[1120px]:bottom-3 min-[1120px]:w-52 bottom-[calc(100%-6px)] left-3 right-3 mb-2"
+                    ? "md:left-full md:ml-4 md:bottom-3 md:w-52 bottom-[calc(100%-6px)] left-3 right-3 mb-2"
                     : "bottom-[calc(100%-6px)] left-3 right-3 mb-2"
                 )}
               >
@@ -760,6 +880,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </AnimatePresence>
         </div>
       </aside>
+
+      <SidebarTooltip tooltip={isDesktopMini ? tooltip : null} />
     </>
   );
 }

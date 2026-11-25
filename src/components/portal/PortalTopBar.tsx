@@ -2,8 +2,9 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Bell, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { SidebarToggleButton } from "@/components/layout/SidebarToggleButton";
 
 export function PortalTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -30,14 +31,9 @@ export function PortalTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   return (
     <header className="h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between bg-page-bg/80 backdrop-blur-md sticky top-0 z-30 transition-all duration-300">
-      <div className="flex items-center gap-3 sm:gap-4">
-        <button
-          onClick={onMenuClick}
-          className="p-1 -ml-2 rounded-lg text-slate-500 hover:bg-slate-200 min-[1120px]:hidden transition-colors active:scale-95"
-        >
-          <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
-        <h1 suppressHydrationWarning className="text-lg sm:text-xl font-semibold text-text-primary truncate max-w-[200px] sm:max-w-none">{getPageTitle()}</h1>
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <SidebarToggleButton onMobileMenuClick={onMenuClick} />
+        <h1 suppressHydrationWarning className="text-base sm:text-xl font-semibold text-text-primary truncate max-w-[180px] sm:max-w-none">{getPageTitle()}</h1>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">

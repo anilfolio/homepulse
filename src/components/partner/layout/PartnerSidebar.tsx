@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Settings,
   PanelLeftClose,
-  PanelLeftOpen,
   ChevronDown,
   LogOut,
   Building2,
@@ -23,6 +22,7 @@ import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useAuth } from "@/hooks/useAuth";
 import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
 import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
+import { SidebarTooltip, type SidebarTooltipData } from "@/components/layout/SidebarTooltip";
 
 const NAV_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, id: "dashboard", href: "/partner" },
@@ -42,13 +42,71 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
-  const { isCollapsed, toggleCollapse } = useSidebarCollapse();
+  const { isCollapsed, hasMounted } = useSidebarCollapse();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [tooltip, setTooltip] = useState<SidebarTooltipData | null>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const showMiniTooltip = useCallback(
+    (el: HTMLElement, label: string) => {
+      if (hasMounted && !isCollapsed) return;
+      if (typeof window !== "undefined" && window.innerWidth < 768) return;
+      const rect = el.getBoundingClientRect();
+      setTooltip({
+        label,
+        top: rect.top + rect.height / 2,
+        left: rect.right + 12,
+      });
+    },
+    [hasMounted, isCollapsed]
+  );
+
+  const hideMiniTooltip = useCallback(() => {
+    setTooltip(null);
+  }, []);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isProfileOpen) setIsProfileOpen(false);
+        if (isOpen && onClose) onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isProfileOpen, onClose]);
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isProfileOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && isOpen && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen && typeof window !== "undefined" && window.innerWidth < 768) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   const handleLogout = () => {
     setIsProfileOpen(false);
@@ -68,6 +126,18 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
 
   const activeMember = mockTeamMembers[0];
 
+  const collapsedFadeClass = !hasMounted
+    ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none min-[1400px]:opacity-100 min-[1400px]:max-w-[180px] min-[1400px]:ml-3 min-[1400px]:pointer-events-auto"
+    : isCollapsed
+      ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none"
+      : "md:opacity-100 md:max-w-[180px] md:ml-3";
+
+  const collapsedNavTextClass = !hasMounted
+    ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none min-[1400px]:opacity-100 min-[1400px]:max-w-[170px] min-[1400px]:ml-2.5 min-[1400px]:pointer-events-auto"
+    : isCollapsed
+      ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none"
+      : "md:opacity-100 md:max-w-[170px] md:ml-2.5";
+
   return (
     <>
       {/* Mobile overlay */}
@@ -77,8 +147,8 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="fixed inset-0 bg-slate-900/60 z-40 min-[1120px]:hidden backdrop-blur-sm"
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm"
             onClick={onClose}
           />
         )}
@@ -86,59 +156,55 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
 
       <aside
         className={clsx(
-          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 transition-all duration-300 ease-in-out min-[1120px]:translate-x-0 min-[1120px]:sticky min-[1120px]:top-0 shadow-[4px_0_24px_rgba(0,0,0,0.15)] min-[1120px]:shadow-none select-none",
+          "bg-sidebar-bg text-white flex flex-col h-screen fixed top-0 left-0 z-50 select-none will-change-[width,transform]",
+          "transition-[width,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "md:translate-x-0 md:sticky md:top-0 shadow-[4px_0_28px_rgba(0,0,0,0.28)] md:shadow-[2px_0_16px_rgba(20,29,60,0.08)]",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "min-[1120px]:w-[76px] w-[240px]" : "w-[240px]"
+          "w-[260px] max-w-[min(260px,85vw)] md:max-w-[260px]",
+          !hasMounted
+            ? "md:w-[76px] min-[1400px]:w-[260px]"
+            : isCollapsed
+              ? "md:w-[76px]"
+              : "md:w-[260px]"
         )}
       >
-        {/* Toggle Button */}
-        <button
-          onClick={toggleCollapse}
-          title={isCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
-          className="hidden min-[1120px]:flex absolute -right-4 top-4 z-50 w-7 h-7 rounded-full bg-brand-teal text-white items-center justify-center shadow-lg border-1 border-white ring-1.5 ring-slate-900/80 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-          aria-label="Toggle Sidebar"
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-4.5 h-4.5" />
-          ) : (
-            <PanelLeftClose className="w-4.5 h-4.5" />
-          )}
-        </button>
-
         {/* Header / Logo Area */}
-        <div
-          className={clsx(
-            "flex items-center h-20 border-b border-sidebar-active/40 transition-all duration-300 relative",
-            isCollapsed ? "px-3 justify-center" : "px-5 justify-start"
-          )}
-        >
-          <Link href="/partner" className="flex items-center gap-3 overflow-hidden group">
-            <HomePulseLogo variant="icon-only" size={36} animated />
-            {!isCollapsed && (
-              <div className="flex flex-col truncate pr-4">
-                <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
-                  <span>Home</span>
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
-                </div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
-                  Partner Portal
-                </span>
+        <div className="flex items-center h-16 sm:h-20 border-b border-sidebar-active/40 relative px-5 shrink-0">
+          <Link href="/partner" className="flex items-center overflow-hidden group min-w-0">
+            <div className="shrink-0">
+              <HomePulseLogo variant="icon-only" size={36} animated />
+            </div>
+            <div
+              className={clsx(
+                "flex flex-col overflow-hidden whitespace-nowrap ml-3 transition-[opacity,max-width,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                collapsedFadeClass
+              )}
+            >
+              <div className="flex items-center tracking-tight text-base font-bold text-white leading-tight">
+                <span>Home</span>
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6C88FF] to-[#57EAB6]">Pulse</span>
               </div>
-            )}
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-teal mt-0.5">
+                Partner Portal
+              </span>
+            </div>
           </Link>
 
-          {!isCollapsed && (
-            <button
-              onClick={onClose}
-              className="absolute right-4 min-[1120px]:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            >
-              <PanelLeftClose className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden ml-auto p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+            aria-label="Close navigation"
+          >
+            <PanelLeftClose className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/80">
+        <nav
+          onScroll={hideMiniTooltip}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600/80"
+        >
           <ul className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive = activeItem === item.id;
@@ -151,33 +217,35 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
                       layoutId="active-nav-partner"
                       className="absolute inset-0 bg-brand-teal rounded-xl shadow-md shadow-brand-teal/20"
                       initial={false}
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                     />
                   )}
 
                   <Link
                     href={item.href}
                     onClick={() => {
+                      hideMiniTooltip();
                       if (onClose) onClose();
                     }}
+                    onMouseEnter={(e) => showMiniTooltip(e.currentTarget, item.name)}
+                    onMouseLeave={hideMiniTooltip}
+                    onFocus={(e) => showMiniTooltip(e.currentTarget, item.name)}
+                    onBlur={hideMiniTooltip}
                     className={clsx(
-                      "relative flex items-center justify-between rounded-xl text-sm font-medium transition-colors z-10",
-                      isCollapsed ? "p-3" : "px-3.5 py-2.5",
+                      "relative flex items-center rounded-xl text-sm font-medium transition-colors z-10 pl-[17px] pr-3 py-3 md:py-2.5",
                       isActive ? "text-white font-semibold" : "text-slate-300 hover:text-white hover:bg-sidebar-active/60"
                     )}
                   >
-                    <div className={clsx("flex items-center gap-2", isCollapsed && "justify-center w-full")}>
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {!isCollapsed && <span className="truncate">{item.name}</span>}
-                    </div>
+                    <Icon className="w-[18px] h-[18px] shrink-0" />
+                    <span
+                      className={clsx(
+                        "truncate whitespace-nowrap ml-2.5 transition-[opacity,max-width,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        collapsedNavTextClass
+                      )}
+                    >
+                      {item.name}
+                    </span>
                   </Link>
-
-                  {/* Tooltip for Mini View */}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-2xl border border-slate-700/80 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 flex items-center gap-2 translate-x-1 group-hover:translate-x-0">
-                      <span>{item.name}</span>
-                    </div>
-                  )}
                 </li>
               );
             })}
@@ -185,33 +253,39 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
         </nav>
 
         {/* User Profile */}
-        <div className="p-3 border-t border-sidebar-active/60 relative">
+        <div
+          ref={profileRef}
+          className="p-3 border-t border-sidebar-active/60 relative shrink-0 pb-[max(12px,env(safe-area-inset-bottom))]"
+        >
           <button
+            type="button"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className={clsx(
-              "flex items-center gap-3 w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer",
-              isCollapsed && "justify-center"
-            )}
+            onMouseEnter={(e) => showMiniTooltip(e.currentTarget, `${activeMember.name} · ${mockOrganization.name}`)}
+            onMouseLeave={hideMiniTooltip}
+            className="flex items-center w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer"
           >
             <div className="w-9 h-9 rounded-full bg-slate-600 shrink-0 overflow-hidden flex items-center justify-center ring-2 ring-brand-teal/40">
               <User className="w-4.5 h-4.5 text-slate-300" />
             </div>
-            {!isCollapsed && (
-              <>
-                <div className="flex-1 overflow-hidden">
-                  <div className="text-sm font-medium text-white truncate">
-                    {activeMember.name}
-                  </div>
-                  <div className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                    <Building2 className="w-3 h-3" />
-                    {mockOrganization.name}
-                  </div>
+            <div
+              className={clsx(
+                "flex items-center flex-1 overflow-hidden min-w-0 ml-3 transition-[opacity,max-width,margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                collapsedFadeClass
+              )}
+            >
+              <div className="flex-1 overflow-hidden min-w-0">
+                <div className="text-sm font-medium text-white truncate">
+                  {activeMember.name}
                 </div>
-                <ChevronDown
-                  className={clsx("w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200", isProfileOpen && "rotate-180")}
-                />
-              </>
-            )}
+                <div className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                  <Building2 className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{mockOrganization.name}</span>
+                </div>
+              </div>
+              <ChevronDown
+                className={clsx("w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-200", isProfileOpen && "rotate-180")}
+              />
+            </div>
           </button>
 
           <AnimatePresence>
@@ -220,12 +294,12 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className={clsx(
-                  "absolute bg-slate-800 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden z-50 p-1.5",
+                  "absolute bg-slate-800 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden z-50 p-1.5",
                   isCollapsed
-                    ? "left-full ml-4 bottom-3 w-48"
-                    : "bottom-[calc(100%-10px)] left-3 right-3 mb-2"
+                    ? "md:left-full md:ml-4 md:bottom-3 md:w-52 bottom-[calc(100%-6px)] left-3 right-3 mb-2"
+                    : "bottom-[calc(100%-6px)] left-3 right-3 mb-2"
                 )}
               >
                 <div className="flex flex-col gap-1">
@@ -252,6 +326,8 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
           </AnimatePresence>
         </div>
       </aside>
+
+      <SidebarTooltip tooltip={hasMounted && isCollapsed ? tooltip : null} />
     </>
   );
 }

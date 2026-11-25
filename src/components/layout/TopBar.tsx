@@ -2,83 +2,31 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Search } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 import { NotificationsCenter } from "./NotificationsCenter";
+import { SidebarToggleButton } from "./SidebarToggleButton";
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
 
-  const getPageTitle = () => {
-    if (pathname.startsWith("/admin/command-center")) return "Agency Command Center";
-    if (pathname.startsWith("/admin")) return "Administrative Governance";
-    if (pathname.startsWith("/hr/recruiting")) return "HR Recruiting & Onboarding";
-    if (pathname.startsWith("/hr/caregivers")) return "HR Caregiver Roster";
-    if (pathname.startsWith("/hr/training")) return "HR Training & LMS";
-    if (pathname.startsWith("/hr/payroll")) return "HR Payroll";
-    if (pathname.startsWith("/hr/messages")) return "HR Messages";
-    if (pathname.startsWith("/hr/dashboard") || pathname === "/hr") return "HR Dashboard";
-    if (pathname.startsWith("/users")) return "User Management";
-    if (pathname.startsWith("/training")) return "Training (LMS)";
-    if (pathname.startsWith("/patients")) return "Patients";
-    if (pathname.startsWith("/scheduling")) return "Scheduling";
-    if (pathname.startsWith("/evv")) return "EVV & Visits";
-    if (pathname.startsWith("/caregivers")) return "Caregivers & HR";
-    if (pathname.startsWith("/billing")) return "Billing & Claims";
-    if (pathname.startsWith("/incidents")) return "Incident & Risk";
-    if (pathname.startsWith("/compliance/qa")) return "Quality Assurance";
-    if (pathname.startsWith("/compliance/incidents")) return "Incident Reports";
-    if (pathname.startsWith("/compliance/reports")) return "Reports";
-    if (pathname.startsWith("/compliance/messages")) return "Messages";
-    if (pathname.startsWith("/compliance/settings")) return "Settings";
-    if (pathname.startsWith("/compliance/tracking")) return "Compliance Tracking";
-    if (pathname === "/compliance" || pathname.startsWith("/compliance/dashboard")) return "Compliance Dashboard";
-    if (pathname.startsWith("/compliance")) return "Compliance Tracking";
-    if (pathname.startsWith("/qa") || pathname.startsWith("/quality-assurance")) return "Quality Assurance";
-    if (pathname.startsWith("/reports")) return "Reports";
-    if (pathname.startsWith("/referrals")) return "Referrals & Intake";
-    if (pathname.startsWith("/communications")) return "Communications";
-    if (pathname.startsWith("/payroll")) return "Payroll";
-    if (pathname.startsWith("/clinical/patients")) return "Clinical Patients";
-    if (pathname.startsWith("/clinical/assessments")) return "Assessments & Care Plan";
-    if (pathname.startsWith("/clinical/qa")) return "Quality Assurance";
-    if (pathname.startsWith("/clinical/incidents")) return "Incident Reports";
-    if (pathname.startsWith("/clinical/messages")) return "Clinical Messages";
-    if (pathname.startsWith("/clinical/settings")) return "Settings";
-    if (pathname === "/clinical" || pathname.startsWith("/clinical/dashboard")) return "Clinical Dashboard";
-    if (pathname.startsWith("/settings")) return "Settings";
-    if (pathname.startsWith("/profile")) return "Profile";
-    return "Dashboard";
-  };
-
   return (
-    <header className="h-16 sm:h-20 px-3 sm:px-6 flex items-center justify-between bg-page-bg/90 backdrop-blur-md sticky top-0 z-30 transition-all duration-300 border-b border-slate-200/50">
-      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <button
-          onClick={onMenuClick}
-          className="p-2 -ml-1 rounded-xl text-slate-600 hover:bg-slate-200/70 min-[1120px]:hidden transition-colors active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-          aria-label="Open Navigation Menu"
-        >
-          <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <h1 suppressHydrationWarning className="text-sm xs:text-base sm:text-xl font-bold text-text-primary truncate max-w-[170px] xs:max-w-[240px] sm:max-w-none">
-            {getPageTitle()}
-          </h1>
-          {pathname.startsWith("/admin") && (
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#141D3C] text-[#57EAB6] border border-[#2A3B75]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#57EAB6] animate-pulse" />
-              Executive Ops
-            </span>
-          )}
+    <header className="h-16 sm:h-20 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 bg-page-bg/90 backdrop-blur-md sticky top-0 z-30 transition-all duration-300 border-b border-slate-200/50">
+      {/* Left: Sidebar Toggle + Left-Aligned Searchbox */}
+      <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+        <SidebarToggleButton onMobileMenuClick={onMenuClick} />
+        <div className="flex-1 min-w-0 max-w-[480px] z-40">
+          <GlobalSearch />
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        <div className="flex-1 flex justify-end min-[1120px]:justify-start min-[1120px]:max-w-[480px] mx-1 sm:mx-4 z-40">
-          <GlobalSearch />
-        </div>
-
+      {/* Right: Executive Context Badge + Notifications */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {pathname.startsWith("/admin") && (
+          <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#141D3C] text-[#57EAB6] border border-[#2A3B75]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#57EAB6] animate-pulse" />
+            Executive Ops
+          </span>
+        )}
         <NotificationsCenter />
       </div>
     </header>
