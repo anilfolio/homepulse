@@ -265,7 +265,7 @@ const getNavGroups = (role?: string) => {
       items: [
         { name: "Incident & Risk", icon: ShieldAlert, id: "incidents" },
         { name: "Compliance Tracking", icon: CheckSquare, id: "compliance" },
-        { name: "EVV Compliance", icon: Activity, id: "evv-monitoring" },
+        { name: "EVV & Visits", icon: Activity, id: "evv-monitoring" },
         { name: "Quality Assurance", icon: Award, id: "qa" },
       ],
     },

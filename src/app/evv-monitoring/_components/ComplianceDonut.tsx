@@ -4,12 +4,13 @@ import React, { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 
-const COLORS = {
-  "Wrong GPS location": "#F59E0B",
-  "Missing clock-in": "#EF4444",
-  "Missing clock-out": "#F97316",
-  "Time mismatch": "#EAB308",
-  "Manual adjustment": "#3B82F6",
+const COLORS: Record<string, string> = {
+  "Location Mismatch": "#F59E0B",
+  "Missed In": "#EF4444",
+  "Missed Out": "#F97316",
+  "Missed Call": "#DC2626",
+  "Time Variance": "#EAB308",
+  "Verification Missing": "#8B5CF6",
 };
 
 interface ComplianceDonutProps {
@@ -18,10 +19,14 @@ interface ComplianceDonutProps {
   onSegmentClick: (name: string) => void;
 }
 
-export function ComplianceDonut({ data, overallCompliance, onSegmentClick }: ComplianceDonutProps) {
+export function ComplianceDonut({
+  data,
+  overallCompliance,
+  onSegmentClick,
+}: ComplianceDonutProps) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>();
 
-  const onPieEnter = (_: any, index: number) => {
+  const onPieEnter = (_: unknown, index: number) => {
     setActiveIndex(index);
   };
 
@@ -33,17 +38,25 @@ export function ComplianceDonut({ data, overallCompliance, onSegmentClick }: Com
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between"
+      transition={{ duration: 0.35 }}
+      className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 border border-slate-200/80 shadow-[0_6px_32px_rgba(0,0,0,0.04)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between"
     >
-      <h3 className="text-sm font-bold text-slate-900 mb-2 shrink-0">Compliance Breakdown</h3>
+      <div>
+        <h3 className="text-sm font-bold text-slate-900">Exception Breakdown</h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Click any category to filter the Exceptions queue.
+        </p>
+      </div>
 
-      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 items-center gap-4 min-h-[220px]">
-        {/* Donut Chart with Center Text */}
-        <div className="relative w-full h-[200px] flex items-center justify-center">
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 items-center gap-4 min-h-[210px] mt-2">
+        <div className="relative w-full h-[195px] flex items-center justify-center">
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-3xl font-black text-slate-900 tracking-tight">{overallCompliance}%</span>
-            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Verified</span>
+            <span className="text-3xl font-black text-slate-900 tracking-tight">
+              {overallCompliance}%
+            </span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+              Compliant
+            </span>
           </div>
 
           <ResponsiveContainer width="100%" height="100%">
@@ -52,21 +65,21 @@ export function ComplianceDonut({ data, overallCompliance, onSegmentClick }: Com
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={55}
-                outerRadius={75}
+                innerRadius={54}
+                outerRadius={74}
                 paddingAngle={2}
                 dataKey="value"
                 onMouseEnter={onPieEnter}
                 onMouseLeave={onPieLeave}
-                onClick={(entry) => onSegmentClick(entry.name as string)}
+                onClick={(entry) => onSegmentClick(String(entry.name))}
                 className="cursor-pointer focus:outline-none"
-                animationBegin={100}
-                animationDuration={600}
+                animationBegin={50}
+                animationDuration={500}
               >
                 {data.map((entry, index) => (
                   <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[entry.name as keyof typeof COLORS] || "#CBD5E1"}
+                    key={`cell-${entry.name}`}
+                    fill={COLORS[entry.name] || "#CBD5E1"}
                     opacity={activeIndex === undefined || activeIndex === index ? 1 : 0.6}
                     stroke="#FFFFFF"
                     strokeWidth={2}
@@ -75,35 +88,38 @@ export function ComplianceDonut({ data, overallCompliance, onSegmentClick }: Com
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                itemStyle={{ color: '#0F172A', fontWeight: 600, fontSize: '12px' }}
-                formatter={(value, name) => [`${value} Exceptions`, name]}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "none",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                }}
+                itemStyle={{ color: "#0F172A", fontWeight: 600, fontSize: "12px" }}
+                formatter={(value, name) => [`${value} Visits`, name]}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Legend list matching screenshot */}
-        <div className="space-y-2.5 pr-2">
-          {data.map((item, index) => (
-            <div
-              key={index}
+        <div className="space-y-2 pr-1">
+          {data.map((item) => (
+            <button
+              type="button"
+              key={item.name}
               onClick={() => onSegmentClick(item.name)}
-              className="flex items-center justify-between text-xs cursor-pointer hover:opacity-80 transition-opacity"
+              className="w-full flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 px-2 py-1 rounded-lg transition-colors"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
                   className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: COLORS[item.name as keyof typeof COLORS] || "#CBD5E1" }}
+                  style={{ backgroundColor: COLORS[item.name] || "#CBD5E1" }}
                 />
-                <span className="text-slate-600 font-medium truncate">{item.name}</span>
+                <span className="text-slate-700 font-medium truncate">{item.name}</span>
               </div>
               <span className="font-bold text-slate-900 ml-2 shrink-0">{item.value}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
     </motion.div>
   );
 }
-

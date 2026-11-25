@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import { CheckCircle2, AlertCircle, Clock, Server, ArrowUpRight, Search, FileText } from "lucide-react";
-import clsx from "clsx";
 import { motion } from "framer-motion";
 
 const mockSubmissions = [
