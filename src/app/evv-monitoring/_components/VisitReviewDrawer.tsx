@@ -23,6 +23,7 @@ import {
   Wallet,
   Info,
   Volume2,
+  Check,
 } from "lucide-react";
 import clsx from "clsx";
 import {
@@ -85,7 +86,6 @@ function VisitReviewDrawerContent({
   );
   const [revealedPhoneIds, setRevealedPhoneIds] = useState<string[]>([]);
 
-  // Step 1-5 resolution state
   const [acknowledged, setAcknowledged] = useState(Boolean(visit.resolution?.acknowledged));
   const [reasonCode, setReasonCode] = useState(visit.resolution?.reasonCode ?? "");
   const [resolutionCode, setResolutionCode] = useState(
@@ -99,7 +99,6 @@ function VisitReviewDrawerContent({
     visit.resolution?.attestationRef ?? "TS-DOC-2026-01"
   );
 
-  // Time recovery inputs (for Missed In / Missed Out / Missed Call)
   const [correctedIn, setCorrectedIn] = useState(
     visit.actualTime.start ?? visit.scheduledTime.start
   );
@@ -107,7 +106,6 @@ function VisitReviewDrawerContent({
     visit.actualTime.end ?? visit.scheduledTime.end
   );
 
-  // Service Location Correction state
   const [showLocationEditor, setShowLocationEditor] = useState(false);
   const [editAddress, setEditAddress] = useState(visit.serviceLocation.addressLine1);
   const [editCityStateZip, setEditCityStateZip] = useState(
@@ -116,14 +114,12 @@ function VisitReviewDrawerContent({
   const [editLocationType, setEditLocationType] =
     useState<ServiceLocation["locationType"]>(visit.serviceLocation.locationType);
 
-  // Associate Patient Phone state
   const [showAddPhone, setShowAddPhone] = useState(false);
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [newPhoneType, setNewPhoneType] =
     useState<ServiceLocationPhone["type"]>("Landline");
 
-  // Alternate IVR / Voice Verification state
   const [ivrSelectedPhoneId, setIvrSelectedPhoneId] = useState(
     visit.serviceLocation.associatedPhones[0]?.id ?? ""
   );
@@ -366,76 +362,88 @@ function VisitReviewDrawerContent({
     (r) => !r.applicableTo.includes(visit.exceptionCategory)
   );
 
+  const step4Ready =
+    Boolean(notes.trim()) && (!isManualOrMissingPunch || attestationChecked);
+  const canSubmitResolution =
+    acknowledged && Boolean(reasonCode) && Boolean(resolutionCode) && step4Ready;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex justify-end"
+      className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex justify-end"
       onClick={onClose}
     >
       <motion.div
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 260 }}
+        transition={{ type: "spring", damping: 30, stiffness: 280 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col"
+        className="w-full max-w-2xl bg-[#F4F6FC] h-full shadow-2xl border-l border-slate-200 flex flex-col"
       >
-        {/* Drawer Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 shrink-0">
-          <div className="flex items-start justify-between gap-4">
+        {/* Executive Navy Deep Space Header */}
+        <div className="p-5 bg-gradient-to-br from-[#141D3C] via-[#1A254B] to-[#0E152E] text-white shrink-0 relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-[#6C88FF]/15 blur-2xl pointer-events-none" />
+          <div className="flex items-start justify-between gap-4 relative z-10">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm font-extrabold text-slate-900 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200">
+                <span className="font-mono text-xs font-extrabold text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/15 backdrop-blur-md">
                   {visit.id}
                 </span>
                 <span
                   className={clsx(
                     "px-2.5 py-0.5 rounded-full text-xs font-bold border",
                     visit.evvCompliance === "Verified"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      ? "bg-[#57EAB6]/15 text-[#57EAB6] border-[#57EAB6]/30"
                       : visit.evvCompliance === "Exception"
-                        ? "bg-red-50 text-red-700 border-red-200"
-                        : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        ? "bg-red-500/20 text-red-200 border-red-400/30"
+                        : "bg-[#6C88FF]/20 text-indigo-100 border-[#6C88FF]/40"
                   )}
                 >
                   {visit.evvCompliance === "Resolved"
                     ? "Resolved after review"
                     : visit.evvCompliance}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-slate-200 border border-white/10">
                   Visit: {visit.visitStatus}
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-2">
-                {visit.client.name} ({visit.client.id}) · {visit.service.name}
+              <h2 className="text-lg font-bold text-white mt-2.5 tracking-tight">
+                {visit.client.name}{" "}
+                <span className="text-xs font-mono font-normal text-slate-300">
+                  ({visit.client.id})
+                </span>{" "}
+                · {visit.service.name}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Caregiver: <strong className="text-slate-700">{visit.caregiver.name}</strong> ({visit.caregiver.id}) · {visit.visitDateLabel} ({visit.scheduledTime.start} – {visit.scheduledTime.end})
+              <p className="text-xs text-slate-300 mt-0.5">
+                Caregiver: <strong className="text-white">{visit.caregiver.name}</strong> (
+                {visit.caregiver.id}) · {visit.visitDateLabel} ({visit.scheduledTime.start}{" "}
+                – {visit.scheduledTime.end})
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close review drawer"
-              className="p-2 rounded-full hover:bg-slate-200/70 text-slate-500 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
           {visit.evvCompliance === "Resolved" && (
-            <div className="mt-3 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 flex items-center gap-2">
-              <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+            <div className="mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs text-indigo-100 flex items-center gap-2 relative z-10">
+              <Info className="w-4 h-4 text-[#57EAB6] shrink-0" />
               <span>
                 <strong>Resolved after review.</strong> Resolution does not automatically imply aggregator acceptance or billing clearance.
               </span>
             </div>
           )}
 
-          {/* Sub-navigation Tabs */}
-          <div className="flex items-center gap-1 mt-4 bg-white p-1 rounded-xl border border-slate-200 overflow-x-auto">
+          {/* Segmented Tabs inside Header */}
+          <div className="flex items-center gap-1 mt-4 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/10 overflow-x-auto relative z-10">
             {(
               [
                 { id: "details", label: "Details & Verification" },
@@ -451,8 +459,8 @@ function VisitReviewDrawerContent({
                 className={clsx(
                   "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
                   activeTab === tab.id
-                    ? "bg-brand-navy text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-white text-brand-navy shadow-sm font-bold"
+                    : "text-slate-300 hover:text-white hover:bg-white/10"
                 )}
               >
                 {tab.label}
@@ -462,27 +470,27 @@ function VisitReviewDrawerContent({
         </div>
 
         {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
           {/* TAB 1: DETAILS & VERIFICATION */}
           {activeTab === "details" && (
             <>
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-slate-50/50">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-brand-primary" />
                     Original EVV Event vs Current Visit Times
                   </h3>
-                  <span className="text-[11px] font-semibold text-slate-500">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                     Method: {visit.evvMethod}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-white rounded-xl p-3 border border-slate-200">
-                    <div className="text-[11px] font-bold uppercase text-slate-400">
+                  <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/80">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Original Raw EVV Capture (Preserved)
                     </div>
-                    <div className="text-sm font-bold text-slate-900 mt-1">
+                    <div className="text-sm font-bold text-slate-900 mt-1 tabular-nums">
                       In: {visit.originalEvv.clockIn ?? "None"} · Out:{" "}
                       {visit.originalEvv.clockOut ?? "None"}
                     </div>
@@ -493,11 +501,11 @@ function VisitReviewDrawerContent({
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl p-3 border border-slate-200">
-                    <div className="text-[11px] font-bold uppercase text-slate-400">
+                  <div className="bg-white rounded-xl p-3.5 border border-brand-primary/25 shadow-xs">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                       Current / Confirmed Record
                     </div>
-                    <div className="text-sm font-bold text-slate-900 mt-1">
+                    <div className="text-sm font-bold text-slate-900 mt-1 tabular-nums">
                       In: {visit.actualTime.start ?? "Missing"} · Out:{" "}
                       {visit.actualTime.end ?? "Missing"}
                     </div>
@@ -510,7 +518,7 @@ function VisitReviewDrawerContent({
               </div>
 
               {/* Service Location & Associated Patient Phones */}
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-brand-primary" />
@@ -519,18 +527,18 @@ function VisitReviewDrawerContent({
                   <button
                     type="button"
                     onClick={() => setShowLocationEditor((p) => !p)}
-                    className="text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                    className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
                   >
                     {showLocationEditor ? "Close Editor" : "Correct Location"}
                   </button>
                 </div>
 
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="text-xs font-bold text-slate-900">
                       {visit.serviceLocation.addressLine1}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 mt-0.5">
                       {visit.serviceLocation.cityStateZip} ·{" "}
                       <span className="font-semibold text-slate-700">
                         {visit.serviceLocation.locationType}
@@ -540,7 +548,7 @@ function VisitReviewDrawerContent({
                   {visit.gpsDistanceFt !== undefined && (
                     <span
                       className={clsx(
-                        "px-2.5 py-1 rounded-full text-xs font-bold border self-start sm:self-center",
+                        "px-2.5 py-1 rounded-full text-xs font-bold border self-start sm:self-center tabular-nums",
                         visit.gpsDistanceFt <= visit.ruleProfile.geofenceRadiusFt
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : "bg-amber-50 text-amber-800 border-amber-200"
@@ -562,14 +570,14 @@ function VisitReviewDrawerContent({
                         value={editAddress}
                         onChange={(e) => setEditAddress(e.target.value)}
                         placeholder="Street address"
-                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
                       />
                       <input
                         type="text"
                         value={editCityStateZip}
                         onChange={(e) => setEditCityStateZip(e.target.value)}
                         placeholder="City, State ZIP"
-                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
                       />
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -580,7 +588,7 @@ function VisitReviewDrawerContent({
                             e.target.value as ServiceLocation["locationType"]
                           )
                         }
-                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold"
+                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
                       >
                         <option value="Patient Home">Patient Home</option>
                         <option value="Family Residence">Family Residence</option>
@@ -589,7 +597,7 @@ function VisitReviewDrawerContent({
                       <button
                         type="button"
                         onClick={handleSaveLocationCorrection}
-                        className="px-3.5 py-1.5 rounded-lg bg-brand-primary text-white text-xs font-semibold hover:bg-brand-primary/90 cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl bg-brand-primary text-white text-xs font-semibold hover:bg-brand-primary/90 cursor-pointer"
                       >
                         Save Location Update
                       </button>
@@ -605,7 +613,7 @@ function VisitReviewDrawerContent({
                     <button
                       type="button"
                       onClick={() => setShowAddPhone((p) => !p)}
-                      className="text-xs font-semibold text-brand-primary flex items-center gap-1 hover:underline cursor-pointer"
+                      className="text-xs font-bold text-brand-primary flex items-center gap-1 hover:underline cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Associate Phone
@@ -617,31 +625,31 @@ function VisitReviewDrawerContent({
                     return (
                       <div
                         key={ph.id}
-                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs"
+                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50/70 border border-slate-200/80 text-xs"
                       >
                         <div>
                           <span className="font-semibold text-slate-800">{ph.label}</span>
-                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
                             {ph.type}
                           </span>
                           {ph.isVerifiedForIVR ? (
-                            <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">
+                            <span className="ml-1.5 text-[10px] font-bold text-emerald-700">
                               · IVR Verified
                             </span>
                           ) : (
-                            <span className="ml-1.5 text-[10px] font-semibold text-amber-700">
+                            <span className="ml-1.5 text-[10px] font-bold text-amber-700">
                               · Unlinked
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-slate-700">
+                          <span className="font-mono font-semibold text-slate-800 tabular-nums">
                             {revealed ? ph.number : maskPhoneNumber(ph.number)}
                           </span>
                           <button
                             type="button"
                             onClick={() => handleRevealPhone(ph)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer"
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 cursor-pointer"
                             title={revealed ? "Hide number" : "Reveal number (logged to audit)"}
                           >
                             {revealed ? (
@@ -712,29 +720,29 @@ function VisitReviewDrawerContent({
               </div>
 
               {/* Patient Verification & Configurable Rule Profile */}
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-brand-primary" />
                     Verification Evidence & Payer Rule Profile
                   </h3>
-                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
                     {visit.ruleProfile.state} · {visit.ruleProfile.payer}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-1">
+                  <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <FileSignature className="w-3.5 h-3.5 text-slate-500" />
+                        <FileSignature className="w-3.5 h-3.5 text-brand-primary" />
                         Patient Signature
                       </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
                         Rule: {visit.ruleProfile.signatureRequirement}
                       </span>
                     </div>
-                    <div className="text-xs font-semibold text-slate-900">
+                    <div className="text-xs font-bold text-slate-900">
                       Status: {visit.verification.signatureStatus}
                     </div>
                     {visit.verification.signatureCapturedAt && (
@@ -744,20 +752,20 @@ function VisitReviewDrawerContent({
                     )}
                   </div>
 
-                  <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-1">
+                  <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <Mic className="w-3.5 h-3.5 text-slate-500" />
+                        <Mic className="w-3.5 h-3.5 text-purple-600" />
                         Patient Voice / IVR
                       </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
                         Rule: {visit.ruleProfile.voiceRequirement}
                       </span>
                     </div>
-                    <div className="text-xs font-semibold text-slate-900">
+                    <div className="text-xs font-bold text-slate-900">
                       Status: {visit.verification.voiceStatus}
                       {visit.verification.voiceMatchScore
-                        ? ` (${visit.verification.voiceMatchScore}% voice match)`
+                        ? ` (${visit.verification.voiceMatchScore}% match)`
                         : ""}
                     </div>
                     <div className="text-[11px] text-slate-500">
@@ -771,65 +779,69 @@ function VisitReviewDrawerContent({
             </>
           )}
 
-          {/* TAB 2: EXCEPTION RESOLUTION */}
+          {/* TAB 2: EXCEPTION RESOLUTION WITH STEPPER */}
           {activeTab === "resolve" && (
             <form onSubmit={handleSaveResolution} className="space-y-4">
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 space-y-1.5 shadow-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4 text-amber-600" />
                     {getRecommendedWorkflowTitle(visit.exceptionCategory)}
                   </span>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white text-amber-800 border border-amber-200">
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white text-amber-800 border border-amber-200">
                     {visit.exceptionCategory === "None"
                       ? "No Exception"
                       : visit.exceptionCategory}
                   </span>
                 </div>
                 <p className="text-xs text-amber-900 leading-relaxed">
-                  {visit.exceptionDetail}. Follow the 5-step resolution workflow below to document reason/resolution codes and update the immutable audit history.
+                  {visit.exceptionDetail}. Complete the 5-step workflow below to record reason/resolution codes and append to the immutable audit trail.
                 </p>
               </div>
 
               {visit.exceptionCategory === "Location Mismatch" && (
-                <div className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-slate-50/50">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       <MapPin className="w-4 h-4 text-brand-primary" />
-                      Location Variance Details ({visit.gpsDistanceFt} ft from registered address)
+                      Location Variance ({visit.gpsDistanceFt} ft from registered address)
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowLocationEditor((p) => !p)}
-                      className="text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                      className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
                     >
                       {showLocationEditor ? "Cancel Edit" : "Correct Service Location"}
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <div className="text-slate-400 font-semibold">Registered Address</div>
-                      <div className="font-bold text-slate-800 mt-0.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        Registered Address
+                      </div>
+                      <div className="font-bold text-slate-800 mt-1">
                         {visit.serviceLocation.addressLine1}
                       </div>
                       <div className="text-slate-500">
                         {visit.serviceLocation.cityStateZip}
                       </div>
                     </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <div className="text-slate-400 font-semibold">Capture Evidence</div>
-                      <div className="font-bold text-slate-800 mt-0.5">
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                        Capture Evidence
+                      </div>
+                      <div className="font-bold text-slate-800 mt-1">
                         {visit.evvMethod} · {visit.gpsDistanceFt} ft variance
                       </div>
                       <div className="text-slate-500">
-                        Signature: {visit.verification.signatureStatus}
+                        Patient signature: {visit.verification.signatureStatus}
                       </div>
                     </div>
                   </div>
 
                   {showLocationEditor && (
-                    <div className="p-3 rounded-xl bg-white border border-indigo-200 space-y-2.5">
-                      <div className="text-xs font-bold text-slate-800">
+                    <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-200 space-y-2.5">
+                      <div className="text-xs font-bold text-indigo-950">
                         Update Client Service Address / Geofence Anchor
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -837,13 +849,13 @@ function VisitReviewDrawerContent({
                           type="text"
                           value={editAddress}
                           onChange={(e) => setEditAddress(e.target.value)}
-                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                          className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                         <input
                           type="text"
                           value={editCityStateZip}
                           onChange={(e) => setEditCityStateZip(e.target.value)}
-                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                          className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
                       <div className="flex justify-between items-center">
@@ -854,7 +866,7 @@ function VisitReviewDrawerContent({
                               e.target.value as ServiceLocation["locationType"]
                             )
                           }
-                          className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs"
+                          className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         >
                           <option value="Patient Home">Patient Home</option>
                           <option value="Family Residence">Family Residence</option>
@@ -876,7 +888,7 @@ function VisitReviewDrawerContent({
               {(visit.exceptionCategory === "Missed In" ||
                 visit.exceptionCategory === "Missed Out" ||
                 visit.exceptionCategory === "Missed Call") && (
-                <div className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-slate-50/50">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                   <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-brand-primary" />
                     {visit.exceptionCategory === "Missed In"
@@ -898,7 +910,7 @@ function VisitReviewDrawerContent({
                           value={correctedIn}
                           onChange={(e) => setCorrectedIn(e.target.value)}
                           placeholder="e.g. 08:30 AM"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold"
                           required
                         />
                       </div>
@@ -914,7 +926,7 @@ function VisitReviewDrawerContent({
                           value={correctedOut}
                           onChange={(e) => setCorrectedOut(e.target.value)}
                           placeholder="e.g. 12:30 PM"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold"
                           required
                         />
                       </div>
@@ -926,13 +938,13 @@ function VisitReviewDrawerContent({
               {(visit.exceptionCategory === "Missed Call" ||
                 visit.exceptionCategory === "Verification Missing" ||
                 visit.evvMethod === "IVR") && (
-                <div className="rounded-2xl border border-purple-200 bg-purple-50/40 p-4 space-y-3">
+                <div className="bg-white rounded-2xl border border-purple-200 p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
                       <PhoneCall className="w-4 h-4 text-purple-600" />
                       Alternate IVR & Patient Voice Verification
                     </div>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white text-purple-700 border border-purple-200">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
                       Voice: {visit.verification.voiceStatus}
                     </span>
                   </div>
@@ -941,7 +953,7 @@ function VisitReviewDrawerContent({
                     <select
                       value={ivrSelectedPhoneId}
                       onChange={(e) => setIvrSelectedPhoneId(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold"
                     >
                       {visit.serviceLocation.associatedPhones.map((ph) => (
                         <option key={ph.id} value={ph.id}>
@@ -952,7 +964,7 @@ function VisitReviewDrawerContent({
                     <button
                       type="button"
                       onClick={handleTriggerIVRVoiceVerify}
-                      className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Mic className="w-3.5 h-3.5" />
                       Capture IVR Voice Verification
@@ -960,7 +972,7 @@ function VisitReviewDrawerContent({
                   </div>
 
                   {visit.verification.voiceStatus === "Captured" && (
-                    <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-purple-200 text-xs">
+                    <div className="flex items-center justify-between bg-purple-50/50 px-3 py-2 rounded-xl border border-purple-200 text-xs">
                       <div className="flex items-center gap-2">
                         <Volume2 className="w-4 h-4 text-purple-600" />
                         <span>
@@ -980,158 +992,210 @@ function VisitReviewDrawerContent({
                 </div>
               )}
 
-              {/* 5-STEP RESOLUTION WORKFLOW */}
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-4">
+              {/* Visual 5-Step Resolution Stepper */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  5-Step Resolution Workflow
+                  5-Step Guided Resolution Workflow
                 </h3>
 
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">
-                      1. Acknowledge Exception
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Confirm review ownership before selecting codes.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAcknowledge}
+                {/* Step 1 */}
+                <div className="flex gap-3.5">
+                  <div
                     className={clsx(
-                      "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border",
                       acknowledged
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : "bg-brand-navy text-white border-brand-navy"
                     )}
                   >
-                    {acknowledged ? "✓ Acknowledged" : "Acknowledge"}
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                    2. Select Reason Code *
-                  </label>
-                  <select
-                    value={reasonCode}
-                    onChange={(e) => setReasonCode(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-                  >
-                    <option value="">Select state/payer reason code...</option>
-                    {prioritizedReasons.length > 0 && (
-                      <optgroup label="Recommended for this issue">
-                        {prioritizedReasons.map((rc) => (
-                          <option key={rc.code} value={rc.code}>
-                            {rc.code} — {rc.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    <optgroup label="Other State Reason Codes">
-                      {otherReasons.map((rc) => (
-                        <option key={rc.code} value={rc.code}>
-                          {rc.code} — {rc.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                    3. Select Resolution Code *
-                  </label>
-                  <select
-                    value={resolutionCode}
-                    onChange={(e) => setResolutionCode(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-                  >
-                    <option value="">Select resolution code...</option>
-                    {prioritizedResolutions.length > 0 && (
-                      <optgroup label="Recommended Resolutions">
-                        {prioritizedResolutions.map((rc) => (
-                          <option key={rc.code} value={rc.code}>
-                            {rc.code} — {rc.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    <optgroup label="Other Resolution Actions">
-                      {otherResolutions.map((rc) => (
-                        <option key={rc.code} value={rc.code}>
-                          {rc.code} — {rc.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                      4. Add Supporting Notes *
-                    </label>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                      required
-                      placeholder="Document clinical/operational justification (e.g. Verified caregiver arrived at client apartment rear entrance; patient signature captured)..."
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 resize-none"
-                    />
+                    {acknowledged ? <Check className="w-3.5 h-3.5" /> : "1"}
                   </div>
-
-                  {isManualOrMissingPunch && (
-                    <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                          <FileCheck2 className="w-4 h-4 text-emerald-700" />
-                          Documentation Attestation Required
-                        </span>
-                        <input
-                          type="text"
-                          value={attestationRef}
-                          onChange={(e) => setAttestationRef(e.target.value)}
-                          placeholder="Timesheet Ref ID"
-                          className="px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-[11px] font-mono w-36"
-                        />
+                  <div className="flex-1 flex items-center justify-between p-3 rounded-xl bg-slate-50/90 border border-slate-200/80">
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">
+                        Acknowledge Exception
                       </div>
-                      <label className="flex items-start gap-2 text-xs text-emerald-900 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={attestationChecked}
-                          onChange={(e) => setAttestationChecked(e.target.checked)}
-                          required
-                          className="mt-0.5 w-4 h-4 rounded border-emerald-400 text-emerald-600"
-                        />
-                        <span>
-                          I attest that signed timesheet or client confirmation documentation has been verified for this manually confirmed visit.
-                        </span>
-                      </label>
+                      <div className="text-[11px] text-slate-500">
+                        Confirm review ownership before selecting codes.
+                      </div>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={handleAcknowledge}
+                      className={clsx(
+                        "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                        acknowledged
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"
+                      )}
+                    >
+                      {acknowledged ? "✓ Acknowledged" : "Acknowledge"}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <span className="text-[11px] text-slate-500">
-                    5. Saves <strong>Resolved after review</strong> & appends immutable audit record.
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={
-                      !acknowledged ||
-                      !reasonCode ||
-                      !resolutionCode ||
-                      !notes.trim() ||
-                      (isManualOrMissingPunch && !attestationChecked)
-                    }
-                    className="px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                {/* Step 2 */}
+                <div className="flex gap-3.5">
+                  <div
+                    className={clsx(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border",
+                      reasonCode
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : "bg-slate-100 text-slate-600 border-slate-300"
+                    )}
                   >
-                    Save Resolution & Update Audit
-                  </button>
+                    {reasonCode ? <Check className="w-3.5 h-3.5" /> : "2"}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                      Select Reason Code *
+                    </label>
+                    <select
+                      value={reasonCode}
+                      onChange={(e) => setReasonCode(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/25"
+                    >
+                      <option value="">Select state/payer reason code...</option>
+                      {prioritizedReasons.length > 0 && (
+                        <optgroup label="Recommended for this issue">
+                          {prioritizedReasons.map((rc) => (
+                            <option key={rc.code} value={rc.code}>
+                              {rc.code} — {rc.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="Other State Reason Codes">
+                        {otherReasons.map((rc) => (
+                          <option key={rc.code} value={rc.code}>
+                            {rc.code} — {rc.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="flex gap-3.5">
+                  <div
+                    className={clsx(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border",
+                      resolutionCode
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : "bg-slate-100 text-slate-600 border-slate-300"
+                    )}
+                  >
+                    {resolutionCode ? <Check className="w-3.5 h-3.5" /> : "3"}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                      Select Resolution Code *
+                    </label>
+                    <select
+                      value={resolutionCode}
+                      onChange={(e) => setResolutionCode(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/25"
+                    >
+                      <option value="">Select resolution code...</option>
+                      {prioritizedResolutions.length > 0 && (
+                        <optgroup label="Recommended Resolutions">
+                          {prioritizedResolutions.map((rc) => (
+                            <option key={rc.code} value={rc.code}>
+                              {rc.code} — {rc.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="Other Resolution Actions">
+                        {otherResolutions.map((rc) => (
+                          <option key={rc.code} value={rc.code}>
+                            {rc.code} — {rc.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="flex gap-3.5">
+                  <div
+                    className={clsx(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border",
+                      step4Ready
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : "bg-slate-100 text-slate-600 border-slate-300"
+                    )}
+                  >
+                    {step4Ready ? <Check className="w-3.5 h-3.5" /> : "4"}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                        Add Supporting Notes *
+                      </label>
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={3}
+                        required
+                        placeholder="Document clinical/operational justification (e.g. Verified caregiver arrived at client apartment rear entrance; patient signature captured)..."
+                        className="w-full px-3 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/25 resize-none"
+                      />
+                    </div>
+
+                    {isManualOrMissingPunch && (
+                      <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                            <FileCheck2 className="w-4 h-4 text-emerald-700" />
+                            Documentation Attestation Required
+                          </span>
+                          <input
+                            type="text"
+                            value={attestationRef}
+                            onChange={(e) => setAttestationRef(e.target.value)}
+                            placeholder="Timesheet Ref ID"
+                            className="px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-[11px] font-mono w-36"
+                          />
+                        </div>
+                        <label className="flex items-start gap-2 text-xs text-emerald-900 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={attestationChecked}
+                            onChange={(e) => setAttestationChecked(e.target.checked)}
+                            required
+                            className="mt-0.5 w-4 h-4 rounded border-emerald-400 text-emerald-600"
+                          />
+                          <span>
+                            I attest that signed timesheet or client confirmation documentation has been verified for this manually confirmed visit.
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 5 */}
+                <div className="flex gap-3.5 pt-2 border-t border-slate-100 items-center">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-slate-100 text-slate-600 border border-slate-300">
+                    5
+                  </div>
+                  <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-[11px] text-slate-500">
+                      Saves <strong>Resolved after review</strong> & appends immutable audit log.
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={!canSubmitResolution}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-bold shadow-md shadow-[#6C88FF]/25 transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      Save Resolution & Update Audit
+                    </button>
+                  </div>
                 </div>
               </div>
             </form>
@@ -1140,17 +1204,19 @@ function VisitReviewDrawerContent({
           {/* TAB 3: PROCESSING & READINESS */}
           {activeTab === "processing" && (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-start gap-2.5">
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 text-xs text-slate-700 flex items-start gap-2.5 shadow-xs">
                 <Info className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
                 <div>
                   <strong>Independent Processing Controls:</strong> EVV compliance resolution, state aggregator acceptance, billing clearance, and caregiver payroll approval operate independently so holds never leak into claims or block justified payroll unintentionally.
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Send className="w-4 h-4 text-brand-primary" />
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-brand-primary flex items-center justify-center">
+                      <Send className="w-4 h-4" />
+                    </div>
                     <span className="text-sm font-bold text-slate-900">
                       Aggregator Submission ({visit.ruleProfile.aggregator})
                     </span>
@@ -1175,7 +1241,7 @@ function VisitReviewDrawerContent({
                         `Submitted ${visit.id} to ${visit.ruleProfile.aggregator}.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl bg-brand-primary text-white text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
                   >
                     Submit to Aggregator
                   </button>
@@ -1188,17 +1254,19 @@ function VisitReviewDrawerContent({
                         `Marked ${visit.id} as Accepted by ${visit.ruleProfile.aggregator}.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold cursor-pointer hover:bg-emerald-100"
                   >
                     Simulate Acceptance
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-brand-primary" />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4" />
+                    </div>
                     <span className="text-sm font-bold text-slate-900">
                       Billing Clearance (${visit.estimatedBillingAmount.toFixed(2)})
                     </span>
@@ -1221,7 +1289,7 @@ function VisitReviewDrawerContent({
                         `Cleared ${visit.id} for 837 claim generation.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
                   >
                     Clear for Billing
                   </button>
@@ -1234,17 +1302,19 @@ function VisitReviewDrawerContent({
                         `Placed billing hold on ${visit.id}.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-semibold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold cursor-pointer"
                   >
                     Place Billing Hold
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-brand-primary" />
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 text-brand-navy flex items-center justify-center">
+                      <Wallet className="w-4 h-4" />
+                    </div>
                     <span className="text-sm font-bold text-slate-900">
                       Payroll Approval
                     </span>
@@ -1264,7 +1334,7 @@ function VisitReviewDrawerContent({
                         `Approved caregiver payroll for ${visit.id}.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl bg-brand-navy text-white text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-brand-navy hover:bg-brand-navy/90 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
                   >
                     Approve Payroll
                   </button>
@@ -1277,7 +1347,7 @@ function VisitReviewDrawerContent({
                         `Placed payroll hold on ${visit.id}.`
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer"
                   >
                     Hold Payroll
                   </button>
@@ -1286,48 +1356,48 @@ function VisitReviewDrawerContent({
             </div>
           )}
 
-          {/* TAB 4: AUDIT HISTORY */}
+          {/* TAB 4: AUDIT HISTORY TIMELINE */}
           {activeTab === "audit" && (
-            <div className="space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <History className="w-4 h-4 text-brand-primary" />
                   Immutable EVV & Compliance Audit Trail
                 </h3>
-                <span className="text-[11px] text-slate-400">UTC Timestamps</span>
+                <span className="text-[11px] font-mono text-slate-400">UTC Timestamps</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="relative pl-5 space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
                 {visit.auditHistory.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono">
-                        {ev.actionType}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {ev.timestamp.replace("T", " ").slice(0, 19)} UTC
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-800 leading-relaxed">{ev.summary}</p>
-                    {(ev.reasonCode || ev.resolutionCode || ev.previousValue) && (
-                      <div className="text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2 space-y-0.5">
-                        {ev.reasonCode && <div>Reason Code: {ev.reasonCode}</div>}
-                        {ev.resolutionCode && (
-                          <div>Resolution Code: {ev.resolutionCode}</div>
-                        )}
-                        {ev.previousValue && (
-                          <div>
-                            Change: {ev.previousValue} → <strong>{ev.newValue}</strong>
-                          </div>
-                        )}
+                  <div key={ev.id} className="relative">
+                    <span className="absolute -left-5 top-2 w-3.5 h-3.5 rounded-full bg-white border-2 border-brand-primary shadow-xs" />
+                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-mono">
+                          {ev.actionType}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+                          {ev.timestamp.replace("T", " ").slice(0, 19)} UTC
+                        </span>
                       </div>
-                    )}
-                    <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                      {ev.actorName} ({ev.actorRole})
+                      <p className="text-xs text-slate-800 leading-relaxed">{ev.summary}</p>
+                      {(ev.reasonCode || ev.resolutionCode || ev.previousValue) && (
+                        <div className="text-[11px] text-slate-600 bg-white rounded-lg p-2.5 border border-slate-200/70 space-y-0.5">
+                          {ev.reasonCode && <div>Reason Code: <strong>{ev.reasonCode}</strong></div>}
+                          {ev.resolutionCode && (
+                            <div>Resolution Code: <strong>{ev.resolutionCode}</strong></div>
+                          )}
+                          {ev.previousValue && (
+                            <div>
+                              Change: {ev.previousValue} → <strong>{ev.newValue}</strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        {ev.actorName} ({ev.actorRole})
+                      </div>
                     </div>
                   </div>
                 ))}

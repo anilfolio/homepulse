@@ -70,15 +70,15 @@ export function SubmissionDashboard() {
             <p className="text-2xl font-bold text-slate-900">423</p>
           </div>
         </div>
-        <div className="bg-gradient-to-br from-brand-teal to-teal-700 rounded-2xl p-4 sm:p-5 border border-teal-600 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white">
+        <div className="bg-gradient-to-br from-[#141D3C] via-[#1A254B] to-[#0E152E] rounded-2xl p-4 sm:p-5 border border-[#2A3B75]/70 shadow-[0_12px_36px_rgba(20,29,60,0.2)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white">
           <div>
-            <p className="text-xs font-medium text-teal-100 uppercase tracking-wider">Pending Batch</p>
-            <p className="text-2xl font-bold">{pendingVisits} Visits</p>
+            <p className="text-xs font-semibold text-[#57EAB6] uppercase tracking-wider">Pending Batch</p>
+            <p className="text-2xl font-extrabold tabular-nums">{pendingVisits} Visits</p>
           </div>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || pendingVisits === 0}
-            className="w-full sm:w-auto justify-center bg-white/20 hover:bg-white/30 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            className="w-full sm:w-auto justify-center bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-md shadow-[#6C88FF]/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
             {isSubmitting ? 'Submitting...' : 'Submit Now'}
             {!isSubmitting && <ArrowUpRight className="w-4 h-4" />}
           </button>

@@ -175,7 +175,7 @@ export function BulkConfirmModal({
           <button
             type="submit"
             disabled={!attested || !notes.trim()}
-            className="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-sm cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md shadow-[#6C88FF]/25 cursor-pointer transition-all"
           >
             Confirm & Save Audit Trail
           </button>

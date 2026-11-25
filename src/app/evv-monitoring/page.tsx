@@ -9,7 +9,10 @@ import {
   ListChecks,
   AlertTriangle,
   Send,
-  Info,
+  Clock,
+  MapPin,
+  FileCheck2,
+  ShieldCheck,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -79,7 +82,8 @@ export default function EVVMonitoringPage() {
 
   const handleExportCsv = (ids?: string[]) => {
     setIsDownloading(true);
-    const exportRows = ids && ids.length > 0 ? visits.filter((v) => ids.includes(v.id)) : visits;
+    const exportRows =
+      ids && ids.length > 0 ? visits.filter((v) => ids.includes(v.id)) : visits;
     setTimeout(() => {
       const header =
         "VisitID,VisitStatus,CaregiverID,ClientID,Service,Scheduled,Actual,Method,EVVCompliance,ExceptionReason,Aggregator,Billing,Payroll";
@@ -110,7 +114,7 @@ export default function EVVMonitoringPage() {
       document.body.removeChild(link);
       setIsDownloading(false);
       showToast(`Exported ${exportRows.length} visit record(s) to CSV.`);
-    }, 500);
+    }, 450);
   };
 
   const handleBulkConfirmSave = (payload: {
@@ -251,14 +255,14 @@ export default function EVVMonitoringPage() {
     {
       id: "visits",
       label: "All Visits",
-      subtitle: "Unified operational table",
+      subtitle: "Unified operational grid",
       icon: ListChecks,
       badge: visits.length,
     },
     {
       id: "exceptions",
       label: "Exceptions",
-      subtitle: "Resolution queue",
+      subtitle: "Guided resolution queue",
       icon: AlertTriangle,
       badge: openExceptionsCount,
     },
@@ -273,34 +277,41 @@ export default function EVVMonitoringPage() {
   return (
     <div className="flex-1 min-h-screen">
       <div className="space-y-5">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+        {/* Executive Command Header */}
+        <div className="bg-white/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+          <div className="absolute right-0 top-0 bottom-0 w-72 bg-gradient-to-l from-[#6C88FF]/8 via-[#57EAB6]/5 to-transparent pointer-events-none" />
+
+          <div className="relative z-10">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 EVV & Visits
               </h1>
-              <span className="text-xs font-bold bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 {openExceptionsCount} Open Exception{openExceptionsCount === 1 ? "" : "s"}
               </span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                21st Century Cures Active
+              </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Operational visit visibility, exception resolution, patient verification, and aggregator/billing/payroll readiness.
+            <p className="text-xs text-slate-500 font-medium mt-1.5">
+              End-to-end visit compliance visibility, exception resolution workflows, patient verification, and financial readiness.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none">
+          <div className="flex items-center gap-2.5 w-full md:w-auto relative z-10">
+            <div className="relative flex-1 md:flex-none">
               <button
                 type="button"
                 onClick={() => setShowCalendar((p) => !p)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 transition-all cursor-pointer"
+                className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
               >
                 <CalendarIcon className="w-4 h-4 text-slate-400" />
                 {dateRange}
               </button>
               {showCalendar && (
-                <div className="absolute top-full mt-2 right-0 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-2">
+                <div className="absolute top-full mt-2 right-0 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1.5">
                   {["Today Only", "Today & Recent", "This Week", "Pay Period"].map((opt) => (
                     <button
                       type="button"
@@ -327,7 +338,7 @@ export default function EVVMonitoringPage() {
               type="button"
               onClick={() => handleExportCsv()}
               disabled={isDownloading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-primary text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm whitespace-nowrap disabled:opacity-60 cursor-pointer"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#6C88FF]/25 hover:shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-60 cursor-pointer"
             >
               <Download className={clsx("w-4 h-4", isDownloading && "animate-bounce")} />
               {isDownloading ? "Exporting..." : "Export CSV"}
@@ -335,8 +346,8 @@ export default function EVVMonitoringPage() {
           </div>
         </div>
 
-        {/* Proposed 4-Section Navigation */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 bg-white/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+        {/* 4-Section Segmented Executive Navigation */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]">
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -347,35 +358,44 @@ export default function EVVMonitoringPage() {
                 className={clsx(
                   "relative flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer",
                   isActive
-                    ? "text-slate-900"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/70"
+                    ? "text-white"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId="evv-main-nav"
-                    className="absolute inset-0 bg-brand-primary/10 border border-brand-primary/25 rounded-xl"
+                    className="absolute inset-0 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] rounded-xl shadow-[0_8px_20px_rgba(20,29,60,0.2)]"
                     initial={false}
-                    transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                    transition={{ type: "spring", bounce: 0.16, duration: 0.42 }}
                   />
                 )}
                 <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                  <tab.icon
+                  <div
                     className={clsx(
-                      "w-4 h-4 shrink-0",
-                      isActive ? "text-brand-primary" : "text-slate-400"
+                      "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                      isActive
+                        ? "bg-white/10 text-[#57EAB6]"
+                        : "bg-slate-100 text-slate-500"
                     )}
-                  />
+                  >
+                    <tab.icon className="w-4 h-4" />
+                  </div>
                   <div className="min-w-0">
                     <div
                       className={clsx(
                         "text-xs sm:text-sm font-bold truncate",
-                        isActive ? "text-brand-navy" : "text-slate-700"
+                        isActive ? "text-white" : "text-slate-800"
                       )}
                     >
                       {tab.label}
                     </div>
-                    <div className="text-[10px] text-slate-400 hidden sm:block truncate">
+                    <div
+                      className={clsx(
+                        "text-[10px] hidden sm:block truncate",
+                        isActive ? "text-slate-300" : "text-slate-400"
+                      )}
+                    >
                       {tab.subtitle}
                     </div>
                   </div>
@@ -383,11 +403,13 @@ export default function EVVMonitoringPage() {
                 {tab.badge !== undefined && (
                   <span
                     className={clsx(
-                      "relative z-10 px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0",
+                      "relative z-10 px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 tabular-nums",
                       tab.id === "exceptions" && tab.badge > 0
-                        ? "bg-red-100 text-red-700"
+                        ? isActive
+                          ? "bg-red-500 text-white"
+                          : "bg-red-100 text-red-700"
                         : isActive
-                          ? "bg-brand-primary text-white"
+                          ? "bg-[#57EAB6]/20 text-[#57EAB6] border border-[#57EAB6]/30"
                           : "bg-slate-100 text-slate-600"
                     )}
                   >
@@ -424,13 +446,61 @@ export default function EVVMonitoringPage() {
         {/* Section 3: Exceptions */}
         {activeTab === "exceptions" && (
           <div className="space-y-4">
-            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-950">
-              <div className="flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Distinct Resolution Workflows:</strong> Missed In, Missed Out, Missed Call, Location Mismatch, Time Variance, and Verification failures route into tailored 5-step resolution workflows with original event preservation and documentation attestation.
+            {/* Exception Workflow Playbook Strip */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setExceptionFilterPreset("Missed In")}
+                className="text-left bg-white/90 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-200/80 shadow-xs hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
                 </div>
-              </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Missed In / Missed Out
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Capture missing start or end punch while preserving raw original EVV events.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExceptionFilterPreset("Missed Call")}
+                className="text-left bg-white/90 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-200/80 shadow-xs hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center shrink-0">
+                  <FileCheck2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Missed Call & Manual Attestation
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Confirm via signed timesheet, alternate IVR voice, and mandatory attestation.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExceptionFilterPreset("Location Mismatch")}
+                className="text-left bg-white/90 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-200/80 shadow-xs hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-brand-primary border border-blue-100 flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Location & Verification Review
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Update service addresses, link patient phones, and verify GPS/IVR variance.
+                  </div>
+                </div>
+              </button>
             </div>
 
             <VisitsTable
@@ -473,7 +543,8 @@ export default function EVVMonitoringPage() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-4 right-4 bg-brand-navy text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl border border-white/10 z-[100]">
+        <div className="fixed bottom-5 right-5 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] text-white text-xs sm:text-sm font-semibold px-4 py-3 rounded-xl shadow-2xl border border-[#2A3B75] z-[100] flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#57EAB6]" />
           {toastMessage}
         </div>
       )}
