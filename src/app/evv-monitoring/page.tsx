@@ -13,7 +13,6 @@ import {
   Clock,
   MapPin,
   FileCheck2,
-  ShieldCheck,
   Building2,
 } from "lucide-react";
 import clsx from "clsx";
@@ -170,18 +169,7 @@ export default function EVVMonitoringPage() {
                 {openExceptionsCount} Open Exception
                 {openExceptionsCount === 1 ? "" : "s"}
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                21st Century Cures Active
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full">
-                Role: {capabilities.roleLabel}
-              </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-1.5">
-              End-to-end visit compliance visibility, exception resolution
-              workflows, patient verification, and financial readiness.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto relative z-10">
