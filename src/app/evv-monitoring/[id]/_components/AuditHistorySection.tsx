@@ -1,24 +1,34 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, History } from "lucide-react";
+import { CheckCircle2, Cpu, History } from "lucide-react";
 import { AuditEvent } from "../../types";
 
 export function AuditHistorySection({
   auditHistory,
+  deviceOrPhoneRef,
 }: {
   auditHistory: AuditEvent[];
+  deviceOrPhoneRef?: string;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
           <History className="w-4 h-4 text-brand-primary" />
           Immutable EVV & Compliance Audit Trail
         </h3>
-        <span className="text-[11px] font-mono text-slate-400">
-          UTC Timestamps
-        </span>
+        <div className="flex items-center gap-2">
+          {deviceOrPhoneRef && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              <Cpu className="w-3 h-3" />
+              Source: {deviceOrPhoneRef}
+            </span>
+          )}
+          <span className="text-[11px] font-mono text-slate-400">
+            UTC Timestamps
+          </span>
+        </div>
       </div>
 
       <div className="relative pl-5 space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">

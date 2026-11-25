@@ -1,22 +1,28 @@
 "use client";
 
 import React from "react";
-import { Send, DollarSign, Wallet, Info } from "lucide-react";
+import { Send, DollarSign, Wallet, Info, Lock } from "lucide-react";
 import {
   AggregatorStatus,
   BillingStatus,
   EVVVisit,
   PayrollStatus,
 } from "../../types";
+import { EvvActor } from "../../EvvVisitsContext";
+import { EvvRoleCapabilities } from "../../evvPermissions";
 import { createAuditEvent, nextId } from "../../evvRules";
 
 interface ProcessingControlsSectionProps {
   visit: EVVVisit;
+  actor: EvvActor;
+  capabilities: EvvRoleCapabilities;
   onUpdateVisit: (updated: EVVVisit, toastMessage?: string) => void;
 }
 
 export function ProcessingControlsSection({
   visit,
+  actor,
+  capabilities,
   onUpdateVisit,
 }: ProcessingControlsSectionProps) {
   const updateProcessingStatus = (
@@ -35,8 +41,8 @@ export function ProcessingControlsSection({
       },
       auditHistory: [
         createAuditEvent({
-          actorName: "Admin Coordinator",
-          actorRole: "ADMIN",
+          actorName: actor.name,
+          actorRole: actor.role,
           actionType:
             field === "aggregator"
               ? "AGGREGATOR_SUBMITTED"
@@ -96,33 +102,26 @@ export function ProcessingControlsSection({
             )}
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              disabled={visit.evvCompliance === "Exception"}
-              onClick={() =>
-                updateProcessingStatus(
-                  "aggregator",
-                  "Submitted",
-                  `Submitted ${visit.id} to ${visit.ruleProfile.aggregator}.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
-            >
-              Submit to Aggregator
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                updateProcessingStatus(
-                  "aggregator",
-                  "Accepted",
-                  `Marked ${visit.id} as Accepted by ${visit.ruleProfile.aggregator}.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold cursor-pointer hover:bg-emerald-100"
-            >
-              Simulate Acceptance
-            </button>
+            {capabilities.canSubmitAggregator ? (
+              <button
+                type="button"
+                disabled={visit.evvCompliance === "Exception"}
+                onClick={() =>
+                  updateProcessingStatus(
+                    "aggregator",
+                    "Submitted",
+                    `Submitted ${visit.id} to ${visit.ruleProfile.aggregator}.`
+                  )
+                }
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                Submit to Aggregator
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                <Lock className="w-3 h-3" /> Read-only for {capabilities.roleLabel}
+              </span>
+            )}
           </div>
         </div>
 
@@ -146,36 +145,44 @@ export function ProcessingControlsSection({
             </span>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              disabled={
-                visit.evvCompliance === "Exception" ||
-                visit.visitStatus !== "Completed"
-              }
-              onClick={() =>
-                updateProcessingStatus(
-                  "billing",
-                  "Cleared",
-                  `Cleared ${visit.id} for 837 claim generation.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
-            >
-              Clear for Billing
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                updateProcessingStatus(
-                  "billing",
-                  "Hold",
-                  `Placed billing hold on ${visit.id}.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold cursor-pointer"
-            >
-              Place Billing Hold
-            </button>
+            {capabilities.canManageBilling ? (
+              <>
+                <button
+                  type="button"
+                  disabled={
+                    visit.evvCompliance === "Exception" ||
+                    visit.visitStatus !== "Completed"
+                  }
+                  onClick={() =>
+                    updateProcessingStatus(
+                      "billing",
+                      "Cleared",
+                      `Cleared ${visit.id} for 837 claim generation.`
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
+                >
+                  Clear for Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateProcessingStatus(
+                      "billing",
+                      "Hold",
+                      `Placed billing hold on ${visit.id}.`
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold cursor-pointer"
+                >
+                  Place Billing Hold
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                <Lock className="w-3 h-3" /> Read-only for {capabilities.roleLabel}
+              </span>
+            )}
           </div>
         </div>
 
@@ -199,33 +206,41 @@ export function ProcessingControlsSection({
             </span>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              disabled={visit.visitStatus !== "Completed"}
-              onClick={() =>
-                updateProcessingStatus(
-                  "payroll",
-                  "Approved",
-                  `Approved caregiver payroll for ${visit.id}.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl bg-brand-navy hover:bg-brand-navy/90 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
-            >
-              Approve Payroll
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                updateProcessingStatus(
-                  "payroll",
-                  "Hold",
-                  `Placed payroll hold on ${visit.id}.`
-                )
-              }
-              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer"
-            >
-              Hold Payroll
-            </button>
+            {capabilities.canManagePayroll ? (
+              <>
+                <button
+                  type="button"
+                  disabled={visit.visitStatus !== "Completed"}
+                  onClick={() =>
+                    updateProcessingStatus(
+                      "payroll",
+                      "Approved",
+                      `Approved caregiver payroll for ${visit.id}.`
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl bg-brand-navy hover:bg-brand-navy/90 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-xs"
+                >
+                  Approve Payroll
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateProcessingStatus(
+                      "payroll",
+                      "Hold",
+                      `Placed payroll hold on ${visit.id}.`
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Hold Payroll
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                <Lock className="w-3 h-3" /> Restricted to Agency Admin / Payroll
+              </span>
+            )}
           </div>
         </div>
       </div>

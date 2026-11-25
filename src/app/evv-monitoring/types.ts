@@ -81,6 +81,7 @@ export interface AuditEvent {
     | "EVV_CAPTURE"
     | "EXCEPTION_DETECTED"
     | "EXCEPTION_ACKNOWLEDGED"
+    | "EXCEPTION_REOPENED"
     | "RESOLUTION_SAVED"
     | "MANUAL_CONFIRMATION"
     | "LOCATION_UPDATED"
@@ -120,6 +121,7 @@ export interface EVVVisit {
     id: string;
     name: string;
     role: string;
+    phone?: string;
   };
   client: {
     id: string;
@@ -169,6 +171,19 @@ export interface EVVVisit {
     payroll: PayrollStatus;
   };
   estimatedBillingAmount: number;
+  authorization?: {
+    authNumber: string;
+    status: "Active" | "Expiring Soon" | "Exhausted";
+    remainingUnits: number;
+    totalUnits: number;
+    unitLabel: string;
+    expiresAt: string;
+  };
+  tasksSummary?: {
+    completed: number;
+    total: number;
+    items: string[];
+  };
   ruleProfile: RuleProfile;
   resolution?: ResolutionRecord;
   auditHistory: AuditEvent[];

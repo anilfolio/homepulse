@@ -14,6 +14,7 @@ import {
   MapPin,
   FileCheck2,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -28,6 +29,7 @@ export default function EVVMonitoringPage() {
   const router = useRouter();
   const {
     visits,
+    capabilities,
     activeTab,
     exceptionFilterPreset,
     setExceptionFilterPreset,
@@ -40,23 +42,39 @@ export default function EVVMonitoringPage() {
 
   const [bulkConfirmIds, setBulkConfirmIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState("Today & Recent");
+  const [stateFilter, setStateFilter] = useState("All");
   const [showCalendar, setShowCalendar] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const scopedVisits = useMemo(() => {
+    return visits.filter((v) => {
+      if (dateRange === "Today Only" && v.visitDateLabel !== "Today") {
+        return false;
+      }
+      if (stateFilter !== "All" && v.ruleProfile.state !== stateFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [visits, dateRange, stateFilter]);
+
   const bulkModalVisits = useMemo(
-    () => visits.filter((v) => bulkConfirmIds.includes(v.id)),
-    [visits, bulkConfirmIds]
+    () => scopedVisits.filter((v) => bulkConfirmIds.includes(v.id)),
+    [scopedVisits, bulkConfirmIds]
   );
 
   const openExceptionsCount = useMemo(
-    () => visits.filter((v) => v.evvCompliance === "Exception").length,
-    [visits]
+    () => scopedVisits.filter((v) => v.evvCompliance === "Exception").length,
+    [scopedVisits]
   );
 
   const handleExportCsv = (ids?: string[]) => {
+    if (!capabilities.canExportCsv) return;
     setIsDownloading(true);
     const exportRows =
-      ids && ids.length > 0 ? visits.filter((v) => ids.includes(v.id)) : visits;
+      ids && ids.length > 0
+        ? scopedVisits.filter((v) => ids.includes(v.id))
+        : scopedVisits;
     setTimeout(() => {
       const header =
         "VisitID,VisitStatus,CaregiverID,ClientID,Service,Scheduled,Actual,Method,EVVCompliance,ExceptionReason,Aggregator,Billing,Payroll";
@@ -90,46 +108,56 @@ export default function EVVMonitoringPage() {
     }, 450);
   };
 
-  const navTabs: {
-    id: EVVNavTab;
-    label: string;
-    subtitle: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: number;
-  }[] = [
-    {
-      id: "overview",
-      label: "EVV Overview",
-      subtitle: "Compliance & trends",
-      icon: LayoutDashboard,
-    },
-    {
-      id: "visits",
-      label: "All Visits",
-      subtitle: "Unified operational grid",
-      icon: ListChecks,
-      badge: visits.length,
-    },
-    {
-      id: "exceptions",
-      label: "Exceptions",
-      subtitle: "Guided resolution queue",
-      icon: AlertTriangle,
-      badge: openExceptionsCount,
-    },
-    {
-      id: "aggregator",
-      label: "Aggregator & Billing",
-      subtitle: "Submission, holds & rules",
-      icon: Send,
-    },
-  ];
+  const navTabs = useMemo(() => {
+    const allTabs: {
+      id: EVVNavTab;
+      label: string;
+      subtitle: string;
+      icon: React.ComponentType<{ className?: string }>;
+      badge?: number;
+      visible: boolean;
+    }[] = [
+      {
+        id: "overview",
+        label: "EVV Overview",
+        subtitle: "Compliance & trends",
+        icon: LayoutDashboard,
+        visible: capabilities.canViewOverview,
+      },
+      {
+        id: "visits",
+        label: "All Visits",
+        subtitle: "Unified operational grid",
+        icon: ListChecks,
+        badge: scopedVisits.length,
+        visible: capabilities.canViewAllVisits,
+      },
+      {
+        id: "exceptions",
+        label: "Exceptions",
+        subtitle: capabilities.canResolveExceptions
+          ? "Guided resolution queue"
+          : "Exception visibility queue",
+        icon: AlertTriangle,
+        badge: openExceptionsCount,
+        visible: capabilities.canViewExceptions,
+      },
+      {
+        id: "aggregator",
+        label: "Aggregator & Billing",
+        subtitle: "Submission, holds & rules",
+        icon: Send,
+        visible: capabilities.canViewAggregatorTab,
+      },
+    ];
+    return allTabs.filter((t) => t.visible);
+  }, [capabilities, scopedVisits.length, openExceptionsCount]);
 
   return (
     <div className="flex-1 min-h-screen">
       <div className="space-y-5">
         {/* Executive Command Header */}
-        <div className="bg-white/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="bg-white/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative overflow-hidden">
           <div className="absolute right-0 top-0 bottom-0 w-72 bg-gradient-to-l from-[#6C88FF]/8 via-[#57EAB6]/5 to-transparent pointer-events-none" />
 
           <div className="relative z-10">
@@ -146,6 +174,9 @@ export default function EVVMonitoringPage() {
                 <ShieldCheck className="w-3.5 h-3.5" />
                 21st Century Cures Active
               </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                Role: {capabilities.roleLabel}
+              </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1.5">
               End-to-end visit compliance visibility, exception resolution
@@ -153,12 +184,28 @@ export default function EVVMonitoringPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto relative z-10">
-            <div className="relative flex-1 md:flex-none">
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto relative z-10">
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                aria-label="Filter by state or payer jurisdiction"
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+                className="text-xs font-semibold text-slate-700 bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="All">All Jurisdictions</option>
+                <option value="OH">OH Medicaid</option>
+                <option value="NJ">NJ FamilyCare</option>
+                <option value="FL">FL AHCA</option>
+                <option value="Agency">Private Pay</option>
+              </select>
+            </div>
+
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowCalendar((p) => !p)}
-                className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
               >
                 <CalendarIcon className="w-4 h-4 text-slate-400" />
                 {dateRange}
@@ -192,22 +239,33 @@ export default function EVVMonitoringPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleExportCsv()}
-              disabled={isDownloading}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#6C88FF]/25 hover:shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-60 cursor-pointer"
-            >
-              <Download
-                className={clsx("w-4 h-4", isDownloading && "animate-bounce")}
-              />
-              {isDownloading ? "Exporting..." : "Export CSV"}
-            </button>
+            {capabilities.canExportCsv && (
+              <button
+                type="button"
+                onClick={() => handleExportCsv()}
+                disabled={isDownloading}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#6C88FF]/25 hover:shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-60 cursor-pointer"
+              >
+                <Download
+                  className={clsx("w-4 h-4", isDownloading && "animate-bounce")}
+                />
+                {isDownloading ? "Exporting..." : "Export CSV"}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 4-Section Segmented Executive Navigation */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]">
+        {/* Segmented Executive Navigation */}
+        <div
+          className={clsx(
+            "grid gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]",
+            navTabs.length === 4
+              ? "grid-cols-2 lg:grid-cols-4"
+              : navTabs.length === 3
+                ? "grid-cols-1 sm:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2"
+          )}
+        >
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -284,7 +342,8 @@ export default function EVVMonitoringPage() {
         {/* Section 1: EVV Overview */}
         {activeTab === "overview" && (
           <EvvOverviewTab
-            visits={visits}
+            visits={scopedVisits}
+            capabilities={capabilities}
             onNavigateTab={navigateTab}
             onReviewVisit={(visit) => router.push(`/evv-monitoring/${visit.id}`)}
           />
@@ -293,8 +352,9 @@ export default function EVVMonitoringPage() {
         {/* Section 2: All Visits */}
         {activeTab === "visits" && (
           <VisitsTable
-            key="all-visits-table"
-            visits={visits}
+            key={`all-visits-${dateRange}-${stateFilter}`}
+            visits={scopedVisits}
+            capabilities={capabilities}
             mode="all"
             onBulkConfirm={(ids) => setBulkConfirmIds(ids)}
             onBulkSubmitAggregator={bulkSubmitAggregator}
@@ -303,7 +363,7 @@ export default function EVVMonitoringPage() {
         )}
 
         {/* Section 3: Exceptions */}
-        {activeTab === "exceptions" && (
+        {activeTab === "exceptions" && capabilities.canViewExceptions && (
           <div className="space-y-4">
             {/* Exception Workflow Playbook Strip */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -370,8 +430,9 @@ export default function EVVMonitoringPage() {
             </div>
 
             <VisitsTable
-              key={`exceptions-table-${exceptionFilterPreset}`}
-              visits={visits}
+              key={`exceptions-table-${exceptionFilterPreset}-${dateRange}-${stateFilter}`}
+              visits={scopedVisits}
+              capabilities={capabilities}
               mode="exceptions"
               initialExceptionFilter={exceptionFilterPreset}
               onBulkConfirm={(ids) => setBulkConfirmIds(ids)}
@@ -382,21 +443,24 @@ export default function EVVMonitoringPage() {
         )}
 
         {/* Section 4: Aggregator & Billing */}
-        {activeTab === "aggregator" && (
+        {activeTab === "aggregator" && capabilities.canViewAggregatorTab && (
           <AggregatorBillingTab
-            visits={visits}
+            visits={scopedVisits}
+            capabilities={capabilities}
             onUpdateVisit={updateVisit}
           />
         )}
       </div>
 
       {/* Bulk Confirmation & Attestation Modal */}
-      <BulkConfirmModal
-        isOpen={bulkConfirmIds.length > 0}
-        selectedVisits={bulkModalVisits}
-        onClose={() => setBulkConfirmIds([])}
-        onConfirm={bulkConfirmVisits}
-      />
+      {capabilities.canBulkConfirm && (
+        <BulkConfirmModal
+          isOpen={bulkConfirmIds.length > 0}
+          selectedVisits={bulkModalVisits}
+          onClose={() => setBulkConfirmIds([])}
+          onConfirm={bulkConfirmVisits}
+        />
+      )}
     </div>
   );
 }

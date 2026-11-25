@@ -160,7 +160,11 @@ export function applyLocationCorrection(
   visit: EVVVisit,
   addressLine1: string,
   cityStateZip: string,
-  locationType: ServiceLocation["locationType"]
+  locationType: ServiceLocation["locationType"],
+  actor: { name: string; role: string } = {
+    name: "Admin Coordinator",
+    role: "ADMIN",
+  }
 ): EVVVisit {
   const prevAddr = `${visit.serviceLocation.addressLine1}, ${visit.serviceLocation.cityStateZip}`;
   const newAddr = `${addressLine1.trim()}, ${cityStateZip.trim()}`;
@@ -175,11 +179,72 @@ export function applyLocationCorrection(
     },
   };
   return appendVisitAudit(updated, {
-    actorName: "Admin Coordinator",
-    actorRole: "ADMIN",
+    actorName: actor.name,
+    actorRole: actor.role,
     actionType: "LOCATION_UPDATED",
     summary: `Updated service location (${locationType}). Original GPS distance (${visit.originalEvv.gpsDistanceFt ?? 0} ft) preserved.`,
     previousValue: prevAddr,
     newValue: newAddr,
   });
+}
+
+/**
+ * Returns payer authorization details for a visit, deriving a deterministic fallback when omitted.
+ */
+export function getVisitAuthorization(visit: EVVVisit): NonNullable<EVVVisit["authorization"]> {
+  if (visit.authorization) return visit.authorization;
+  const suffix = visit.id.slice(-3);
+  if (visit.processing.aggregator === "Rejected") {
+    return {
+      authNumber: `AUTH-${visit.ruleProfile.state}-${suffix}`,
+      status: "Expiring Soon",
+      remainingUnits: 8,
+      totalUnits: 120,
+      unitLabel: "15m units",
+      expiresAt: "2026-12-05",
+    };
+  }
+  return {
+    authNumber: `AUTH-${visit.ruleProfile.state}-${suffix}`,
+    status: "Active",
+    remainingUnits: 64,
+    totalUnits: 120,
+    unitLabel: "15m units",
+    expiresAt: "2027-02-28",
+  };
+}
+
+/**
+ * Returns documented care task progress for a visit.
+ */
+export function getVisitTasksSummary(visit: EVVVisit): NonNullable<EVVVisit["tasksSummary"]> {
+  if (visit.tasksSummary) return visit.tasksSummary;
+  if (visit.visitStatus === "Not Started") {
+    return {
+      completed: 0,
+      total: 4,
+      items: ["Bathing / Hygiene", "Meal Preparation", "Medication Reminder", "Light Housekeeping"],
+    };
+  }
+  if (visit.visitStatus === "In Progress") {
+    return {
+      completed: 2,
+      total: 4,
+      items: ["Bathing / Hygiene", "Meal Preparation", "Medication Reminder", "Light Housekeeping"],
+    };
+  }
+  return {
+    completed: visit.visitStatus === "Completed" ? 4 : 3,
+    total: 4,
+    items: ["Bathing / Hygiene", "Meal Preparation", "Medication Reminder", "Light Housekeeping"],
+  };
+}
+
+/**
+ * Returns a deterministic mock contact phone for the caregiver when not explicitly provided.
+ */
+export function getCaregiverPhone(visit: EVVVisit): string {
+  if (visit.caregiver.phone) return visit.caregiver.phone;
+  const digits = visit.caregiver.id.replace(/\D/g, "").padStart(4, "0").slice(-4);
+  return `(614) 555-${digits}`;
 }

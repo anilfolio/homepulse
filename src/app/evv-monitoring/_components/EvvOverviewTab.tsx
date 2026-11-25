@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { EVVVisit, ExceptionCategory } from "../types";
+import { EvvRoleCapabilities } from "../evvPermissions";
 import { mockTopOffenders, mockWeeklyComplianceTrend } from "../mockData";
 import { ComplianceDonut } from "./ComplianceDonut";
 import { OffenderRow } from "./OffenderRow";
@@ -30,6 +31,7 @@ import { BillingRiskCard } from "./BillingRiskCard";
 
 interface EvvOverviewTabProps {
   visits: EVVVisit[];
+  capabilities: EvvRoleCapabilities;
   onNavigateTab: (
     tab: "overview" | "visits" | "exceptions" | "aggregator",
     exceptionFilter?: ExceptionCategory
@@ -39,6 +41,7 @@ interface EvvOverviewTabProps {
 
 export function EvvOverviewTab({
   visits,
+  capabilities,
   onNavigateTab,
   onReviewVisit,
 }: EvvOverviewTabProps) {
@@ -110,28 +113,62 @@ export function EvvOverviewTab({
       badgeStyle: "text-red-700 bg-red-50 border-red-200",
       iconBg: "bg-red-50 text-red-600 border-red-100",
       icon: AlertTriangle,
-      onClick: () => onNavigateTab("exceptions"),
+      onClick: () =>
+        onNavigateTab(capabilities.canViewExceptions ? "exceptions" : "visits"),
     },
-    {
-      label: "Aggregator Accepted",
-      value: `${stats.aggregatorAccepted}/${stats.total}`,
-      badge: `${stats.billingCleared} Billed/Cleared`,
-      subtext: "Sandata · HHAeXchange · Netsmart",
-      badgeStyle: "text-blue-700 bg-blue-50 border-blue-200",
-      iconBg: "bg-blue-50 text-brand-primary border-blue-100",
-      icon: Send,
-      onClick: () => onNavigateTab("aggregator"),
-    },
-    {
-      label: "Payroll Approved",
-      value: `${stats.payrollApproved}/${stats.total}`,
-      badge: `${stats.billingHoldCount} Billing Holds`,
-      subtext: "Independent payroll gate",
-      badgeStyle: "text-amber-800 bg-amber-50 border-amber-200",
-      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100",
-      icon: Wallet,
-      onClick: () => onNavigateTab("aggregator"),
-    },
+    ...(capabilities.canViewAggregatorTab
+      ? [
+          {
+            label: "Aggregator Accepted",
+            value: `${stats.aggregatorAccepted}/${stats.total}`,
+            badge: `${stats.billingCleared} Billed/Cleared`,
+            subtext: "Sandata · HHAeXchange · Netsmart",
+            badgeStyle: "text-blue-700 bg-blue-50 border-blue-200",
+            iconBg: "bg-blue-50 text-brand-primary border-blue-100",
+            icon: Send,
+            onClick: () => onNavigateTab("aggregator"),
+          },
+        ]
+      : [
+          {
+            label: "Verified Visits",
+            value: `${stats.verified + stats.resolved}/${stats.total}`,
+            badge: `${stats.verified} Auto-Verified`,
+            subtext: "GPS · IVR · Fixed capture",
+            badgeStyle: "text-emerald-700 bg-emerald-50 border-emerald-200",
+            iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100",
+            icon: ShieldCheck,
+            onClick: () => onNavigateTab("visits"),
+          },
+        ]),
+    ...(capabilities.canViewFinancials
+      ? [
+          {
+            label: "Payroll Approved",
+            value: `${stats.payrollApproved}/${stats.total}`,
+            badge: `${stats.billingHoldCount} Billing Holds`,
+            subtext: "Independent payroll gate",
+            badgeStyle: "text-amber-800 bg-amber-50 border-amber-200",
+            iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100",
+            icon: Wallet,
+            onClick: () =>
+              onNavigateTab(
+                capabilities.canViewAggregatorTab ? "aggregator" : "visits"
+              ),
+          },
+        ]
+      : [
+          {
+            label: "Resolved After Review",
+            value: stats.resolved,
+            badge: "Attested",
+            subtext: "Supervisory review complete",
+            badgeStyle: "text-indigo-700 bg-indigo-50 border-indigo-200",
+            iconBg: "bg-indigo-50 text-indigo-600 border-indigo-100",
+            icon: CheckCircle2,
+            onClick: () => onNavigateTab("visits"),
+          },
+        ]),
   ];
 
   return (
@@ -284,89 +321,99 @@ export function EvvOverviewTab({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Processing Readiness Pipeline */}
-            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                    Financial & Processing Readiness
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Independent gates across EVV, Aggregator, Billing & Payroll
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab("aggregator")}
-                  className="text-xs font-bold text-brand-primary hover:underline cursor-pointer shrink-0"
-                >
-                  Open Pipeline →
-                </button>
-              </div>
-
-              <div className="space-y-3.5 pt-1">
-                {[
-                  {
-                    label: "EVV Verified or Resolved",
-                    count: stats.verified + stats.resolved,
-                    total: stats.total,
-                    icon: ShieldCheck,
-                    color: "bg-gradient-to-r from-emerald-400 to-emerald-500",
-                    dot: "bg-emerald-500",
-                  },
-                  {
-                    label: "Aggregator Accepted",
-                    count: stats.aggregatorAccepted,
-                    total: stats.total,
-                    icon: Send,
-                    color: "bg-gradient-to-r from-[#6C88FF] to-[#5371F3]",
-                    dot: "bg-brand-primary",
-                  },
-                  {
-                    label: "Billing Cleared / Billed",
-                    count: stats.billingCleared,
-                    total: stats.total,
-                    icon: DollarSign,
-                    color: "bg-gradient-to-r from-indigo-500 to-violet-500",
-                    dot: "bg-indigo-500",
-                  },
-                  {
-                    label: "Payroll Approved / Processed",
-                    count: stats.payrollApproved,
-                    total: stats.total,
-                    icon: Wallet,
-                    color: "bg-gradient-to-r from-[#141D3C] to-[#2A3B75]",
-                    dot: "bg-brand-navy",
-                  },
-                ].map((stage) => {
-                  const pct =
-                    stage.total > 0 ? Math.round((stage.count / stage.total) * 100) : 0;
-                  return (
-                    <div
-                      key={stage.label}
-                      className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2"
+            {/* Processing Readiness Pipeline (Financial/Admin roles) */}
+            {capabilities.canViewFinancials && (
+              <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] space-y-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                      Financial & Processing Readiness
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Independent gates across EVV, Aggregator, Billing & Payroll
+                    </p>
+                  </div>
+                  {capabilities.canViewAggregatorTab && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab("aggregator")}
+                      className="text-xs font-bold text-brand-primary hover:underline cursor-pointer shrink-0"
                     >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-700 flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${stage.dot}`} />
-                          {stage.label}
-                        </span>
-                        <span className="font-bold text-slate-900 tabular-nums">
-                          {stage.count}/{stage.total}{" "}
-                          <span className="text-slate-400 font-semibold">({pct}%)</span>
-                        </span>
+                      Open Pipeline →
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3.5 pt-1">
+                  {[
+                    {
+                      label: "EVV Verified or Resolved",
+                      count: stats.verified + stats.resolved,
+                      total: stats.total,
+                      icon: ShieldCheck,
+                      color: "bg-gradient-to-r from-emerald-400 to-emerald-500",
+                      dot: "bg-emerald-500",
+                    },
+                    {
+                      label: "Aggregator Accepted",
+                      count: stats.aggregatorAccepted,
+                      total: stats.total,
+                      icon: Send,
+                      color: "bg-gradient-to-r from-[#6C88FF] to-[#5371F3]",
+                      dot: "bg-brand-primary",
+                    },
+                    {
+                      label: "Billing Cleared / Billed",
+                      count: stats.billingCleared,
+                      total: stats.total,
+                      icon: DollarSign,
+                      color: "bg-gradient-to-r from-indigo-500 to-violet-500",
+                      dot: "bg-indigo-500",
+                    },
+                    {
+                      label: "Payroll Approved / Processed",
+                      count: stats.payrollApproved,
+                      total: stats.total,
+                      icon: Wallet,
+                      color: "bg-gradient-to-r from-[#141D3C] to-[#2A3B75]",
+                      dot: "bg-brand-navy",
+                    },
+                  ].map((stage) => {
+                    const pct =
+                      stage.total > 0
+                        ? Math.round((stage.count / stage.total) * 100)
+                        : 0;
+                    return (
+                      <div
+                        key={stage.label}
+                        className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700 flex items-center gap-2">
+                            <span
+                              className={`w-2 h-2 rounded-full ${stage.dot}`}
+                            />
+                            {stage.label}
+                          </span>
+                          <span className="font-bold text-slate-900 tabular-nums">
+                            {stage.count}/{stage.total}{" "}
+                            <span className="text-slate-400 font-semibold">
+                              ({pct}%)
+                            </span>
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-200/70 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${stage.color}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-slate-200/70 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${stage.color}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Caregivers Needing Coaching */}
             <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] flex flex-col justify-between">
@@ -397,12 +444,18 @@ export function EvvOverviewTab({
 
         {/* Right Context Rail (30% / 4 Columns) */}
         <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24">
-          <BillingRiskCard
-            totalRisk={stats.billingHoldAmount}
-            needsReview={stats.exceptionAmount}
-            likelyDenied={stats.rejectedAmount}
-            onResolveClick={() => onNavigateTab("exceptions")}
-          />
+          {capabilities.canViewFinancials && (
+            <BillingRiskCard
+              totalRisk={stats.billingHoldAmount}
+              needsReview={stats.exceptionAmount}
+              likelyDenied={stats.rejectedAmount}
+              onResolveClick={() =>
+                onNavigateTab(
+                  capabilities.canViewExceptions ? "exceptions" : "visits"
+                )
+              }
+            />
+          )}
 
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 border border-slate-200/80 shadow-[0_8px_32px_rgba(20,29,60,0.04)] space-y-3.5">
             <div className="flex items-center justify-between">

@@ -24,6 +24,7 @@ import {
   ExceptionCategory,
   VisitStatus,
 } from "../types";
+import { EvvRoleCapabilities } from "../evvPermissions";
 import {
   complianceStyles,
   getInitials,
@@ -33,6 +34,7 @@ import {
 
 interface VisitsTableProps {
   visits: EVVVisit[];
+  capabilities: EvvRoleCapabilities;
   mode?: "all" | "exceptions";
   initialExceptionFilter?: ExceptionCategory | "All";
   onBulkConfirm: (visitIds: string[]) => void;
@@ -42,6 +44,7 @@ interface VisitsTableProps {
 
 export function VisitsTable({
   visits,
+  capabilities,
   mode = "all",
   initialExceptionFilter = "All",
   onBulkConfirm,
@@ -232,19 +235,21 @@ export function VisitsTable({
               <option value="Manual">Manual</option>
             </select>
 
-            <button
-              type="button"
-              onClick={() => setBillingHoldOnly((prev) => !prev)}
-              className={clsx(
-                "px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs",
-                billingHoldOnly
-                  ? "bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200"
-                  : "bg-white text-slate-600 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
-              )}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              Billing Holds Only
-            </button>
+            {capabilities.canViewFinancials && (
+              <button
+                type="button"
+                onClick={() => setBillingHoldOnly((prev) => !prev)}
+                className={clsx(
+                  "px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs",
+                  billingHoldOnly
+                    ? "bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200"
+                    : "bg-white text-slate-600 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
+                )}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Billing Holds Only
+              </button>
+            )}
 
             {hasActiveFilters && (
               <button
@@ -314,71 +319,84 @@ export function VisitsTable({
         </div>
 
         {/* Executive Bulk Action Dock */}
-        {selectedIds.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] text-white px-4 py-3 rounded-xl shadow-[0_10px_28px_rgba(20,29,60,0.22)] border border-[#2A3B75]/70">
-            <div className="flex items-center gap-2.5 text-xs font-semibold">
-              <span className="w-6 h-6 rounded-lg bg-[#57EAB6]/15 text-[#57EAB6] flex items-center justify-center">
-                <CheckSquare className="w-4 h-4" />
-              </span>
-              <span>
-                <strong className="tabular-nums">{selectedIds.length}</strong>{" "}
-                visit(s) selected
-              </span>
+        {(capabilities.canBulkConfirm ||
+          capabilities.canBulkSubmitAggregator ||
+          capabilities.canExportCsv) &&
+          selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] text-white px-4 py-3 rounded-xl shadow-[0_10px_28px_rgba(20,29,60,0.22)] border border-[#2A3B75]/70">
+              <div className="flex items-center gap-2.5 text-xs font-semibold">
+                <span className="w-6 h-6 rounded-lg bg-[#57EAB6]/15 text-[#57EAB6] flex items-center justify-center">
+                  <CheckSquare className="w-4 h-4" />
+                </span>
+                <span>
+                  <strong className="tabular-nums">{selectedIds.length}</strong>{" "}
+                  visit(s) selected
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {capabilities.canBulkConfirm && (
+                  <button
+                    type="button"
+                    onClick={() => onBulkConfirm(selectedIds)}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Bulk Confirm & Attest
+                  </button>
+                )}
+                {capabilities.canBulkSubmitAggregator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onBulkSubmitAggregator(selectedIds);
+                      setSelectedIds([]);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5 text-[#57EAB6]" />
+                    Submit to Aggregator
+                  </button>
+                )}
+                {capabilities.canExportCsv && (
+                  <button
+                    type="button"
+                    onClick={() => onExportSelected(selectedIds)}
+                    className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export CSV
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onBulkConfirm(selectedIds)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Bulk Confirm & Attest
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onBulkSubmitAggregator(selectedIds);
-                  setSelectedIds([]);
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5 text-[#57EAB6]" />
-                Submit to Aggregator
-              </button>
-              <button
-                type="button"
-                onClick={() => onExportSelected(selectedIds)}
-                className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
+          )}
       </div>
 
-      {/* Clean Summary Table (7 Core Columns) */}
+      {/* Clean Summary Table */}
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[780px] border-collapse text-left">
+        <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
             <tr className="bg-slate-50/95 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              <th className="py-3.5 px-4 w-[44px]">
-                <input
-                  type="checkbox"
-                  aria-label="Select all visible visits"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                  className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                />
-              </th>
+              {(capabilities.canBulkConfirm ||
+                capabilities.canBulkSubmitAggregator ||
+                capabilities.canExportCsv) && (
+                <th className="py-3.5 px-4 w-[44px]">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all visible visits"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                  />
+                </th>
+              )}
               <th className="py-3.5 px-4">Visit</th>
               <th className="py-3.5 px-4">Caregiver</th>
               <th className="py-3.5 px-4">Client</th>
@@ -426,18 +444,22 @@ export function VisitsTable({
                     )}
                   >
                     {/* 1. Checkbox */}
-                    <td
-                      onClick={(e) => e.stopPropagation()}
-                      className="py-3.5 px-4 w-[44px] align-middle"
-                    >
-                      <input
-                        type="checkbox"
-                        aria-label={`Select visit ${visit.id}`}
-                        checked={isSelected}
-                        onChange={() => toggleSelectOne(visit.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                      />
-                    </td>
+                    {(capabilities.canBulkConfirm ||
+                      capabilities.canBulkSubmitAggregator ||
+                      capabilities.canExportCsv) && (
+                      <td
+                        onClick={(e) => e.stopPropagation()}
+                        className="py-3.5 px-4 w-[44px] align-middle"
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Select visit ${visit.id}`}
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(visit.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                        />
+                      </td>
+                    )}
 
                     {/* 2. Visit */}
                     <td className="py-3.5 px-4 align-middle">
@@ -580,13 +602,15 @@ export function VisitsTable({
                         href={detailHref}
                         className={clsx(
                           "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                          visit.evvCompliance === "Exception"
+                          visit.evvCompliance === "Exception" &&
+                            capabilities.canResolveExceptions
                             ? "bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white shadow-sm shadow-[#6C88FF]/25 active:scale-95"
                             : "bg-slate-100 text-slate-700 hover:bg-slate-200/80 border border-slate-200/70"
                         )}
                       >
                         <span>
-                          {visit.evvCompliance === "Exception"
+                          {visit.evvCompliance === "Exception" &&
+                          capabilities.canResolveExceptions
                             ? "Review"
                             : "Details"}
                         </span>

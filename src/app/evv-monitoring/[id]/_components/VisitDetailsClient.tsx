@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -8,15 +8,19 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   DollarSign,
   Eye,
   EyeOff,
+  FileCheck2,
   FileSignature,
   History,
   Info,
   Mic,
+  PhoneCall,
   Plus,
+  RotateCcw,
   Send,
   ShieldCheck,
   UserCheck,
@@ -28,10 +32,14 @@ import {
   ServiceLocation,
   ServiceLocationPhone,
 } from "../../types";
-import { EVVNavTab, useEvvVisits } from "../../EvvVisitsContext";
+import { EVVNavTab, EvvActor, useEvvVisits } from "../../EvvVisitsContext";
+import { EvvRoleCapabilities } from "../../evvPermissions";
 import {
   appendVisitAudit,
   applyLocationCorrection,
+  getCaregiverPhone,
+  getVisitAuthorization,
+  getVisitTasksSummary,
   maskPhoneNumber,
   nextId,
 } from "../../evvRules";
@@ -50,7 +58,15 @@ const backLabelByTab: Record<EVVNavTab, string> = {
 };
 
 export function VisitDetailsClient({ visitId }: { visitId: string }) {
-  const { visits, activeTab, updateVisit } = useEvvVisits();
+  const {
+    visits,
+    actor,
+    capabilities,
+    activeTab,
+    updateVisit,
+    reopenException,
+    showToast,
+  } = useEvvVisits();
   const visit = visits.find((v) => v.id === visitId) ?? null;
 
   if (!visit) {
@@ -77,23 +93,40 @@ export function VisitDetailsClient({ visitId }: { visitId: string }) {
     <VisitDetailsContent
       key={visit.id}
       visit={visit}
+      actor={actor}
+      capabilities={capabilities}
       backLabel={backLabelByTab[activeTab]}
       onUpdateVisit={updateVisit}
+      onReopenException={reopenException}
+      onNotifyCaregiver={() =>
+        showToast(
+          `Punch verification reminder sent to ${visit.caregiver.name}.`
+        )
+      }
     />
   );
 }
 
 function VisitDetailsContent({
   visit,
+  actor,
+  capabilities,
   backLabel,
   onUpdateVisit,
+  onReopenException,
+  onNotifyCaregiver,
 }: {
   visit: EVVVisit;
+  actor: EvvActor;
+  capabilities: EvvRoleCapabilities;
   backLabel: string;
   onUpdateVisit: (updated: EVVVisit, toastMessage?: string) => void;
+  onReopenException: (visitId: string, reason?: string) => void;
+  onNotifyCaregiver: () => void;
 }) {
   const [sectionTab, setSectionTab] = useState<DetailTab>("details");
   const [revealedPhoneIds, setRevealedPhoneIds] = useState<string[]>([]);
+  const [caregiverPhoneRevealed, setCaregiverPhoneRevealed] = useState(false);
 
   const [showLocationEditor, setShowLocationEditor] = useState(false);
   const [editAddress, setEditAddress] = useState(
@@ -112,7 +145,22 @@ function VisitDetailsContent({
   const [newPhoneType, setNewPhoneType] =
     useState<ServiceLocationPhone["type"]>("Landline");
 
+  const authorization = useMemo(() => getVisitAuthorization(visit), [visit]);
+  const tasksSummary = useMemo(() => getVisitTasksSummary(visit), [visit]);
+  const caregiverPhone = useMemo(() => getCaregiverPhone(visit), [visit]);
+
+  const effectiveTab: DetailTab = useMemo(() => {
+    if (sectionTab === "processing" && !capabilities.canViewAggregatorTab) {
+      return "details";
+    }
+    if (sectionTab === "resolve" && !capabilities.canViewExceptions) {
+      return "details";
+    }
+    return sectionTab;
+  }, [sectionTab, capabilities]);
+
   const handleRevealPhone = (phone: ServiceLocationPhone) => {
+    if (!capabilities.canRevealPhones) return;
     const isRevealed = revealedPhoneIds.includes(phone.id);
     if (isRevealed) {
       setRevealedPhoneIds((prev) => prev.filter((id) => id !== phone.id));
@@ -120,17 +168,38 @@ function VisitDetailsContent({
     }
     setRevealedPhoneIds((prev) => [...prev, phone.id]);
     const updated = appendVisitAudit(visit, {
-      actorName: "Admin Coordinator",
-      actorRole: "ADMIN",
+      actorName: actor.name,
+      actorRole: actor.role,
       actionType: "PHI_UNMASKED",
       summary: `Unmasked associated patient phone (${phone.label}) for visit ${visit.id}.`,
     });
     onUpdateVisit(updated);
   };
 
+  const handleRevealCaregiverPhone = () => {
+    if (!capabilities.canRevealPhones) return;
+    if (caregiverPhoneRevealed) {
+      setCaregiverPhoneRevealed(false);
+      return;
+    }
+    setCaregiverPhoneRevealed(true);
+    const updated = appendVisitAudit(visit, {
+      actorName: actor.name,
+      actorRole: actor.role,
+      actionType: "PHI_UNMASKED",
+      summary: `Unmasked caregiver contact phone (${visit.caregiver.id}) for visit ${visit.id}.`,
+    });
+    onUpdateVisit(updated);
+  };
+
   const handleAssociatePhone = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPhoneLabel.trim() || !newPhoneNumber.trim()) return;
+    if (
+      !capabilities.canResolveExceptions ||
+      !newPhoneLabel.trim() ||
+      !newPhoneNumber.trim()
+    )
+      return;
     const createdPhone: ServiceLocationPhone = {
       id: nextId("ph"),
       label: newPhoneLabel.trim(),
@@ -150,8 +219,8 @@ function VisitDetailsContent({
         },
       },
       {
-        actorName: "Admin Coordinator",
-        actorRole: "ADMIN",
+        actorName: actor.name,
+        actorRole: actor.role,
         actionType: "PHONE_ASSOCIATED",
         summary: `Associated verified ${newPhoneType} number (${maskPhoneNumber(createdPhone.number)}) to service location.`,
       }
@@ -166,16 +235,67 @@ function VisitDetailsContent({
   };
 
   const handleSaveLocationCorrection = () => {
-    if (!editAddress.trim() || !editCityStateZip.trim()) return;
+    if (
+      !capabilities.canResolveExceptions ||
+      !editAddress.trim() ||
+      !editCityStateZip.trim()
+    )
+      return;
     const updated = applyLocationCorrection(
       visit,
       editAddress,
       editCityStateZip,
-      editLocationType
+      editLocationType,
+      actor
     );
     onUpdateVisit(updated, "Service location updated and original GPS preserved.");
     setShowLocationEditor(false);
   };
+
+  const detailTabs = useMemo(() => {
+    const items: {
+      id: DetailTab;
+      label: string;
+      subtitle: string;
+      icon: React.ComponentType<{ className?: string }>;
+      badge?: number;
+      visible: boolean;
+    }[] = [
+      {
+        id: "details",
+        label: "Details & Verification",
+        subtitle: "Times, location & evidence",
+        icon: ShieldCheck,
+        visible: true,
+      },
+      {
+        id: "resolve",
+        label: "Exception Resolution",
+        subtitle: capabilities.canResolveExceptions
+          ? "5-step guided workflow"
+          : "Exception inspection",
+        icon: AlertTriangle,
+        badge: visit.evvCompliance === "Exception" ? 1 : undefined,
+        visible: capabilities.canViewExceptions,
+      },
+      {
+        id: "processing",
+        label: "Aggregator & Billing",
+        subtitle: "Submission, billing & payroll",
+        icon: Send,
+        visible: capabilities.canViewAggregatorTab,
+      },
+      {
+        id: "audit",
+        label: "Audit History",
+        subtitle: "Immutable UTC log",
+        icon: History,
+        badge: visit.auditHistory.length,
+        visible: true,
+      },
+    ];
+    return items.filter((t) => t.visible);
+  }, [capabilities, visit.evvCompliance, visit.auditHistory.length]);
 
   return (
     <div className="flex-1 min-h-screen space-y-5">
@@ -189,15 +309,19 @@ function VisitDetailsContent({
           <span>{backLabel}</span>
         </Link>
 
-        <div className="text-xs text-slate-500 font-medium hidden sm:flex items-center gap-1.5">
-          <Link
-            href="/evv-monitoring"
-            className="hover:text-brand-primary transition-colors"
-          >
-            EVV & Visits
-          </Link>
-          <span>/</span>
-          <span className="font-mono font-bold text-slate-800">{visit.id}</span>
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <span className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-bold">
+            Role: {capabilities.roleLabel}
+          </span>
+          <span className="hidden sm:inline">
+            <Link
+              href="/evv-monitoring"
+              className="hover:text-brand-primary transition-colors"
+            >
+              EVV & Visits
+            </Link>{" "}
+            / <span className="font-mono font-bold text-slate-800">{visit.id}</span>
+          </span>
         </div>
       </div>
 
@@ -249,7 +373,8 @@ function VisitDetailsContent({
           </div>
 
           {visit.evvCompliance === "Exception" &&
-            sectionTab !== "resolve" && (
+            capabilities.canResolveExceptions &&
+            effectiveTab !== "resolve" && (
               <button
                 type="button"
                 onClick={() => setSectionTab("resolve")}
@@ -271,45 +396,19 @@ function VisitDetailsContent({
         )}
       </div>
 
-      {/* Independent 4-Section Segmented Tab Card Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]">
-        {(
-          [
-            {
-              id: "details",
-              label: "Details & Verification",
-              subtitle: "Times, location & evidence",
-              icon: ShieldCheck,
-            },
-            {
-              id: "resolve",
-              label: "Exception Resolution",
-              subtitle: "5-step guided workflow",
-              icon: AlertTriangle,
-              badge: visit.evvCompliance === "Exception" ? 1 : undefined,
-            },
-            {
-              id: "processing",
-              label: "Aggregator & Billing",
-              subtitle: "Submission, billing & payroll",
-              icon: Send,
-            },
-            {
-              id: "audit",
-              label: "Audit History",
-              subtitle: "Immutable UTC log",
-              icon: History,
-              badge: visit.auditHistory.length,
-            },
-          ] as {
-            id: DetailTab;
-            label: string;
-            subtitle: string;
-            icon: React.ComponentType<{ className?: string }>;
-            badge?: number;
-          }[]
-        ).map((tab) => {
-          const isActive = sectionTab === tab.id;
+      {/* Independent Segmented Tab Card Row */}
+      <div
+        className={clsx(
+          "grid gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]",
+          detailTabs.length === 4
+            ? "grid-cols-2 lg:grid-cols-4"
+            : detailTabs.length === 3
+              ? "grid-cols-1 sm:grid-cols-3"
+              : "grid-cols-1 sm:grid-cols-2"
+        )}
+      >
+        {detailTabs.map((tab) => {
+          const isActive = effectiveTab === tab.id;
           return (
             <button
               key={tab.id}
@@ -382,7 +481,7 @@ function VisitDetailsContent({
       </div>
 
       {/* TAB 1: FULL DETAILS & VERIFICATION (70/30 Command Split) */}
-      {sectionTab === "details" && (
+      {effectiveTab === "details" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           {/* Left Primary Details Column (70%) */}
           <div className="lg:col-span-8 space-y-5">
@@ -457,17 +556,37 @@ function VisitDetailsContent({
                 </div>
               )}
 
-              {visit.evvCompliance === "Exception" && (
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setSectionTab("resolve")}
-                    className="px-3.5 py-2 rounded-xl bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy/90 cursor-pointer transition-colors"
-                  >
-                    Open 5-Step Exception Resolution →
-                  </button>
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {visit.evvCompliance === "Exception" &&
+                  capabilities.canResolveExceptions && (
+                    <button
+                      type="button"
+                      onClick={() => setSectionTab("resolve")}
+                      className="px-3.5 py-2 rounded-xl bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy/90 cursor-pointer transition-colors"
+                    >
+                      Open 5-Step Exception Resolution →
+                    </button>
+                  )}
+
+                {visit.evvCompliance === "Resolved" &&
+                  capabilities.canReopenExceptions && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onReopenException(
+                          visit.id,
+                          visit.processing.aggregator === "Rejected"
+                            ? `Reopened after aggregator rejection: ${visit.processing.aggregatorRejectReason ?? "review required"}`
+                            : "Reopened for supervisory exception review."
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Reopen Exception
+                    </button>
+                  )}
+              </div>
             </div>
 
             {/* Original EVV Event vs Current Visit Times */}
@@ -510,9 +629,9 @@ function VisitDetailsContent({
                     {visit.originalEvv.clockOut ?? "None"}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    {visit.originalEvv.deviceOrPhoneRef ?? "No raw device event"}
-                    {visit.originalEvv.gpsDistanceFt !== undefined &&
-                      ` · ${visit.originalEvv.gpsDistanceFt} ft from anchor`}
+                    {visit.originalEvv.gpsDistanceFt !== undefined
+                      ? `${visit.originalEvv.gpsDistanceFt} ft from service anchor`
+                      : `Captured via ${visit.originalEvv.method}`}
                   </div>
                 </div>
 
@@ -533,6 +652,85 @@ function VisitDetailsContent({
               </div>
             </div>
 
+            {/* Caregiver Follow-up & Care Task Delivery */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <ClipboardCheck className="w-4 h-4 text-brand-primary" />
+                  Care Delivery & Caregiver Follow-Up
+                </h2>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 tabular-nums">
+                  {tasksSummary.completed}/{tasksSummary.total} Care Tasks
+                  Documented
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 text-xs">
+                <div>
+                  <div className="font-bold text-slate-900">
+                    {visit.caregiver.name} ({visit.caregiver.id} ·{" "}
+                    {visit.caregiver.role})
+                  </div>
+                  <div className="text-slate-500 font-mono mt-0.5 flex items-center gap-2">
+                    <PhoneCall className="w-3.5 h-3.5 text-slate-400" />
+                    <span>
+                      {caregiverPhoneRevealed
+                        ? caregiverPhone
+                        : maskPhoneNumber(caregiverPhone)}
+                    </span>
+                    {capabilities.canRevealPhones && (
+                      <button
+                        type="button"
+                        onClick={handleRevealCaregiverPhone}
+                        className="p-1 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 cursor-pointer"
+                        title={
+                          caregiverPhoneRevealed
+                            ? "Hide number"
+                            : "Reveal caregiver number (logged)"
+                        }
+                      >
+                        {caregiverPhoneRevealed ? (
+                          <EyeOff className="w-3 h-3" />
+                        ) : (
+                          <Eye className="w-3 h-3" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!capabilities.isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={onNotifyCaregiver}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer transition-colors"
+                  >
+                    Send Punch Reminder
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {tasksSummary.items.map((item, idx) => {
+                  const done = idx < tasksSummary.completed;
+                  return (
+                    <span
+                      key={item}
+                      className={clsx(
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border",
+                        done
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-slate-50 text-slate-500 border-slate-200"
+                      )}
+                    >
+                      {done && <CheckCircle2 className="w-3 h-3" />}
+                      {item}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Service Location & Associated Patient Phones */}
             <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -540,13 +738,15 @@ function VisitDetailsContent({
                   <Building2 className="w-4 h-4 text-brand-primary" />
                   Service Location & Associated Patient Phones
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowLocationEditor((p) => !p)}
-                  className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
-                >
-                  {showLocationEditor ? "Close Editor" : "Correct Location"}
-                </button>
+                {capabilities.canResolveExceptions && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationEditor((p) => !p)}
+                    className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    {showLocationEditor ? "Close Editor" : "Correct Location"}
+                  </button>
+                )}
               </div>
 
               <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -576,7 +776,7 @@ function VisitDetailsContent({
                 )}
               </div>
 
-              {showLocationEditor && (
+              {capabilities.canResolveExceptions && showLocationEditor && (
                 <div className="p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-200 space-y-3">
                   <div className="text-xs font-bold text-indigo-950">
                     Service Location Correction (preserves original GPS event)
@@ -627,18 +827,22 @@ function VisitDetailsContent({
                   <span className="text-xs font-semibold text-slate-600">
                     Associated Service-Location Phone Numbers (IVR Eligible)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddPhone((p) => !p)}
-                    className="text-xs font-bold text-brand-primary flex items-center gap-1 hover:underline cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Associate Phone
-                  </button>
+                  {capabilities.canResolveExceptions && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPhone((p) => !p)}
+                      className="text-xs font-bold text-brand-primary flex items-center gap-1 hover:underline cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Associate Phone
+                    </button>
+                  )}
                 </div>
 
                 {visit.serviceLocation.associatedPhones.map((ph) => {
-                  const revealed = revealedPhoneIds.includes(ph.id);
+                  const revealed =
+                    capabilities.canRevealPhones &&
+                    revealedPhoneIds.includes(ph.id);
                   return (
                     <div
                       key={ph.id}
@@ -665,28 +869,30 @@ function VisitDetailsContent({
                         <span className="font-mono font-semibold text-slate-800 tabular-nums">
                           {revealed ? ph.number : maskPhoneNumber(ph.number)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRevealPhone(ph)}
-                          className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 cursor-pointer"
-                          title={
-                            revealed
-                              ? "Hide number"
-                              : "Reveal number (logged to audit)"
-                          }
-                        >
-                          {revealed ? (
-                            <EyeOff className="w-3.5 h-3.5" />
-                          ) : (
-                            <Eye className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                        {capabilities.canRevealPhones && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevealPhone(ph)}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 cursor-pointer"
+                            title={
+                              revealed
+                                ? "Hide number"
+                                : "Reveal number (logged to audit)"
+                            }
+                          >
+                            {revealed ? (
+                              <EyeOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 })}
 
-                {showAddPhone && (
+                {capabilities.canResolveExceptions && showAddPhone && (
                   <form
                     onSubmit={handleAssociatePhone}
                     className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5"
@@ -830,12 +1036,14 @@ function VisitDetailsContent({
                     </span>
                   </dd>
                 </div>
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                  <dt className="text-slate-500">Medicaid ID</dt>
-                  <dd className="font-mono font-semibold text-slate-800">
-                    {visit.client.medicaidIdMasked}
-                  </dd>
-                </div>
+                {capabilities.canViewMedicaidId && (
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                    <dt className="text-slate-500">Medicaid ID</dt>
+                    <dd className="font-mono font-semibold text-slate-800">
+                      {visit.client.medicaidIdMasked}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
                   <dt className="text-slate-500">Service</dt>
                   <dd className="font-semibold text-slate-900 text-right">
@@ -854,85 +1062,151 @@ function VisitDetailsContent({
               </dl>
             </div>
 
-            {/* Financial & Aggregator Readiness Card */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Send className="w-4 h-4 text-brand-primary" />
-                  Processing Readiness
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSectionTab("processing")}
-                  className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
-                >
-                  Manage →
-                </button>
-              </div>
-
-              <div className="space-y-2.5 text-xs">
-                {[
-                  {
-                    label: "Aggregator",
-                    icon: Send,
-                    value: visit.processing.aggregator,
-                    sub: visit.processing.aggregatorRef
-                      ? `Ref: ${visit.processing.aggregatorRef}`
-                      : visit.ruleProfile.aggregator,
-                  },
-                  {
-                    label: "Billing",
-                    icon: DollarSign,
-                    value: visit.processing.billing,
-                    sub: `$${visit.estimatedBillingAmount.toFixed(2)} est.`,
-                  },
-                  {
-                    label: "Payroll",
-                    icon: Wallet,
-                    value: visit.processing.payroll,
-                    sub: "Caregiver payout gate",
-                  },
-                ].map((row) => {
-                  const style = getProcessingBadgeStyle(row.value);
-                  return (
+            {/* Payer Authorization & Units Card */}
+            {(capabilities.canViewFinancials ||
+              capabilities.canResolveExceptions) && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <FileCheck2 className="w-4 h-4 text-brand-primary" />
+                    Payer Authorization
+                  </h3>
+                  <span
+                    className={clsx(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                      authorization.status === "Active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : authorization.status === "Expiring Soon"
+                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          : "bg-red-50 text-red-700 border-red-200"
+                    )}
+                  >
+                    {authorization.status}
+                  </span>
+                </div>
+                <div className="text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-slate-900">
+                      {authorization.authNumber}
+                    </span>
+                    <span className="text-slate-500 tabular-nums">
+                      Exp: {authorization.expiresAt}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      key={row.label}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/70"
+                      className={clsx(
+                        "h-full rounded-full",
+                        authorization.status === "Active"
+                          ? "bg-emerald-500"
+                          : "bg-amber-500"
+                      )}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            (authorization.remainingUnits /
+                              authorization.totalUnits) *
+                              100
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-semibold tabular-nums">
+                    {authorization.remainingUnits} / {authorization.totalUnits}{" "}
+                    {authorization.unitLabel} remaining
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Financial & Aggregator Readiness Card */}
+            {capabilities.canViewFinancials && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Send className="w-4 h-4 text-brand-primary" />
+                    Processing Readiness
+                  </h3>
+                  {capabilities.canViewAggregatorTab && (
+                    <button
+                      type="button"
+                      onClick={() => setSectionTab("processing")}
+                      className="text-xs font-bold text-brand-primary hover:underline cursor-pointer"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <row.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <div>
-                          <div className="font-bold text-slate-800">
-                            {row.label}
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            {row.sub}
+                      Manage →
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  {[
+                    {
+                      label: "Aggregator",
+                      icon: Send,
+                      value: visit.processing.aggregator,
+                      sub: visit.processing.aggregatorRef
+                        ? `Ref: ${visit.processing.aggregatorRef}`
+                        : visit.ruleProfile.aggregator,
+                    },
+                    {
+                      label: "Billing",
+                      icon: DollarSign,
+                      value: visit.processing.billing,
+                      sub: `$${visit.estimatedBillingAmount.toFixed(2)} est.`,
+                    },
+                    {
+                      label: "Payroll",
+                      icon: Wallet,
+                      value: visit.processing.payroll,
+                      sub: "Caregiver payout gate",
+                    },
+                  ].map((row) => {
+                    const style = getProcessingBadgeStyle(row.value);
+                    return (
+                      <div
+                        key={row.label}
+                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/70"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <row.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <div>
+                            <div className="font-bold text-slate-800">
+                              {row.label}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {row.sub}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <span
-                        className={clsx(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0",
-                          style.pill
-                        )}
-                      >
                         <span
-                          className={clsx("w-1.5 h-1.5 rounded-full", style.dot)}
-                        />
-                        {row.value}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {visit.processing.aggregatorRejectReason && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800">
-                  <strong>Aggregator Rejection:</strong>{" "}
-                  {visit.processing.aggregatorRejectReason}
+                          className={clsx(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0",
+                            style.pill
+                          )}
+                        >
+                          <span
+                            className={clsx(
+                              "w-1.5 h-1.5 rounded-full",
+                              style.dot
+                            )}
+                          />
+                          {row.value}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+
+                {visit.processing.aggregatorRejectReason && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800">
+                    <strong>Aggregator Rejection:</strong>{" "}
+                    {visit.processing.aggregatorRejectReason}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Audit Trail Preview Card */}
             <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-3">
@@ -973,25 +1247,37 @@ function VisitDetailsContent({
       )}
 
       {/* TAB 2: EXCEPTION RESOLUTION */}
-      {sectionTab === "resolve" && (
+      {effectiveTab === "resolve" && capabilities.canViewExceptions && (
         <ExceptionResolutionSection
           visit={visit}
+          actor={actor}
+          capabilities={capabilities}
           onUpdateVisit={onUpdateVisit}
-          onResolutionSaved={() => setSectionTab("processing")}
+          onReopenException={onReopenException}
+          onResolutionSaved={() =>
+            setSectionTab(
+              capabilities.canViewAggregatorTab ? "processing" : "details"
+            )
+          }
         />
       )}
 
       {/* TAB 3: AGGREGATOR & BILLING */}
-      {sectionTab === "processing" && (
+      {effectiveTab === "processing" && capabilities.canViewAggregatorTab && (
         <ProcessingControlsSection
           visit={visit}
+          actor={actor}
+          capabilities={capabilities}
           onUpdateVisit={onUpdateVisit}
         />
       )}
 
       {/* TAB 4: AUDIT HISTORY */}
-      {sectionTab === "audit" && (
-        <AuditHistorySection auditHistory={visit.auditHistory} />
+      {effectiveTab === "audit" && (
+        <AuditHistorySection
+          auditHistory={visit.auditHistory}
+          deviceOrPhoneRef={visit.originalEvv.deviceOrPhoneRef}
+        />
       )}
     </div>
   );

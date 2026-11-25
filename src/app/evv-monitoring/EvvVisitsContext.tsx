@@ -4,11 +4,18 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import { useAuth } from "@/lib/auth/RBACContext";
+import { Role } from "@/types/rbac";
 import { initialVisits, REASON_CODES } from "./mockData";
 import { EVVVisit, ExceptionCategory } from "./types";
+import {
+  EvvRoleCapabilities,
+  getEvvRoleCapabilities,
+} from "./evvPermissions";
 import {
   computeMaxTimeVarianceMinutes,
   createAuditEvent,
@@ -18,6 +25,11 @@ import {
 
 export type EVVNavTab = "overview" | "visits" | "exceptions" | "aggregator";
 export type AggregatorSubView = "readiness" | "batches" | "rules";
+
+export interface EvvActor {
+  name: string;
+  role: Role;
+}
 
 export interface BulkConfirmPayload {
   visitIds: string[];
@@ -29,6 +41,8 @@ export interface BulkConfirmPayload {
 
 interface EvvVisitsContextValue {
   visits: EVVVisit[];
+  actor: EvvActor;
+  capabilities: EvvRoleCapabilities;
   activeTab: EVVNavTab;
   setActiveTab: (tab: EVVNavTab) => void;
   exceptionFilterPreset: ExceptionCategory | "All";
@@ -39,6 +53,7 @@ interface EvvVisitsContextValue {
   toastMessage: string | null;
   showToast: (message: string) => void;
   updateVisit: (updated: EVVVisit, toast?: string) => void;
+  reopenException: (visitId: string, reason?: string) => void;
   bulkConfirmVisits: (payload: BulkConfirmPayload) => void;
   bulkSubmitAggregator: (visitIds: string[]) => void;
 }
@@ -46,10 +61,25 @@ interface EvvVisitsContextValue {
 const EvvVisitsContext = createContext<EvvVisitsContextValue | null>(null);
 
 /**
- * Provides shared EVV visit state, tab navigation memory, and resolution actions
- * across `/evv-monitoring` and `/evv-monitoring/[id]`.
+ * Provides shared EVV visit state, RBAC capabilities, tab navigation memory,
+ * and resolution actions across `/evv-monitoring` and `/evv-monitoring/[id]`.
  */
 export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
+  const { currentUser } = useAuth();
+
+  const actor: EvvActor = useMemo(
+    () => ({
+      name: currentUser?.name ?? "Agency Admin",
+      role: currentUser?.role ?? "ADMIN",
+    }),
+    [currentUser]
+  );
+
+  const capabilities = useMemo(
+    () => getEvvRoleCapabilities(actor.role),
+    [actor.role]
+  );
+
   const [visits, setVisits] = useState<EVVVisit[]>(initialVisits);
   const [activeTab, setActiveTab] = useState<EVVNavTab>("visits");
   const [exceptionFilterPreset, setExceptionFilterPreset] = useState<
@@ -76,8 +106,50 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
     [showToast]
   );
 
+  const reopenException = useCallback(
+    (visitId: string, reason?: string) => {
+      setVisits((prev) =>
+        prev.map((v) => {
+          if (v.id !== visitId) return v;
+          const summary =
+            reason?.trim() ||
+            "Reopened for supervisory exception review after post-resolution check.";
+          return {
+            ...v,
+            evvCompliance: "Exception",
+            exceptionSeverity: "warning",
+            exceptionCategory:
+              v.exceptionCategory === "None"
+                ? "Time Variance"
+                : v.exceptionCategory,
+            exceptionDetail: summary,
+            processing: {
+              ...v.processing,
+              billing: "Hold",
+            },
+            auditHistory: [
+              createAuditEvent({
+                actorName: actor.name,
+                actorRole: actor.role,
+                actionType: "EXCEPTION_REOPENED",
+                summary,
+                previousValue: v.evvCompliance,
+                newValue: "Exception",
+              }),
+              ...v.auditHistory,
+            ],
+          };
+        })
+      );
+      showToast(`Reopened ${visitId} for exception review; billing placed on hold.`);
+    },
+    [actor.name, actor.role, showToast]
+  );
+
   const navigateTab = useCallback(
     (tab: EVVNavTab, exceptionFilter?: ExceptionCategory) => {
+      if (tab === "aggregator" && !capabilities.canViewAggregatorTab) return;
+      if (tab === "exceptions" && !capabilities.canViewExceptions) return;
       if (exceptionFilter) {
         setExceptionFilterPreset(exceptionFilter);
       } else if (tab !== "exceptions") {
@@ -85,11 +157,25 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
       }
       setActiveTab(tab);
     },
-    []
+    [capabilities.canViewAggregatorTab, capabilities.canViewExceptions]
   );
+
+  const effectiveActiveTab: EVVNavTab = useMemo(() => {
+    if (activeTab === "aggregator" && !capabilities.canViewAggregatorTab) {
+      return "visits";
+    }
+    if (activeTab === "exceptions" && !capabilities.canViewExceptions) {
+      return "visits";
+    }
+    return activeTab;
+  }, [activeTab, capabilities]);
 
   const bulkConfirmVisits = useCallback(
     (payload: BulkConfirmPayload) => {
+      if (!capabilities.canBulkConfirm) {
+        showToast("Your role does not permit bulk exception confirmation.");
+        return;
+      }
       const reasonObj = REASON_CODES.find((r) => r.code === payload.reasonCode);
       const nowIso = new Date().toISOString();
 
@@ -129,7 +215,7 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
             resolution: {
               acknowledged: true,
               acknowledgedAt: nowIso,
-              acknowledgedBy: "Admin Coordinator",
+              acknowledgedBy: actor.name,
               reasonCode: payload.reasonCode,
               reasonLabel: reasonObj?.label,
               resolutionCode: "RES-CALL-TS",
@@ -138,12 +224,12 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
               attestationConfirmed: true,
               attestationRef: payload.attestationRef,
               resolvedAt: nowIso,
-              resolvedBy: "Admin Coordinator",
+              resolvedBy: actor.name,
             },
             auditHistory: [
               createAuditEvent({
-                actorName: "Admin Coordinator",
-                actorRole: "ADMIN",
+                actorName: actor.name,
+                actorRole: actor.role,
                 actionType: "MANUAL_CONFIRMATION",
                 summary: `Bulk visit confirmation with documentation attestation (${payload.attestationRef}). Original EVV events preserved.`,
                 reasonCode: payload.reasonCode,
@@ -161,11 +247,15 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
         `Confirmed ${payload.visitIds.length} visit(s) with documentation attestation.`
       );
     },
-    [showToast]
+    [actor.name, actor.role, capabilities.canBulkConfirm, showToast]
   );
 
   const bulkSubmitAggregator = useCallback(
     (visitIds: string[]) => {
+      if (!capabilities.canBulkSubmitAggregator) {
+        showToast("Your role does not permit aggregator submissions.");
+        return;
+      }
       let submittedCount = 0;
       let skippedExceptions = 0;
 
@@ -186,8 +276,8 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
             },
             auditHistory: [
               createAuditEvent({
-                actorName: "Admin Coordinator",
-                actorRole: "ADMIN",
+                actorName: actor.name,
+                actorRole: actor.role,
                 actionType: "AGGREGATOR_SUBMITTED",
                 summary: `Bulk submitted to ${v.ruleProfile.aggregator}.`,
                 previousValue: v.processing.aggregator,
@@ -207,14 +297,16 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
         showToast(`Submitted ${submittedCount} visit(s) to state aggregator.`);
       }
     },
-    [showToast]
+    [actor.name, actor.role, capabilities.canBulkSubmitAggregator, showToast]
   );
 
   return (
     <EvvVisitsContext.Provider
       value={{
         visits,
-        activeTab,
+        actor,
+        capabilities,
+        activeTab: effectiveActiveTab,
         setActiveTab,
         exceptionFilterPreset,
         setExceptionFilterPreset,
@@ -224,6 +316,7 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
         toastMessage,
         showToast,
         updateVisit,
+        reopenException,
         bulkConfirmVisits,
         bulkSubmitAggregator,
       }}

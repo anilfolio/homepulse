@@ -16,6 +16,7 @@ import {
 import clsx from "clsx";
 import { motion } from "framer-motion";
 import { EVVVisit, RuleProfile } from "../types";
+import { EvvRoleCapabilities } from "../evvPermissions";
 import { createAuditEvent } from "../evvRules";
 import { RULE_PROFILES } from "../mockData";
 import { useEvvVisits } from "../EvvVisitsContext";
@@ -29,15 +30,17 @@ import {
 
 interface AggregatorBillingTabProps {
   visits: EVVVisit[];
+  capabilities: EvvRoleCapabilities;
   onUpdateVisit: (updated: EVVVisit, toastMessage?: string) => void;
 }
 
 export function AggregatorBillingTab({
   visits,
+  capabilities,
   onUpdateVisit,
 }: AggregatorBillingTabProps) {
   const router = useRouter();
-  const { aggregatorSubView, setAggregatorSubView } = useEvvVisits();
+  const { actor, aggregatorSubView, setAggregatorSubView } = useEvvVisits();
   const [filterMode, setFilterMode] = useState<
     "all" | "rejected" | "billing-hold" | "payroll-pending"
   >("all");
@@ -90,8 +93,8 @@ export function AggregatorBillingTab({
       },
       auditHistory: [
         createAuditEvent({
-          actorName: "Admin Coordinator",
-          actorRole: "ADMIN",
+          actorName: actor.name,
+          actorRole: actor.role,
           actionType:
             field === "aggregator"
               ? "AGGREGATOR_SUBMITTED"
@@ -395,7 +398,8 @@ export function AggregatorBillingTab({
                         className="py-3.5 px-4 align-middle text-right"
                       >
                         <div className="flex items-center justify-end gap-1.5">
-                          {v.evvCompliance !== "Exception" &&
+                          {capabilities.canSubmitAggregator &&
+                            v.evvCompliance !== "Exception" &&
                             v.processing.aggregator !== "Accepted" && (
                               <button
                                 type="button"
@@ -412,7 +416,8 @@ export function AggregatorBillingTab({
                                 Submit
                               </button>
                             )}
-                          {v.evvCompliance !== "Exception" &&
+                          {capabilities.canManageBilling &&
+                            v.evvCompliance !== "Exception" &&
                             v.visitStatus === "Completed" &&
                             v.processing.billing === "Hold" && (
                               <button
@@ -494,13 +499,14 @@ export function AggregatorBillingTab({
                         <select
                           aria-label={`Time tolerance for ${rp.payer}`}
                           value={rp.timeToleranceMinutes}
+                          disabled={!capabilities.canEditPayerRules}
                           onChange={(e) =>
                             handleToleranceChange(
                               rp.id,
                               Number(e.target.value)
                             )
                           }
-                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800"
+                          className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           <option value={3}>±3 min</option>
                           <option value={5}>±5 min</option>
