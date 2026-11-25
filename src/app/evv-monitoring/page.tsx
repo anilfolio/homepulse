@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Download,
@@ -16,40 +17,31 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-import { initialVisits, REASON_CODES } from "./mockData";
-import { EVVVisit, ExceptionCategory } from "./types";
-import {
-  computeMaxTimeVarianceMinutes,
-  createAuditEvent,
-  deriveVisitStatus,
-  nextId,
-} from "./evvRules";
-
+import { ExceptionCategory } from "./types";
+import { EVVNavTab, useEvvVisits } from "./EvvVisitsContext";
 import { EvvOverviewTab } from "./_components/EvvOverviewTab";
 import { VisitsTable } from "./_components/VisitsTable";
 import { AggregatorBillingTab } from "./_components/AggregatorBillingTab";
-import { VisitReviewDrawer } from "./_components/VisitReviewDrawer";
 import { BulkConfirmModal } from "./_components/BulkConfirmModal";
 
-type EVVNavTab = "overview" | "visits" | "exceptions" | "aggregator";
-
 export default function EVVMonitoringPage() {
-  const [visits, setVisits] = useState<EVVVisit[]>(initialVisits);
-  const [activeTab, setActiveTab] = useState<EVVNavTab>("visits");
-  const [exceptionFilterPreset, setExceptionFilterPreset] = useState<
-    ExceptionCategory | "All"
-  >("All");
-  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+  const router = useRouter();
+  const {
+    visits,
+    activeTab,
+    exceptionFilterPreset,
+    setExceptionFilterPreset,
+    navigateTab,
+    showToast,
+    updateVisit,
+    bulkConfirmVisits,
+    bulkSubmitAggregator,
+  } = useEvvVisits();
+
   const [bulkConfirmIds, setBulkConfirmIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState("Today & Recent");
   const [showCalendar, setShowCalendar] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const selectedVisit = useMemo(
-    () => visits.find((v) => v.id === selectedVisitId) ?? null,
-    [visits, selectedVisitId]
-  );
 
   const bulkModalVisits = useMemo(
     () => visits.filter((v) => bulkConfirmIds.includes(v.id)),
@@ -60,25 +52,6 @@ export default function EVVMonitoringPage() {
     () => visits.filter((v) => v.evvCompliance === "Exception").length,
     [visits]
   );
-
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleUpdateVisit = (updated: EVVVisit, toast?: string) => {
-    setVisits((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
-    if (toast) showToast(toast);
-  };
-
-  const handleNavigateTab = (tab: EVVNavTab, exceptionFilter?: ExceptionCategory) => {
-    if (exceptionFilter) {
-      setExceptionFilterPreset(exceptionFilter);
-    } else if (tab !== "exceptions") {
-      setExceptionFilterPreset("All");
-    }
-    setActiveTab(tab);
-  };
 
   const handleExportCsv = (ids?: string[]) => {
     setIsDownloading(true);
@@ -115,128 +88,6 @@ export default function EVVMonitoringPage() {
       setIsDownloading(false);
       showToast(`Exported ${exportRows.length} visit record(s) to CSV.`);
     }, 450);
-  };
-
-  const handleBulkConfirmSave = (payload: {
-    visitIds: string[];
-    reasonCode: string;
-    attestationRef: string;
-    notes: string;
-    useScheduledTimes: boolean;
-  }) => {
-    const reasonObj = REASON_CODES.find((r) => r.code === payload.reasonCode);
-    const nowIso = new Date().toISOString();
-
-    setVisits((prev) =>
-      prev.map((v) => {
-        if (!payload.visitIds.includes(v.id)) return v;
-
-        const nextStart =
-          payload.useScheduledTimes && !v.actualTime.start
-            ? v.scheduledTime.start
-            : v.actualTime.start;
-        const nextEnd =
-          payload.useScheduledTimes && !v.actualTime.end
-            ? v.scheduledTime.end
-            : v.actualTime.end;
-
-        const nextVisitStatus = deriveVisitStatus(
-          nextStart,
-          nextEnd,
-          v.scheduledWindowPassed
-        );
-        const nextDelta = computeMaxTimeVarianceMinutes(
-          v.scheduledTime.start,
-          v.scheduledTime.end,
-          nextStart,
-          nextEnd
-        );
-
-        return {
-          ...v,
-          actualTime: { start: nextStart, end: nextEnd },
-          visitStatus: nextVisitStatus,
-          timeDeltaMinutes: nextDelta,
-          evvCompliance: "Resolved",
-          exceptionSeverity: "info",
-          exceptionDetail: `Resolved after bulk review (${payload.reasonCode})`,
-          resolution: {
-            acknowledged: true,
-            acknowledgedAt: nowIso,
-            acknowledgedBy: "Admin Coordinator",
-            reasonCode: payload.reasonCode,
-            reasonLabel: reasonObj?.label,
-            resolutionCode: "RES-CALL-TS",
-            resolutionLabel: "Manual timesheet confirmation with attestation",
-            notes: payload.notes,
-            attestationConfirmed: true,
-            attestationRef: payload.attestationRef,
-            resolvedAt: nowIso,
-            resolvedBy: "Admin Coordinator",
-          },
-          auditHistory: [
-            createAuditEvent({
-              actorName: "Admin Coordinator",
-              actorRole: "ADMIN",
-              actionType: "MANUAL_CONFIRMATION",
-              summary: `Bulk visit confirmation with documentation attestation (${payload.attestationRef}). Original EVV events preserved.`,
-              reasonCode: payload.reasonCode,
-              resolutionCode: "RES-CALL-TS",
-              previousValue: `In: ${v.originalEvv.clockIn ?? "null"} / Out: ${v.originalEvv.clockOut ?? "null"}`,
-              newValue: `In: ${nextStart ?? "null"} / Out: ${nextEnd ?? "null"}`,
-            }),
-            ...v.auditHistory,
-          ],
-        };
-      })
-    );
-
-    showToast(
-      `Confirmed ${payload.visitIds.length} visit(s) with documentation attestation.`
-    );
-  };
-
-  const handleBulkSubmitAggregator = (visitIds: string[]) => {
-    let submittedCount = 0;
-    let skippedExceptions = 0;
-
-    setVisits((prev) =>
-      prev.map((v) => {
-        if (!visitIds.includes(v.id)) return v;
-        if (v.evvCompliance === "Exception") {
-          skippedExceptions += 1;
-          return v;
-        }
-        submittedCount += 1;
-        return {
-          ...v,
-          processing: {
-            ...v.processing,
-            aggregator: "Submitted",
-            aggregatorRef: nextId("BATCH"),
-          },
-          auditHistory: [
-            createAuditEvent({
-              actorName: "Admin Coordinator",
-              actorRole: "ADMIN",
-              actionType: "AGGREGATOR_SUBMITTED",
-              summary: `Bulk submitted to ${v.ruleProfile.aggregator}.`,
-              previousValue: v.processing.aggregator,
-              newValue: "Submitted",
-            }),
-            ...v.auditHistory,
-          ],
-        };
-      })
-    );
-
-    if (skippedExceptions > 0) {
-      showToast(
-        `Submitted ${submittedCount} eligible visit(s); ${skippedExceptions} unresolved exception(s) held.`
-      );
-    } else {
-      showToast(`Submitted ${submittedCount} visit(s) to state aggregator.`);
-    }
   };
 
   const navTabs: {
@@ -288,7 +139,8 @@ export default function EVVMonitoringPage() {
               </h1>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                {openExceptionsCount} Open Exception{openExceptionsCount === 1 ? "" : "s"}
+                {openExceptionsCount} Open Exception
+                {openExceptionsCount === 1 ? "" : "s"}
               </span>
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                 <ShieldCheck className="w-3.5 h-3.5" />
@@ -296,7 +148,8 @@ export default function EVVMonitoringPage() {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1.5">
-              End-to-end visit compliance visibility, exception resolution workflows, patient verification, and financial readiness.
+              End-to-end visit compliance visibility, exception resolution
+              workflows, patient verification, and financial readiness.
             </p>
           </div>
 
@@ -312,7 +165,12 @@ export default function EVVMonitoringPage() {
               </button>
               {showCalendar && (
                 <div className="absolute top-full mt-2 right-0 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1.5">
-                  {["Today Only", "Today & Recent", "This Week", "Pay Period"].map((opt) => (
+                  {[
+                    "Today Only",
+                    "Today & Recent",
+                    "This Week",
+                    "Pay Period",
+                  ].map((opt) => (
                     <button
                       type="button"
                       key={opt}
@@ -340,7 +198,9 @@ export default function EVVMonitoringPage() {
               disabled={isDownloading}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#6C88FF]/25 hover:shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-60 cursor-pointer"
             >
-              <Download className={clsx("w-4 h-4", isDownloading && "animate-bounce")} />
+              <Download
+                className={clsx("w-4 h-4", isDownloading && "animate-bounce")}
+              />
               {isDownloading ? "Exporting..." : "Export CSV"}
             </button>
           </div>
@@ -354,7 +214,7 @@ export default function EVVMonitoringPage() {
               <button
                 type="button"
                 key={tab.id}
-                onClick={() => handleNavigateTab(tab.id)}
+                onClick={() => navigateTab(tab.id)}
                 className={clsx(
                   "relative flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer",
                   isActive
@@ -425,8 +285,8 @@ export default function EVVMonitoringPage() {
         {activeTab === "overview" && (
           <EvvOverviewTab
             visits={visits}
-            onNavigateTab={handleNavigateTab}
-            onReviewVisit={(visit) => setSelectedVisitId(visit.id)}
+            onNavigateTab={navigateTab}
+            onReviewVisit={(visit) => router.push(`/evv-monitoring/${visit.id}`)}
           />
         )}
 
@@ -436,9 +296,8 @@ export default function EVVMonitoringPage() {
             key="all-visits-table"
             visits={visits}
             mode="all"
-            onReviewVisit={(visit) => setSelectedVisitId(visit.id)}
             onBulkConfirm={(ids) => setBulkConfirmIds(ids)}
-            onBulkSubmitAggregator={handleBulkSubmitAggregator}
+            onBulkSubmitAggregator={bulkSubmitAggregator}
             onExportSelected={handleExportCsv}
           />
         )}
@@ -461,7 +320,8 @@ export default function EVVMonitoringPage() {
                     Missed In / Missed Out
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                    Capture missing start or end punch while preserving raw original EVV events.
+                    Capture missing start or end punch while preserving raw
+                    original EVV events.
                   </div>
                 </div>
               </button>
@@ -479,14 +339,19 @@ export default function EVVMonitoringPage() {
                     Missed Call & Manual Attestation
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                    Confirm via signed timesheet, alternate IVR voice, and mandatory attestation.
+                    Confirm via signed timesheet, alternate IVR voice, and
+                    mandatory attestation.
                   </div>
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => setExceptionFilterPreset("Location Mismatch")}
+                onClick={() =>
+                  setExceptionFilterPreset(
+                    "Location Mismatch" as ExceptionCategory
+                  )
+                }
                 className="text-left bg-white/90 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-200/80 shadow-xs hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all flex items-start gap-3 cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-xl bg-blue-50 text-brand-primary border border-blue-100 flex items-center justify-center shrink-0">
@@ -497,7 +362,8 @@ export default function EVVMonitoringPage() {
                     Location & Verification Review
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                    Update service addresses, link patient phones, and verify GPS/IVR variance.
+                    Update service addresses, link patient phones, and verify
+                    GPS/IVR variance.
                   </div>
                 </div>
               </button>
@@ -508,9 +374,8 @@ export default function EVVMonitoringPage() {
               visits={visits}
               mode="exceptions"
               initialExceptionFilter={exceptionFilterPreset}
-              onReviewVisit={(visit) => setSelectedVisitId(visit.id)}
               onBulkConfirm={(ids) => setBulkConfirmIds(ids)}
-              onBulkSubmitAggregator={handleBulkSubmitAggregator}
+              onBulkSubmitAggregator={bulkSubmitAggregator}
               onExportSelected={handleExportCsv}
             />
           </div>
@@ -520,34 +385,18 @@ export default function EVVMonitoringPage() {
         {activeTab === "aggregator" && (
           <AggregatorBillingTab
             visits={visits}
-            onReviewVisit={(visit) => setSelectedVisitId(visit.id)}
-            onUpdateVisit={handleUpdateVisit}
+            onUpdateVisit={updateVisit}
           />
         )}
       </div>
-
-      {/* Review & Resolution Slide-Over Drawer */}
-      <VisitReviewDrawer
-        visit={selectedVisit}
-        onClose={() => setSelectedVisitId(null)}
-        onUpdateVisit={handleUpdateVisit}
-      />
 
       {/* Bulk Confirmation & Attestation Modal */}
       <BulkConfirmModal
         isOpen={bulkConfirmIds.length > 0}
         selectedVisits={bulkModalVisits}
         onClose={() => setBulkConfirmIds([])}
-        onConfirm={handleBulkConfirmSave}
+        onConfirm={bulkConfirmVisits}
       />
-
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] text-white text-xs sm:text-sm font-semibold px-4 py-3 rounded-xl shadow-2xl border border-[#2A3B75] z-[100] flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#57EAB6]" />
-          {toastMessage}
-        </div>
-      )}
     </div>
   );
 }

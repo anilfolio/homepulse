@@ -3,6 +3,7 @@ import {
   EVVVisit,
   ExceptionCategory,
   RuleProfile,
+  ServiceLocation,
   VisitStatus,
 } from "./types";
 
@@ -137,4 +138,48 @@ export function getRecommendedWorkflowTitle(category: ExceptionCategory): string
     default:
       return "EVV Visit Audit & Verification";
   }
+}
+
+/**
+ * Prepends a newly stamped audit event to a visit's immutable audit history.
+ */
+export function appendVisitAudit(
+  visit: EVVVisit,
+  event: Omit<AuditEvent, "id" | "timestamp">
+): EVVVisit {
+  return {
+    ...visit,
+    auditHistory: [createAuditEvent(event), ...visit.auditHistory],
+  };
+}
+
+/**
+ * Applies a service location correction while preserving the original raw GPS event.
+ */
+export function applyLocationCorrection(
+  visit: EVVVisit,
+  addressLine1: string,
+  cityStateZip: string,
+  locationType: ServiceLocation["locationType"]
+): EVVVisit {
+  const prevAddr = `${visit.serviceLocation.addressLine1}, ${visit.serviceLocation.cityStateZip}`;
+  const newAddr = `${addressLine1.trim()}, ${cityStateZip.trim()}`;
+  const updated: EVVVisit = {
+    ...visit,
+    gpsDistanceFt: 18,
+    serviceLocation: {
+      ...visit.serviceLocation,
+      addressLine1: addressLine1.trim(),
+      cityStateZip: cityStateZip.trim(),
+      locationType,
+    },
+  };
+  return appendVisitAudit(updated, {
+    actorName: "Admin Coordinator",
+    actorRole: "ADMIN",
+    actionType: "LOCATION_UPDATED",
+    summary: `Updated service location (${locationType}). Original GPS distance (${visit.originalEvv.gpsDistanceFt ?? 0} ft) preserved.`,
+    previousValue: prevAddr,
+    newValue: newAddr,
+  });
 }

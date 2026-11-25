@@ -1,18 +1,14 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
-  MapPin,
-  PhoneCall,
-  Cpu,
-  PenLine,
   CheckCircle2,
   AlertTriangle,
   Clock,
   ShieldCheck,
-  Mic,
-  FileSignature,
   CheckSquare,
   Send,
   Download,
@@ -28,109 +24,41 @@ import {
   ExceptionCategory,
   VisitStatus,
 } from "../types";
-import { maskPhoneNumber } from "../evvRules";
+import {
+  complianceStyles,
+  getInitials,
+  methodConfig,
+  visitStatusStyles,
+} from "./evvStatusStyles";
 
 interface VisitsTableProps {
   visits: EVVVisit[];
   mode?: "all" | "exceptions";
   initialExceptionFilter?: ExceptionCategory | "All";
-  onReviewVisit: (visit: EVVVisit) => void;
   onBulkConfirm: (visitIds: string[]) => void;
   onBulkSubmitAggregator: (visitIds: string[]) => void;
   onExportSelected: (visitIds: string[]) => void;
-}
-
-const visitStatusStyles: Record<VisitStatus, string> = {
-  Completed: "bg-slate-100 text-slate-700 border-slate-200/80",
-  "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
-  Incomplete: "bg-red-50 text-red-700 border-red-200",
-  "Not Started": "bg-slate-50 text-slate-500 border-slate-200",
-};
-
-const complianceStyles: Record<
-  EVVComplianceStatus,
-  { pill: string; dot: string }
-> = {
-  Verified: {
-    pill: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dot: "bg-emerald-500",
-  },
-  Exception: {
-    pill: "bg-red-50 text-red-700 border-red-200",
-    dot: "bg-red-500",
-  },
-  Resolved: {
-    pill: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
-  },
-};
-
-const methodConfig: Record<
-  EVVMethod,
-  { icon: React.ComponentType<{ className?: string }>; style: string }
-> = {
-  GPS: { icon: MapPin, style: "bg-blue-50 text-blue-700 border-blue-200" },
-  IVR: { icon: PhoneCall, style: "bg-purple-50 text-purple-700 border-purple-200" },
-  Fixed: { icon: Cpu, style: "bg-slate-100 text-slate-700 border-slate-200" },
-  Manual: { icon: PenLine, style: "bg-amber-50 text-amber-800 border-amber-200" },
-};
-
-function getProcessingBadgeStyle(status: string): { pill: string; dot: string } {
-  switch (status) {
-    case "Accepted":
-    case "Cleared":
-    case "Billed":
-    case "Approved":
-    case "Processed":
-      return {
-        pill: "bg-emerald-50/90 text-emerald-700 border-emerald-200/80",
-        dot: "bg-emerald-500",
-      };
-    case "Submitted":
-      return {
-        pill: "bg-blue-50/90 text-blue-700 border-blue-200/80",
-        dot: "bg-blue-500",
-      };
-    case "Rejected":
-    case "Hold":
-      return {
-        pill: "bg-red-50/90 text-red-700 border-red-200/80",
-        dot: "bg-red-500",
-      };
-    default:
-      return {
-        pill: "bg-slate-100/90 text-slate-600 border-slate-200/80",
-        dot: "bg-slate-400",
-      };
-  }
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 export function VisitsTable({
   visits,
   mode = "all",
   initialExceptionFilter = "All",
-  onReviewVisit,
   onBulkConfirm,
   onBulkSubmitAggregator,
   onExportSelected,
 }: VisitsTableProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [complianceFilter, setComplianceFilter] = useState<EVVComplianceStatus | "All">(
-    mode === "exceptions" ? "Exception" : "All"
+  const [complianceFilter, setComplianceFilter] = useState<
+    EVVComplianceStatus | "All"
+  >(mode === "exceptions" ? "Exception" : "All");
+  const [visitStatusFilter, setVisitStatusFilter] = useState<VisitStatus | "All">(
+    "All"
   );
-  const [visitStatusFilter, setVisitStatusFilter] = useState<VisitStatus | "All">("All");
-  const [exceptionFilter, setExceptionFilter] = useState<ExceptionCategory | "All">(
-    initialExceptionFilter
-  );
+  const [exceptionFilter, setExceptionFilter] = useState<
+    ExceptionCategory | "All"
+  >(initialExceptionFilter);
   const [methodFilter, setMethodFilter] = useState<EVVMethod | "All">("All");
   const [billingHoldOnly, setBillingHoldOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -147,9 +75,12 @@ export function VisitsTable({
   const filteredVisits = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return baseVisits.filter((v) => {
-      if (complianceFilter !== "All" && v.evvCompliance !== complianceFilter) return false;
-      if (visitStatusFilter !== "All" && v.visitStatus !== visitStatusFilter) return false;
-      if (exceptionFilter !== "All" && v.exceptionCategory !== exceptionFilter) return false;
+      if (complianceFilter !== "All" && v.evvCompliance !== complianceFilter)
+        return false;
+      if (visitStatusFilter !== "All" && v.visitStatus !== visitStatusFilter)
+        return false;
+      if (exceptionFilter !== "All" && v.exceptionCategory !== exceptionFilter)
+        return false;
       if (methodFilter !== "All" && v.evvMethod !== methodFilter) return false;
       if (billingHoldOnly && v.processing.billing !== "Hold") return false;
       if (!q) return true;
@@ -160,6 +91,7 @@ export function VisitsTable({
         v.client.name.toLowerCase().includes(q) ||
         v.client.id.toLowerCase().includes(q) ||
         v.service.name.toLowerCase().includes(q) ||
+        v.exceptionCategory.toLowerCase().includes(q) ||
         v.exceptionDetail.toLowerCase().includes(q)
       );
     });
@@ -174,7 +106,8 @@ export function VisitsTable({
   ]);
 
   const allSelected =
-    filteredVisits.length > 0 && filteredVisits.every((v) => selectedIds.includes(v.id));
+    filteredVisits.length > 0 &&
+    filteredVisits.every((v) => selectedIds.includes(v.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -218,7 +151,10 @@ export function VisitsTable({
       "Verification Missing": 0,
     };
     visits.forEach((v) => {
-      if (v.evvCompliance === "Exception" && counts[v.exceptionCategory] !== undefined) {
+      if (
+        v.evvCompliance === "Exception" &&
+        counts[v.exceptionCategory] !== undefined
+      ) {
         counts[v.exceptionCategory] += 1;
       }
     });
@@ -234,7 +170,7 @@ export function VisitsTable({
             <Search className="w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search Visit ID, caregiver, client, ID, or issue..."
+              placeholder="Search Visit ID, caregiver, client, or issue..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200/90 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-brand-primary/25 focus:border-brand-primary transition-all"
@@ -269,7 +205,9 @@ export function VisitsTable({
             <select
               aria-label="Filter by visit lifecycle status"
               value={visitStatusFilter}
-              onChange={(e) => setVisitStatusFilter(e.target.value as VisitStatus | "All")}
+              onChange={(e) =>
+                setVisitStatusFilter(e.target.value as VisitStatus | "All")
+              }
               className="px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-primary/25 cursor-pointer"
             >
               <option value="All">Visit Status: All</option>
@@ -282,7 +220,9 @@ export function VisitsTable({
             <select
               aria-label="Filter by EVV method"
               value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value as EVVMethod | "All")}
+              onChange={(e) =>
+                setMethodFilter(e.target.value as EVVMethod | "All")
+              }
               className="px-3 py-2 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-primary/25 cursor-pointer"
             >
               <option value="All">Method: All</option>
@@ -346,7 +286,9 @@ export function VisitsTable({
             <button
               key={cat}
               type="button"
-              onClick={() => setExceptionFilter(exceptionFilter === cat ? "All" : cat)}
+              onClick={() =>
+                setExceptionFilter(exceptionFilter === cat ? "All" : cat)
+              }
               className={clsx(
                 "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
                 exceptionFilter === cat
@@ -379,7 +321,8 @@ export function VisitsTable({
                 <CheckSquare className="w-4 h-4" />
               </span>
               <span>
-                <strong className="tabular-nums">{selectedIds.length}</strong> visit(s) selected
+                <strong className="tabular-nums">{selectedIds.length}</strong>{" "}
+                visit(s) selected
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -422,12 +365,12 @@ export function VisitsTable({
         )}
       </div>
 
-      {/* Horizontally Scrollable Table with Sticky Left Columns & Sticky Right Action */}
-      <div className="overflow-x-auto custom-scrollbar relative">
-        <table className="w-full min-w-[1680px] border-collapse text-left">
+      {/* Clean Summary Table (7 Core Columns) */}
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full min-w-[780px] border-collapse text-left">
           <thead>
-            <tr className="bg-slate-50/95 border-b border-slate-200 text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-              <th className="py-3.5 px-3.5 w-[46px] lg:sticky lg:left-0 lg:z-20 bg-slate-50">
+            <tr className="bg-slate-50/95 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-3.5 px-4 w-[44px]">
                 <input
                   type="checkbox"
                   aria-label="Select all visible visits"
@@ -436,40 +379,31 @@ export function VisitsTable({
                   className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                 />
               </th>
-              <th className="py-3.5 px-3.5 w-[160px] lg:sticky lg:left-[46px] lg:z-20 bg-slate-50">
-                Visit ID
+              <th className="py-3.5 px-4">Visit</th>
+              <th className="py-3.5 px-4">Caregiver</th>
+              <th className="py-3.5 px-4">Client</th>
+              <th className="py-3.5 px-4">Time</th>
+              <th className="py-3.5 px-4">
+                {mode === "exceptions" ? "Issue & Status" : "EVV Status"}
               </th>
-              <th className="py-3.5 px-3.5 w-[185px] lg:sticky lg:left-[206px] lg:z-20 bg-slate-50">
-                Caregiver
-              </th>
-              <th className="py-3.5 px-3.5 w-[190px] lg:sticky lg:left-[391px] lg:z-20 bg-slate-50 lg:shadow-[8px_0_20px_-8px_rgba(20,29,60,0.14)] border-r border-slate-200/80">
-                Client
-              </th>
-              <th className="py-3.5 px-3.5 w-[150px]">Service</th>
-              <th className="py-3.5 px-3.5 w-[150px]">Scheduled</th>
-              <th className="py-3.5 px-3.5 w-[170px]">Actual</th>
-              <th className="py-3.5 px-3.5 w-[108px]">EVV Method</th>
-              <th className="py-3.5 px-3.5 w-[142px]">EVV Compliance</th>
-              <th className="py-3.5 px-3.5 w-[235px]">Exception Reason</th>
-              <th className="py-3.5 px-3.5 w-[150px]">Verification</th>
-              <th className="py-3.5 px-3.5 w-[200px]">Processing</th>
-              <th className="py-3.5 px-3.5 w-[112px] text-right xl:sticky xl:right-0 xl:z-20 bg-slate-50 xl:shadow-[-8px_0_20px_-8px_rgba(20,29,60,0.08)] border-l border-slate-200/70">
-                Action
-              </th>
+              <th className="py-3.5 px-4 text-right">Details</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100 text-sm">
             {filteredVisits.length === 0 ? (
               <tr>
-                <td colSpan={13} className="py-14 text-center">
+                <td colSpan={7} className="py-14 text-center">
                   <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mb-3">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
-                    <p className="font-bold text-slate-900">No matching visits found</p>
+                    <p className="font-bold text-slate-900">
+                      No matching visits found
+                    </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Adjust your filters or search query to inspect other visit records.
+                      Adjust your filters or search query to inspect other visit
+                      records.
                     </p>
                   </div>
                 </td>
@@ -478,48 +412,39 @@ export function VisitsTable({
               filteredVisits.map((visit) => {
                 const isSelected = selectedIds.includes(visit.id);
                 const MethodIcon = methodConfig[visit.evvMethod].icon;
-                const primaryPhone = visit.serviceLocation.associatedPhones[0];
-                const stickyBg = isSelected
-                  ? "bg-indigo-50"
-                  : "bg-white group-hover:bg-[#F8FAFF]";
+                const detailHref = `/evv-monitoring/${visit.id}`;
 
                 return (
                   <tr
                     key={visit.id}
-                    onClick={() => onReviewVisit(visit)}
+                    onClick={() => router.push(detailHref)}
                     className={clsx(
                       "group border-b border-slate-100 last:border-b-0 transition-colors cursor-pointer",
-                      isSelected ? "bg-indigo-50/50" : "bg-white hover:bg-[#F8FAFF]"
+                      isSelected
+                        ? "bg-indigo-50/50"
+                        : "bg-white hover:bg-[#F8FAFF]"
                     )}
                   >
-                    {/* 1. Checkbox (Sticky) */}
+                    {/* 1. Checkbox */}
                     <td
                       onClick={(e) => e.stopPropagation()}
-                      className={clsx(
-                        "py-3.5 px-3.5 w-[46px] align-top lg:sticky lg:left-0 lg:z-10 transition-colors",
-                        stickyBg
-                      )}
+                      className="py-3.5 px-4 w-[44px] align-middle"
                     >
                       <input
                         type="checkbox"
                         aria-label={`Select visit ${visit.id}`}
                         checked={isSelected}
                         onChange={() => toggleSelectOne(visit.id)}
-                        className="w-4 h-4 mt-1 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                       />
                     </td>
 
-                    {/* 2. Visit ID (Sticky) */}
-                    <td
-                      className={clsx(
-                        "py-3.5 px-3.5 w-[160px] align-top lg:sticky lg:left-[46px] lg:z-10 transition-colors",
-                        stickyBg
-                      )}
-                    >
+                    {/* 2. Visit */}
+                    <td className="py-3.5 px-4 align-middle">
                       <div className="font-bold text-slate-900 text-xs font-mono tabular-nums tracking-tight">
                         {visit.id}
                       </div>
-                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                         <span
                           className={clsx(
                             "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border",
@@ -534,80 +459,32 @@ export function VisitsTable({
                       </div>
                     </td>
 
-                    {/* 3. Caregiver (Sticky) */}
-                    <td
-                      className={clsx(
-                        "py-3.5 px-3.5 w-[185px] align-top lg:sticky lg:left-[206px] lg:z-10 transition-colors",
-                        stickyBg
-                      )}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 border border-slate-200/80 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {/* 3. Caregiver */}
+                    <td className="py-3.5 px-4 align-middle">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 border border-slate-200/80 text-[10px] font-bold flex items-center justify-center shrink-0">
                           {getInitials(visit.caregiver.name)}
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 text-xs leading-snug truncate">
-                            {visit.caregiver.name}
-                          </div>
-                          <div className="text-[11px] text-slate-500 font-mono mt-0.5 tabular-nums">
-                            {visit.caregiver.id} · {visit.caregiver.role}
-                          </div>
-                        </div>
+                        <span className="font-semibold text-slate-900 text-xs truncate">
+                          {visit.caregiver.name}
+                        </span>
                       </div>
                     </td>
 
-                    {/* 4. Client (Sticky with shadow divider) */}
-                    <td
-                      className={clsx(
-                        "py-3.5 px-3.5 w-[190px] align-top lg:sticky lg:left-[391px] lg:z-10 lg:shadow-[8px_0_20px_-8px_rgba(20,29,60,0.14)] border-r border-slate-100 transition-colors",
-                        stickyBg
-                      )}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {/* 4. Client */}
+                    <td className="py-3.5 px-4 align-middle">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[10px] font-bold flex items-center justify-center shrink-0">
                           {getInitials(visit.client.name)}
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 text-xs leading-snug truncate">
-                            {visit.client.name}
-                          </div>
-                          <div className="text-[11px] text-slate-500 font-mono mt-0.5 tabular-nums">
-                            {visit.client.id}
-                          </div>
-                          {primaryPhone && (
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                              {maskPhoneNumber(primaryPhone.number)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* 5. Service */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      <div className="font-semibold text-slate-800 text-xs">
-                        {visit.service.name}
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                        <span className="font-mono bg-slate-100 px-1.5 py-0.2 rounded text-[10px] font-semibold text-slate-700">
-                          {visit.service.code}
+                        <span className="font-semibold text-slate-900 text-xs truncate">
+                          {visit.client.name}
                         </span>
-                        <span>· {visit.ruleProfile.state}</span>
                       </div>
                     </td>
 
-                    {/* 6. Scheduled */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      <div className="text-xs font-semibold text-slate-800 whitespace-nowrap tabular-nums">
-                        {visit.scheduledTime.start} – {visit.scheduledTime.end}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-medium mt-1">
-                        Rule tol: ±{visit.ruleProfile.timeToleranceMinutes}m
-                      </div>
-                    </td>
-
-                    {/* 7. Actual */}
-                    <td className="py-3.5 px-3.5 align-top">
+                    {/* 5. Time (Actual + compact Scheduled subline) */}
+                    <td className="py-3.5 px-4 align-middle">
                       <div className="text-xs font-semibold whitespace-nowrap flex items-center gap-1 tabular-nums">
                         <span
                           className={
@@ -619,7 +496,9 @@ export function VisitsTable({
                           }
                         >
                           {visit.actualTime.start ??
-                            (visit.visitStatus === "Not Started" ? "—" : "Missing In")}
+                            (visit.visitStatus === "Not Started"
+                              ? "—"
+                              : "Missing In")}
                         </span>
                         <span className="text-slate-300">–</span>
                         <span
@@ -639,175 +518,80 @@ export function VisitsTable({
                               : "Missing Out")}
                         </span>
                       </div>
-                      {visit.timeDeltaMinutes > 0 && (
-                        <div
-                          className={clsx(
-                            "text-[10px] mt-1 font-semibold inline-block px-1.5 py-0.2 rounded",
-                            visit.timeDeltaMinutes <=
-                              visit.ruleProfile.timeToleranceMinutes
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-amber-50 text-amber-800"
-                          )}
-                        >
-                          {visit.timeDeltaMinutes <=
-                          visit.ruleProfile.timeToleranceMinutes
-                            ? `±${visit.timeDeltaMinutes}m within rule`
-                            : `+${visit.timeDeltaMinutes}m variance`}
-                        </div>
-                      )}
+                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 whitespace-nowrap tabular-nums">
+                        Sched: {visit.scheduledTime.start} –{" "}
+                        {visit.scheduledTime.end}
+                      </div>
                     </td>
 
-                    {/* 8. EVV Method */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      <span
-                        className={clsx(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border",
-                          methodConfig[visit.evvMethod].style
-                        )}
-                      >
-                        <MethodIcon className="w-3 h-3" />
-                        {visit.evvMethod}
-                      </span>
-                    </td>
-
-                    {/* 9. EVV Compliance */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      <span
-                        className={clsx(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border",
-                          complianceStyles[visit.evvCompliance].pill
-                        )}
-                      >
+                    {/* 6. EVV Status / Issue & Status */}
+                    <td className="py-3.5 px-4 align-middle">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={clsx(
-                            "w-1.5 h-1.5 rounded-full",
-                            complianceStyles[visit.evvCompliance].dot
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap",
+                            complianceStyles[visit.evvCompliance].pill
                           )}
-                        />
-                        {visit.evvCompliance}
-                      </span>
-                      {visit.evvCompliance === "Resolved" && (
-                        <div className="text-[10px] text-indigo-600 font-semibold mt-1">
-                          Resolved after review
-                        </div>
-                      )}
-                    </td>
-
-                    {/* 10. Exception Reason */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      {visit.exceptionCategory === "None" ? (
-                        <span className="text-xs text-slate-500 leading-snug block">
-                          {visit.exceptionDetail}
-                        </span>
-                      ) : (
-                        <div>
-                          <div
+                        >
+                          <span
                             className={clsx(
-                              "text-xs font-bold flex items-center gap-1",
-                              visit.evvCompliance === "Resolved"
-                                ? "text-slate-700"
-                                : "text-red-700"
+                              "w-1.5 h-1.5 rounded-full",
+                              complianceStyles[visit.evvCompliance].dot
+                            )}
+                          />
+                          {visit.evvCompliance}
+                        </span>
+
+                        {mode === "exceptions" &&
+                        visit.exceptionCategory !== "None" ? (
+                          <span
+                            className={clsx(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold border whitespace-nowrap",
+                              visit.evvCompliance === "Exception"
+                                ? "bg-red-50/70 text-red-700 border-red-200/80"
+                                : "bg-slate-100 text-slate-700 border-slate-200"
                             )}
                           >
                             {visit.evvCompliance === "Exception" && (
                               <AlertTriangle className="w-3 h-3 shrink-0" />
                             )}
                             {visit.exceptionCategory}
-                          </div>
-                          <div className="text-[11px] text-slate-500 leading-snug mt-0.5">
-                            {visit.exceptionDetail}
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* 11. Verification (Signature / Voice) */}
-                    <td className="py-3.5 px-3.5 align-top space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[11px]">
-                        <FileSignature className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-slate-500">Sig:</span>
-                        <span
-                          className={clsx(
-                            "font-bold",
-                            visit.verification.signatureStatus === "Captured"
-                              ? "text-emerald-700"
-                              : visit.verification.signatureStatus === "Pending" &&
-                                  visit.ruleProfile.signatureRequirement === "Required"
-                                ? "text-amber-700"
-                                : "text-slate-500"
-                          )}
-                        >
-                          {visit.verification.signatureStatus}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[11px]">
-                        <Mic className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-slate-500">Voice:</span>
-                        <span
-                          className={clsx(
-                            "font-bold",
-                            visit.verification.voiceStatus === "Captured"
-                              ? "text-emerald-700"
-                              : visit.verification.voiceStatus === "Pending" &&
-                                  visit.ruleProfile.voiceRequirement === "Required"
-                                ? "text-red-600"
-                                : "text-slate-500"
-                          )}
-                        >
-                          {visit.verification.voiceStatus}
-                        </span>
+                          </span>
+                        ) : (
+                          <span
+                            className={clsx(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold border whitespace-nowrap",
+                              methodConfig[visit.evvMethod].style
+                            )}
+                          >
+                            <MethodIcon className="w-3 h-3" />
+                            {visit.evvMethod}
+                          </span>
+                        )}
                       </div>
                     </td>
 
-                    {/* 12. Processing (Aggregator / Billing / Payroll) */}
-                    <td className="py-3.5 px-3.5 align-top">
-                      <div className="grid grid-cols-1 gap-1">
-                        {[
-                          { label: "Agg", value: visit.processing.aggregator },
-                          { label: "Bill", value: visit.processing.billing },
-                          { label: "Pay", value: visit.processing.payroll },
-                        ].map((item) => {
-                          const style = getProcessingBadgeStyle(item.value);
-                          return (
-                            <span
-                              key={item.label}
-                              className={clsx(
-                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border w-fit whitespace-nowrap",
-                                style.pill
-                              )}
-                            >
-                              <span className={clsx("w-1.5 h-1.5 rounded-full", style.dot)} />
-                              <span className="opacity-75">{item.label}:</span>
-                              <span className="font-bold">{item.value}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-
-                    {/* 13. Action (Sticky Right on xl+) */}
+                    {/* 7. Details Link */}
                     <td
                       onClick={(e) => e.stopPropagation()}
-                      className={clsx(
-                        "py-3.5 px-3.5 align-top text-right xl:sticky xl:right-0 xl:z-10 xl:shadow-[-8px_0_20px_-8px_rgba(20,29,60,0.08)] border-l border-slate-100 transition-colors",
-                        stickyBg
-                      )}
+                      className="py-3.5 px-4 align-middle text-right"
                     >
-                      <button
-                        type="button"
-                        onClick={() => onReviewVisit(visit)}
+                      <Link
+                        href={detailHref}
                         className={clsx(
-                          "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap",
+                          "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
                           visit.evvCompliance === "Exception"
                             ? "bg-gradient-to-r from-[#6C88FF] to-[#5371F3] hover:from-[#5A77FF] hover:to-[#4362E6] text-white shadow-sm shadow-[#6C88FF]/25 active:scale-95"
                             : "bg-slate-100 text-slate-700 hover:bg-slate-200/80 border border-slate-200/70"
                         )}
                       >
                         <span>
-                          {visit.evvCompliance === "Exception" ? "Review" : "Inspect"}
+                          {visit.evvCompliance === "Exception"
+                            ? "Review"
+                            : "Details"}
                         </span>
                         <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 );
@@ -820,12 +604,20 @@ export function VisitsTable({
       {/* Footer count */}
       <div className="px-4 sm:px-5 py-3 border-t border-slate-200/70 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
         <span>
-          Showing <strong className="text-slate-900 tabular-nums">{filteredVisits.length}</strong>{" "}
-          of <strong className="text-slate-900 tabular-nums">{baseVisits.length}</strong> visits
+          Showing{" "}
+          <strong className="text-slate-900 tabular-nums">
+            {filteredVisits.length}
+          </strong>{" "}
+          of{" "}
+          <strong className="text-slate-900 tabular-nums">
+            {baseVisits.length}
+          </strong>{" "}
+          visits
         </span>
         <span className="flex items-center gap-2 text-[11px]">
           <Clock className="w-3.5 h-3.5 text-brand-primary" />
-          Visit status, EVV compliance, resolution, and aggregator/billing/payroll statuses are tracked independently.
+          Select any visit row to open full verification, exception resolution,
+          and readiness details.
         </span>
       </div>
     </div>
