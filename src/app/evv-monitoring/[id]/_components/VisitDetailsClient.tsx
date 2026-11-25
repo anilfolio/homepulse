@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -268,35 +269,116 @@ function VisitDetailsContent({
             </span>
           </div>
         )}
+      </div>
 
-        {/* Segmented Workspace Tabs */}
-        <div className="flex items-center gap-1.5 mt-4 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/10 overflow-x-auto relative z-10 w-fit max-w-full">
-          {(
-            [
-              { id: "details", label: "Details & Verification" },
-              { id: "resolve", label: "Exception Resolution" },
-              { id: "processing", label: "Aggregator & Billing" },
-              {
-                id: "audit",
-                label: `Audit History (${visit.auditHistory.length})`,
-              },
-            ] as { id: DetailTab; label: string }[]
-          ).map((tab) => (
+      {/* Independent 4-Section Segmented Tab Card Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/80 shadow-[0_6px_28px_rgba(20,29,60,0.04)]">
+        {(
+          [
+            {
+              id: "details",
+              label: "Details & Verification",
+              subtitle: "Times, location & evidence",
+              icon: ShieldCheck,
+            },
+            {
+              id: "resolve",
+              label: "Exception Resolution",
+              subtitle: "5-step guided workflow",
+              icon: AlertTriangle,
+              badge: visit.evvCompliance === "Exception" ? 1 : undefined,
+            },
+            {
+              id: "processing",
+              label: "Aggregator & Billing",
+              subtitle: "Submission, billing & payroll",
+              icon: Send,
+            },
+            {
+              id: "audit",
+              label: "Audit History",
+              subtitle: "Immutable UTC log",
+              icon: History,
+              badge: visit.auditHistory.length,
+            },
+          ] as {
+            id: DetailTab;
+            label: string;
+            subtitle: string;
+            icon: React.ComponentType<{ className?: string }>;
+            badge?: number;
+          }[]
+        ).map((tab) => {
+          const isActive = sectionTab === tab.id;
+          return (
             <button
               key={tab.id}
               type="button"
               onClick={() => setSectionTab(tab.id)}
               className={clsx(
-                "px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
-                sectionTab === tab.id
-                  ? "bg-white text-brand-navy shadow-sm font-bold"
-                  : "text-slate-300 hover:text-white hover:bg-white/10"
+                "relative flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer",
+                isActive
+                  ? "text-white"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
               )}
             >
-              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="evv-detail-nav"
+                  className="absolute inset-0 bg-gradient-to-r from-[#141D3C] to-[#1E2B58] rounded-xl shadow-[0_8px_20px_rgba(20,29,60,0.2)]"
+                  initial={false}
+                  transition={{ type: "spring", bounce: 0.16, duration: 0.42 }}
+                />
+              )}
+              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                <div
+                  className={clsx(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    isActive
+                      ? "bg-white/10 text-[#57EAB6]"
+                      : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={clsx(
+                      "text-xs sm:text-sm font-bold truncate",
+                      isActive ? "text-white" : "text-slate-800"
+                    )}
+                  >
+                    {tab.label}
+                  </div>
+                  <div
+                    className={clsx(
+                      "text-[10px] hidden sm:block truncate",
+                      isActive ? "text-slate-300" : "text-slate-400"
+                    )}
+                  >
+                    {tab.subtitle}
+                  </div>
+                </div>
+              </div>
+              {tab.badge !== undefined && (
+                <span
+                  className={clsx(
+                    "relative z-10 px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 tabular-nums",
+                    tab.id === "resolve"
+                      ? isActive
+                        ? "bg-red-500 text-white"
+                        : "bg-red-100 text-red-700"
+                      : isActive
+                        ? "bg-[#57EAB6]/20 text-[#57EAB6] border border-[#57EAB6]/30"
+                        : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  {tab.badge}
+                </span>
+              )}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* TAB 1: FULL DETAILS & VERIFICATION (70/30 Command Split) */}
