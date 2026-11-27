@@ -18,58 +18,28 @@ import {
   Plus
 } from "lucide-react";
 import Link from "next/link";
-
-const MOCK_COURSES = [
-  {
-    id: "c_1",
-    title: "Annual HIPAA & Privacy Update",
-    category: "Compliance",
-    status: "published",
-    lastUpdated: "2025-10-12",
-    enrollments: 142,
-    complianceLinked: true,
-    version: "v3.1",
-  },
-  {
-    id: "c_2",
-    title: "Dementia Care Basics",
-    category: "Clinical Skills",
-    status: "draft",
-    lastUpdated: "2 hours ago",
-    enrollments: 0,
-    complianceLinked: false,
-    version: "v2.0-draft",
-  },
-  {
-    id: "c_3",
-    title: "Infection Control",
-    category: "Compliance",
-    status: "published",
-    lastUpdated: "2026-01-05",
-    enrollments: 89,
-    complianceLinked: true,
-    version: "v4.0",
-  },
-  {
-    id: "c_4",
-    title: "Old Employee Handbook",
-    category: "HR",
-    status: "archived",
-    lastUpdated: "2024-05-10",
-    enrollments: 12,
-    complianceLinked: false,
-    version: "v1.5",
-  },
-];
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function CourseLibrary() {
+  const { state, archiveLmsCourse, publishLmsCourse } = useAgencyStore();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-  const [courses, setCourses] = useState(MOCK_COURSES);
 
   // Modals state
   const [archiveModalOpen, setArchiveModalOpen] = useState<string | null>(null);
+
+  const courses = state.lmsCourses.map((c) => ({
+    id: c.id,
+    title: c.title,
+    category: c.category,
+    status: c.publishState,
+    lastUpdated: c.dueDate || "Just now",
+    enrollments: c.enrollments,
+    complianceLinked: c.complianceLinked,
+    version: c.version,
+  }));
 
   const filteredCourses = courses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.category.toLowerCase().includes(search.toLowerCase());
@@ -89,26 +59,42 @@ export function CourseLibrary() {
 
   const confirmArchive = () => {
     if (!archiveModalOpen) return;
-    // Perform archive logic
-    setCourses(prev => prev.map(c => c.id === archiveModalOpen ? { ...c, status: "archived" } : c));
+    archiveLmsCourse(archiveModalOpen);
+    toast.success("Course archived.");
     setArchiveModalOpen(null);
   };
 
   const handleBulkTagCompliance = () => {
-    setCourses(prev => prev.map(c =>
-      selectedCourses.includes(c.id) ? { ...c, complianceLinked: true } : c
-    ));
+    selectedCourses.forEach((id) => {
+      const target = state.lmsCourses.find((c) => c.id === id);
+      if (target) {
+        publishLmsCourse({
+          id: target.id,
+          title: target.title,
+          category: target.category,
+          complianceLinked: true,
+        });
+      }
+    });
+    toast.success(`Linked ${selectedCourses.length} course(s) to Compliance & published.`);
     setSelectedCourses([]);
   };
 
   const handleBulkDuplicate = () => {
-    const duplicates = courses.filter(c => selectedCourses.includes(c.id)).map(c => ({
-      ...c,
-      id: `c_${Math.random().toString(36).substring(2, 9)}`,
-      title: `${c.title} (Copy)`,
-      status: "draft",
-    }));
-    setCourses(prev => [...prev, ...duplicates]);
+    selectedCourses.forEach((id) => {
+      const target = state.lmsCourses.find((c) => c.id === id);
+      if (target) {
+        publishLmsCourse({
+          title: `${target.title} (Copy)`,
+          category: target.category,
+          durationMinutes: target.durationMinutes,
+          ceUnits: target.ceUnits,
+          description: target.description,
+          complianceLinked: target.complianceLinked,
+        });
+      }
+    });
+    toast.success(`Duplicated ${selectedCourses.length} course(s).`);
     setSelectedCourses([]);
   };
 

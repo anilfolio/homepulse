@@ -1,65 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Calendar, User, MapPin, AlertCircle, CheckCircle2, Play } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/components/ui/Card";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-
-type Visit = {
-  id: string;
-  clientName: string;
-  address: string;
-  caregiverAssigned: string;
-  lastVisitDate: string | null;
-  visitTypeRequired: "Initial" | "Periodic" | "Unannounced";
-  dueDate: string;
-  status: "due" | "overdue";
-};
-
-const mockVisits: Visit[] = [
-  {
-    id: "v-1",
-    clientName: "Eleanor Ruth Whitfield",
-    address: "142 Maple St, Apt 4B",
-    caregiverAssigned: "Maria Santos, CNA",
-    lastVisitDate: null,
-    visitTypeRequired: "Initial",
-    dueDate: "2026-07-31",
-    status: "due",
-  },
-  {
-    id: "v-2",
-    clientName: "Arthur Pendelton",
-    address: "889 Oakwood Dr",
-    caregiverAssigned: "James Wilson",
-    lastVisitDate: "2026-05-10",
-    visitTypeRequired: "Periodic",
-    dueDate: "2026-07-28",
-    status: "overdue",
-  },
-  {
-    id: "v-3",
-    clientName: "Margaret Higgins",
-    address: "55 Pine Lane",
-    caregiverAssigned: "Sarah Jenkins",
-    lastVisitDate: "2025-08-15",
-    visitTypeRequired: "Unannounced",
-    dueDate: "2026-08-05",
-    status: "due",
-  },
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function VisitDueQueue() {
-  const [visits, setVisits] = useState<Visit[]>(mockVisits);
+  const { state } = useAgencyStore();
   const router = useRouter();
 
-  const handleStartVisit = (id: string) => {
-    // In a real app, this would route to the evaluation form with the visit context.
-    toast.success("Starting Visit Evaluation");
-    router.push(`/field-supervisor/visits?client=${id}`);
+  const visits = state.supervisoryVisits
+    .filter((v) => v.status !== "completed")
+    .map((v) => ({
+      id: v.id,
+      clientName: v.clientName,
+      address: v.location,
+      caregiverAssigned: v.assignedRn === "Unassigned" ? "Maria Santos, CNA" : v.assignedRn,
+      lastVisitDate: v.visitType === "initial_30" ? null : "2026-05-10",
+      visitTypeRequired:
+        v.visitType === "initial_30"
+          ? ("Initial" as const)
+          : v.visitType === "annual_unannounced"
+            ? ("Unannounced" as const)
+            : ("Periodic" as const),
+      dueDate: new Date(v.dueDate).toLocaleDateString("en-US"),
+      status: v.status === "overdue" ? ("overdue" as const) : ("due" as const),
+    }));
+
+  const handleStartVisit = (id: string, clientName: string) => {
+    toast.success(`Starting evaluation for ${clientName}`);
+    router.push(`/field-supervisor/visits?visitId=${id}&client=${encodeURIComponent(clientName)}`);
   };
 
   return (
@@ -78,7 +52,7 @@ export function VisitDueQueue() {
           <div className="p-8 text-center text-text-secondary flex flex-col items-center">
             <CheckCircle2 className="w-10 h-10 text-accent-green mb-3" />
             <p className="font-medium text-text-primary">No visits due this week</p>
-            <p className="text-xs mt-1">Nice work! You're all caught up.</p>
+            <p className="text-xs mt-1">Nice work! You&apos;re all caught up.</p>
           </div>
         ) : (
           visits.map((visit) => (
@@ -123,7 +97,7 @@ export function VisitDueQueue() {
 
               <div className="shrink-0 flex items-center justify-end sm:justify-center">
                 <button
-                  onClick={() => handleStartVisit(visit.id)}
+                  onClick={() => handleStartVisit(visit.id, visit.clientName)}
                   className="flex items-center gap-2 bg-white border border-slate-200 text-text-primary font-medium text-xs px-3 py-2 rounded-xl hover:bg-brand-teal hover:text-white hover:border-brand-teal transition-all shadow-[0_6px_32px_rgba(0,0,0,0.06)] group/btn"
                 >
                   <Play className="h-3.5 h-3.5 fill-current group-hover/btn:scale-110 transition-transform" />

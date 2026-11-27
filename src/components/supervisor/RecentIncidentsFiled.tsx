@@ -5,38 +5,40 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { ShieldAlert, Clock, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/components/ui/Card";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 type IncidentStatus = "Under Review" | "Action Taken" | "Closed";
 
-type Incident = {
-  id: string;
-  clientName: string;
-  dateFiled: string;
-  type: string;
-  status: IncidentStatus;
-};
-
-const mockIncidents: Incident[] = [
-  { id: "inc-1", clientName: "Samuel Oak", dateFiled: "Today", type: "Fall (No Injury)", status: "Under Review" },
-  { id: "inc-2", clientName: "Arthur Pendelton", dateFiled: "Last Week", type: "Medication Error", status: "Closed" },
-];
-
 export function RecentIncidentsFiled() {
+  const { state } = useAgencyStore();
+  const recentIncidents = state.incidents.slice(0, 5).map((inc) => ({
+    id: inc.id,
+    clientName:
+      inc.peopleInvolved.find((p) => p.role === "Patient")?.name || "Agency Event",
+    dateFiled: new Date(inc.reportedDate).toLocaleDateString("en-US"),
+    type: inc.type,
+    status: (inc.status === "Closed"
+      ? "Closed"
+      : inc.status === "Corrective Action"
+        ? "Action Taken"
+        : "Under Review") as IncidentStatus,
+  }));
+
   return (
     <Card className="flex flex-col h-full bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden">
       <CardHeader
         title="Recent Incidents I've Filed"
-        subtitle="Status of your submitted reports"
+        subtitle="Synced with Clinical & QA Compliance"
         action={<ShieldAlert className="w-5 h-5 text-slate-400" />}
       />
 
       <div className="flex-1 space-y-3 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-        {mockIncidents.length === 0 ? (
+        {recentIncidents.length === 0 ? (
           <div className="p-8 text-center text-text-secondary">
             <p>No recent incidents filed.</p>
           </div>
         ) : (
-          mockIncidents.map((incident) => (
+          recentIncidents.map((incident) => (
             <div key={incident.id} className="flex flex-col sm:flex-row gap-4 px-4 py-3 rounded-xl border border-border-subtle bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
               <div className="flex gap-4 items-center flex-1 min-w-0">
                 <div className={cn(

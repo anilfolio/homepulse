@@ -3,14 +3,15 @@
 import React, { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { UserCheck, ShieldCheck, Clock, Award } from "lucide-react";
 import { RecruitingPipelineBoard } from "@/components/hr/RecruitingPipelineBoard";
-import { initialCandidates } from "@/lib/hr/mockData";
 import { CandidateStage } from "@/types/hr";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 function RecruitingContent() {
   const searchParams = useSearchParams();
   const stageParam = searchParams.get("stage") as CandidateStage | null;
+  const { state } = useAgencyStore();
+  const candidates = state.candidates;
 
   return (
     <motion.div
@@ -38,18 +39,18 @@ function RecruitingContent() {
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full xl:w-auto">
           <div className="bg-slate-50 backdrop-blur-md p-3 lg:px-4 rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.04)] text-center flex-1 min-w-[120px] transition-transform hover:-translate-y-1 duration-300">
             <span className="text-[10px] sm:text-xs font-medium text-slate-500 block mb-1">Total Active</span>
-            <span className="text-xl font-bold text-slate-900">{initialCandidates.length}</span>
+            <span className="text-xl font-bold text-slate-900">{candidates.length}</span>
           </div>
           <div className="bg-blue-50 backdrop-blur-md p-3 lg:px-4 rounded-xl border border-blue-200 shadow-[0_8px_24px_rgba(0,0,0,0.04)] text-center flex-1 min-w-[120px] transition-transform hover:-translate-y-1 duration-300">
             <span className="text-[10px] sm:text-xs font-medium text-blue-600 block mb-1">Background</span>
             <span className="text-xl font-bold text-blue-700">
-              {initialCandidates.filter(c => c.stage === "Background Check").length}
+              {candidates.filter(c => c.stage === "Background Check").length}
             </span>
           </div>
           <div className="bg-emerald-50 backdrop-blur-md p-3 lg:px-4 rounded-xl border border-emerald-200 shadow-[0_8px_24px_rgba(0,0,0,0.04)] text-center flex-1 min-w-[120px] col-span-2 sm:col-span-1 transition-transform hover:-translate-y-1 duration-300">
             <span className="text-[10px] sm:text-xs font-medium text-emerald-600 block mb-1">Hired 30d</span>
             <span className="text-xl font-bold text-emerald-700">
-              {initialCandidates.filter(c => c.stage === "Hired").length}
+              {candidates.filter(c => c.stage === "Hired").length}
             </span>
           </div>
         </div>
@@ -57,7 +58,7 @@ function RecruitingContent() {
 
       {/* Main Kanban Board Component */}
       <RecruitingPipelineBoard
-        initialCandidates={initialCandidates}
+        initialCandidates={candidates}
         initialStageFilter={stageParam}
       />
     </motion.div>

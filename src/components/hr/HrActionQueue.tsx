@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ShieldAlert, FileText, Send, AlertOctagon, Sparkles } from "lucide-react";
 import { ActionQueueItem } from "@/types/hr";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface HrActionQueueProps {
   initialItems: ActionQueueItem[];
@@ -12,7 +13,8 @@ interface HrActionQueueProps {
 }
 
 export function HrActionQueue({ initialItems, onOpenCandidateDetail }: HrActionQueueProps) {
-  const [items, setItems] = useState<ActionQueueItem[]>(initialItems);
+  const { state, resolveHrActionItem } = useAgencyStore();
+  const items = state.hrActionQueue.length > 0 ? state.hrActionQueue : initialItems;
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -21,9 +23,9 @@ export function HrActionQueue({ initialItems, onOpenCandidateDetail }: HrActionQ
     setNotification(`Action completed for ${item.candidateOrCaregiverName}`);
 
     setTimeout(() => {
-      setItems(prev => prev.filter(i => i.id !== item.id));
+      resolveHrActionItem(item.id);
       setNotification(null);
-    }, 600);
+    }, 500);
 
     if (item.relatedId && onOpenCandidateDetail) {
       onOpenCandidateDetail(item.relatedId);

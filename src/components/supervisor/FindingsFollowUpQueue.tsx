@@ -1,47 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { AlertTriangle, MessageSquare, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/components/ui/Card";
-
-type Finding = {
-  id: string;
-  clientName: string;
-  description: string;
-  severity: "minor" | "moderate" | "urgent";
-  dateIdentified: string;
-};
-
-const mockFindings: Finding[] = [
-  {
-    id: "f-1",
-    clientName: "Margaret Higgins",
-    description: "Caregiver not fully following mobility care plan during transfer.",
-    severity: "moderate",
-    dateIdentified: "2 days ago",
-  },
-  {
-    id: "f-2",
-    clientName: "Samuel Oak",
-    description: "Minor home safety hazard noted (loose rug in hallway).",
-    severity: "minor",
-    dateIdentified: "1 week ago",
-  }
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function FindingsFollowUpQueue() {
-  const [findings, setFindings] = useState<Finding[]>(mockFindings);
+  const { state, resolveFieldFinding } = useAgencyStore();
+  const findings = state.fieldFindings;
 
   const handleLogFollowUp = (id: string) => {
-    toast.success("Follow-up logged successfully");
-    setFindings(findings.filter((f) => f.id !== id));
+    resolveFieldFinding(id, "followup");
+    toast.success("Follow-up coaching logged & resolved");
   };
 
   const handleEscalate = (id: string) => {
-    toast.info("Escalated to Clinical Supervisor");
-    setFindings(findings.filter((f) => f.id !== id));
+    resolveFieldFinding(id, "escalate");
+    toast.warning("Escalated to Clinical Supervisor RN Queue");
   };
 
   return (

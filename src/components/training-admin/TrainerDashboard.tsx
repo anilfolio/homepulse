@@ -11,12 +11,14 @@ import {
   BookOpen,
   Clock,
   TrendingUp,
-  TrendingDown,
   PlayCircle,
   ShieldAlert,
   ArrowRight
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { computeTrainingComplianceRate } from "@/lib/engine/hrAndLmsAutomation";
 
 // Mock Data
 const MOCK_REVIEW_QUEUE = [
@@ -149,11 +151,25 @@ function KpiCard({ title, value, subtext, icon: Icon, colorTheme = "teal", delay
 
 export function TrainerDashboard() {
   const { currentUser } = useAuth();
+  const { state, publishLmsCourse } = useAgencyStore();
   const [reviewQueue, setReviewQueue] = useState(MOCK_REVIEW_QUEUE);
 
+  const publishedCourses = state.lmsCourses.filter((c) => c.publishState === "published");
+  const draftCourses = state.lmsCourses.filter((c) => c.publishState === "draft");
+  const totalEnrollments = publishedCourses.reduce((sum, c) => sum + c.enrollments, 0);
+  const complianceRate = computeTrainingComplianceRate(state.lmsCourses);
+
   const handleStartReview = (id: string) => {
-    // Optimistic UI update for demo
-    setReviewQueue(prev => prev.filter(item => item.id !== id));
+    const target = reviewQueue.find((item) => item.id === id);
+    if (target) {
+      publishLmsCourse({
+        title: target.title,
+        category: "Compliance",
+        complianceLinked: true,
+      });
+      toast.success(`Approved & published "${target.title}" to Caregiver LMS!`);
+    }
+    setReviewQueue((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
@@ -174,7 +190,7 @@ export function TrainerDashboard() {
             transition={{ delay: 0.1 }}
             className="text-slate-500 mt-1 text-xs"
           >
-            You have <span className="font-semibold text-blue-600">{MOCK_DRAFTS.length} courses</span> in draft and <span className="font-semibold text-amber-600">{reviewQueue.length} compliance reviews</span> pending.
+            You have <span className="font-semibold text-blue-600">{draftCourses.length} course(s)</span> in draft and <span className="font-semibold text-amber-600">{reviewQueue.length} compliance review(s)</span> pending.
           </motion.p>
         </div>
       </div>
@@ -183,15 +199,15 @@ export function TrainerDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="Published Courses"
-          value={42}
-          subtext="Active in library"
+          value={publishedCourses.length}
+          subtext={`${complianceRate}% agency compliance`}
           icon={BookOpen}
           colorTheme="teal"
           delay={1}
         />
         <KpiCard
           title="Courses in Draft"
-          value={MOCK_DRAFTS.length}
+          value={draftCourses.length}
           subtext="Currently building"
           icon={FileEdit}
           colorTheme="blue"
@@ -224,8 +240,8 @@ export function TrainerDashboard() {
           className="p-4 bg-white backdrop-blur-xl rounded-xl border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden flex items-center justify-between"
         >
           <div>
-            <p className="text-xs font-normal text-slate-500">Total Enrollments This Month</p>
-            <p className="text-xl font-bold text-slate-800 mt-1">1,248</p>
+            <p className="text-xs font-normal text-slate-500">Total Caregiver Enrollments</p>
+            <p className="text-xl font-bold text-slate-800 mt-1">{totalEnrollments.toLocaleString()}</p>
           </div>
           <div className="flex items-center gap-2 text-sm font-medium text-brand-teal bg-brand-teal/10 px-3 py-1 rounded-full">
             <TrendingUp className="w-4 h-4" />
@@ -394,7 +410,7 @@ export function TrainerDashboard() {
                   <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-red-800 text-sm">Aging Content Alert</h4>
-                    <p className="text-[10px] text-red-600">2 courses haven't been updated in over 24 months. Consider reviewing them.</p>
+                    <p className="text-[10px] text-red-600">2 courses haven&apos;t been updated in over 24 months. Consider reviewing them.</p>
                   </div>
                 </div>
               </div>

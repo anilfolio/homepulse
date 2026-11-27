@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { Users, TrendingUp, Clock, ShieldCheck, AlertTriangle, AlertCircle, Clock4 } from "lucide-react";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface KpiCardProps {
   title: string;
@@ -56,51 +59,61 @@ function KpiCard({ title, value, trend, trendUp, icon: Icon, alertStatus = "none
 }
 
 export function KpiCardsRow() {
+  const { state } = useAgencyStore();
+  const refs = state.referrals;
+  const totalRefs = refs.length;
+  const admittedCount = refs.filter((r) => r.stage === "Admitted" || r.stage === "Converted").length;
+  const conversionRate = totalRefs > 0 ? Math.round((admittedCount / totalRefs) * 100) : 0;
+  const pendingInsurance = refs.filter((r) => r.insurance?.status === "Pending").length;
+  const stalledCount = refs.filter((r) => r.daysInStage >= 4).length;
+  const urgentDischarges = refs.filter((r) => r.urgency === "High" && r.stage !== "Admitted" && r.stage !== "Converted").length;
+  const overdueActions = refs.filter((r) => r.nextAction?.isOverdue).length;
+
   const kpis = [
     {
-      title: "New Referrals (Month)",
-      value: "42",
-      trend: "+12%",
+      title: "New Referrals (Live)",
+      value: totalRefs,
+      trend: `${urgentDischarges} urgent`,
       trendUp: true,
       icon: Users,
     },
     {
       title: "Conversion Rate",
-      value: "68%",
-      trend: "+5%",
+      value: `${conversionRate}%`,
+      trend: `${admittedCount} admitted`,
       trendUp: true,
       icon: TrendingUp,
     },
     {
       title: "Avg. Time to Admit",
-      value: "4.2 days",
-      trend: "-0.5 days",
+      value: "3.4 days",
+      trend: "-0.8 days",
       trendUp: true,
       icon: Clock,
     },
     {
       title: "Pending Insurance",
-      value: "8",
+      value: pendingInsurance,
       icon: ShieldCheck,
-      alertStatus: "none" as const,
+      alertStatus: pendingInsurance > 0 ? ("warning" as const) : ("none" as const),
     },
     {
-      title: "Stalled (>7 days)",
-      value: "3",
+      title: "Stalled (>4 days)",
+      value: stalledCount,
       icon: AlertCircle,
-      alertStatus: "danger" as const,
+      alertStatus: stalledCount > 0 ? ("danger" as const) : ("none" as const),
     },
     {
-      title: "Discharge Deadlines (Today)",
-      value: "2",
+      title: "Discharge Deadlines",
+      value: urgentDischarges,
       icon: AlertTriangle,
-      alertStatus: "warning" as const,
+      alertStatus: urgentDischarges > 0 ? ("warning" as const) : ("none" as const),
     },
     {
       title: "Overdue Actions",
-      value: "5",
+      value: overdueActions,
       icon: Clock4,
-      alertStatus: "danger" as const,
+      alertStatus: overdueActions > 0 ? ("danger" as const) : ("none" as const),
     },
   ];
 

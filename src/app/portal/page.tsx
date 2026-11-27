@@ -24,13 +24,13 @@ import {
   CheckCircle,
   FileEdit,
   AlertCircle,
-  MapPin,
   Users,
   FileSignature,
   BellRing
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const fadeUpVariant: Variants = {
   hidden: { opacity: 0, y: 10 },
@@ -44,7 +44,38 @@ const staggerContainer: Variants = {
 
 export default function PortalOverviewPage() {
   const { currentUser } = useAuth();
+  const { state, getCaregiverById } = useAgencyStore();
   const isClient = currentUser?.role === "CLIENT";
+
+  const liveTodayVisit =
+    state.visits.find((v) => v.visitDateLabel === "Today" && v.status === "In Progress") ||
+    state.visits.find((v) => v.visitDateLabel === "Today" && v.status === "Completed") ||
+    state.visits.find((v) => v.visitDateLabel === "Today" && v.status === "Scheduled");
+
+  const liveCaregiver = liveTodayVisit
+    ? getCaregiverById(liveTodayVisit.caregiverId)
+    : undefined;
+
+  const activePortalVisit = liveTodayVisit
+    ? {
+        timeWindow: `${liveTodayVisit.scheduledStart} - ${liveTodayVisit.scheduledEnd}`,
+        status:
+          liveTodayVisit.status === "In Progress"
+            ? "In progress"
+            : liveTodayVisit.status === "Completed"
+              ? "Completed"
+              : "Scheduled",
+        eta: liveTodayVisit.status === "Scheduled" ? "On schedule" : "",
+        caregiverName: liveCaregiver?.name ?? todaysVisit.caregiver.name,
+        caregiverPhoto: todaysVisit.caregiver.photo,
+      }
+    : {
+        timeWindow: todaysVisit.timeWindow,
+        status: todaysVisit.status,
+        eta: todaysVisit.eta,
+        caregiverName: todaysVisit.caregiver.name,
+        caregiverPhoto: todaysVisit.caregiver.photo,
+      };
 
   const getStatusProgress = (status: string) => {
     switch (status) {
@@ -115,17 +146,16 @@ export default function PortalOverviewPage() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white text-xs font-medium flex items-center gap-2">
                   <Clock className="w-4 h-4 text-brand-teal" />
-                  <span>Today's Visit • {todaysVisit.timeWindow}</span>
+                  <span>Today&apos;s Visit • {activePortalVisit.timeWindow}</span>
                 </div>
-                <div className={`px-3 py-1.5 rounded-full text-xs font-medium border backdrop-blur-md flex items-center gap-2 ${todaysVisit.status === 'In progress' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
-                  todaysVisit.status === 'On the way' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                <div className={`px-3 py-1.5 rounded-full text-xs font-medium border backdrop-blur-md flex items-center gap-2 ${activePortalVisit.status === 'In progress' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                  activePortalVisit.status === 'Completed' ? 'bg-teal-500/20 text-teal-200 border-teal-400/30' :
                     'bg-white/10 text-white border-white/10'
                   }`}>
-                  {todaysVisit.status === "In progress" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />}
-                  {todaysVisit.status === "On the way" && <MapPin className="w-3.5 h-3.5 animate-bounce" />}
-                  {todaysVisit.status}
-                  {todaysVisit.status === "On the way" && todaysVisit.eta && (
-                    <span className="opacity-90 ml-1">• ETA: {todaysVisit.eta}</span>
+                  {activePortalVisit.status === "In progress" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />}
+                  {activePortalVisit.status}
+                  {activePortalVisit.eta && (
+                    <span className="opacity-90 ml-1">• {activePortalVisit.eta}</span>
                   )}
                 </div>
               </div>
@@ -140,7 +170,7 @@ export default function PortalOverviewPage() {
                 <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${getStatusProgress(todaysVisit.status)}%` }}
+                    animate={{ width: `${getStatusProgress(activePortalVisit.status)}%` }}
                     transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
                     className="h-full bg-gradient-to-r from-brand-teal to-emerald-400 rounded-full relative"
                   />
@@ -148,11 +178,11 @@ export default function PortalOverviewPage() {
               </div>
               <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 hover:bg-white/10 transition-colors w-fit">
                 <div className="relative">
-                  {todaysVisit.caregiver.photo ? (
-                    <img src={todaysVisit.caregiver.photo} alt={todaysVisit.caregiver.name} className="w-12 h-12 rounded-full object-cover border-2 border-white/20" />
+                  {activePortalVisit.caregiverPhoto ? (
+                    <img src={activePortalVisit.caregiverPhoto} alt={activePortalVisit.caregiverName} className="w-12 h-12 rounded-full object-cover border-2 border-white/20" />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-white/20 text-white flex items-center justify-center font-medium border-2 border-white/20">
-                      {todaysVisit.caregiver.name.charAt(0)}
+                      {activePortalVisit.caregiverName.charAt(0)}
                     </div>
                   )}
                   <div className="absolute -bottom-1 -right-1 bg-brand-teal text-white w-4 h-4 rounded-full border-2 border-[var(--color-sidebar-bg)] flex items-center justify-center">
@@ -160,7 +190,7 @@ export default function PortalOverviewPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <div className="font-semibold text-white">{todaysVisit.caregiver.name}</div>
+                  <div className="font-semibold text-white">{activePortalVisit.caregiverName}</div>
                   <div className="text-xs text-slate-300 flex items-center gap-1.5">
                     <Heart className="w-3.5 h-3.5 text-brand-teal fill-brand-teal/20" />
                     Primary Caregiver
@@ -216,7 +246,7 @@ export default function PortalOverviewPage() {
           </div>
 
           <div className="space-y-3">
-            {portalActivities.map((activity, index) => {
+            {portalActivities.map((activity) => {
               const isVisit = activity.type === "visit_completed";
               const isCarePlan = activity.type === "care_plan_updated";
               const isIncident = activity.type === "incident_reported";

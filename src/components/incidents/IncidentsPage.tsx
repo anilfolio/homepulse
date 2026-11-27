@@ -9,30 +9,30 @@ import { IncidentQueue } from "./IncidentQueue";
 import { TrendsPanel } from "./TrendsPanel";
 import { IncidentDetailPanel } from "./IncidentDetailPanel";
 import { ReportIncidentForm } from "./ReportIncidentForm";
-import { mockIncidents } from "@/lib/mockIncidentData";
 import { Incident } from "@/types/incidents";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function IncidentsPage() {
+  const { state } = useAgencyStore();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
   const { currentUser } = useAuth();
 
-  // In a real app, you would fetch this data and apply backend scoping rules.
-  // QA_COMPLIANCE_OFFICER sees every incident (including Restricted) agency-wide, unscoped.
-  // CLINICAL_SUPERVISOR_RN sees incidents scoped to their assigned caseload only.
-  const incidents = currentUser?.role === "CLINICAL_SUPERVISOR_RN"
-    ? mockIncidents.filter(inc =>
-      // Simulating caseload scope: assume only specific clients are in their caseload
-      (inc.peopleInvolved.some(p => p.role === "Patient" && (p.name === "Evelyn Carter" || p.name === "Marcus Vance" || p.name === "Helen S." || p.name === "Robert M."))) &&
-      (inc.type === "Fall" ||
-        inc.type === "Medication Error" ||
-        inc.type === "Emergency" ||
-        inc.type === "Hospital Transfer" ||
-        inc.isRestricted)
-    )
-    : mockIncidents;
+  // QA_COMPLIANCE_OFFICER & ADMIN see every incident (including Restricted) agency-wide, unscoped.
+  // CLINICAL_SUPERVISOR_RN sees clinical incidents (Fall, Med Error, Emergency, Hospital Transfer).
+  const incidents =
+    currentUser?.role === "CLINICAL_SUPERVISOR_RN"
+      ? state.incidents.filter(
+          (inc) =>
+            inc.type === "Fall" ||
+            inc.type === "Medication Error" ||
+            inc.type === "Emergency" ||
+            inc.type === "Hospital Transfer" ||
+            inc.isRestricted
+        )
+      : state.incidents;
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },

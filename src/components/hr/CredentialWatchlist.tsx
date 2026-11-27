@@ -6,13 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, BellRing, ArrowUpDown, ShieldAlert, Check } from "lucide-react";
 import { CredentialWatchItem } from "@/types/hr";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface CredentialWatchlistProps {
   initialItems: CredentialWatchItem[];
 }
 
 export function CredentialWatchlist({ initialItems }: CredentialWatchlistProps) {
-  const [items, setItems] = useState<CredentialWatchItem[]>(initialItems);
+  const { state, sendCredentialReminder } = useAgencyStore();
+  const items = state.credentialWatchlist.length > 0 ? state.credentialWatchlist : initialItems;
   const [sortField, setSortField] = useState<"daysRemaining" | "caregiverName" | "credentialType">("daysRemaining");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [notifiedIds, setNotifiedIds] = useState<string[]>([]);
@@ -41,7 +43,8 @@ export function CredentialWatchlist({ initialItems }: CredentialWatchlistProps) 
 
   const handleNotify = (item: CredentialWatchItem) => {
     setNotifiedIds(prev => [...prev, item.id]);
-    setToastMessage(`SMS & Email reminder sent to ${item.caregiverName} for ${item.credentialType}`);
+    sendCredentialReminder(item.id);
+    setToastMessage(`SMS, Email & LMS renewal reminder dispatched to ${item.caregiverName} for ${item.credentialType}`);
 
     setTimeout(() => {
       setToastMessage(null);

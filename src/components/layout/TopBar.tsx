@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { GlobalSearch } from "./GlobalSearch";
 import { NotificationsCenter } from "./NotificationsCenter";
 import { SidebarToggleButton } from "./SidebarToggleButton";
+import { DemoStudioMenu } from "./DemoStudioMenu";
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -27,6 +28,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             Executive Ops
           </span>
         )}
+        <DemoStudioMenu />
         <NotificationsCenter />
       </div>
     </header>

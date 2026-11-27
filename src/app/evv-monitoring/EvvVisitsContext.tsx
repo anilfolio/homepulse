@@ -9,8 +9,10 @@ import React, {
   useState,
 } from "react";
 import { useAuth } from "@/lib/auth/RBACContext";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { mapAgencyStatusToEvvStatus } from "@/types/agency";
 import { Role } from "@/types/rbac";
-import { initialVisits, REASON_CODES } from "./mockData";
+import { initialVisits, REASON_CODES, RULE_PROFILES } from "./mockData";
 import { EVVVisit, ExceptionCategory } from "./types";
 import {
   EvvRoleCapabilities,
@@ -60,12 +62,14 @@ interface EvvVisitsContextValue {
 
 const EvvVisitsContext = createContext<EvvVisitsContextValue | null>(null);
 
-/**
- * Provides shared EVV visit state, RBAC capabilities, tab navigation memory,
- * and resolution actions across `/evv-monitoring` and `/evv-monitoring/[id]`.
- */
 export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
+  const {
+    state: agencyState,
+    getClientById,
+    getCaregiverById,
+    resolveEvvException,
+  } = useAgencyStore();
 
   const actor: EvvActor = useMemo(
     () => ({
@@ -80,7 +84,7 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
     [actor.role]
   );
 
-  const [visits, setVisits] = useState<EVVVisit[]>(initialVisits);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, EVVVisit>>({});
   const [activeTab, setActiveTab] = useState<EVVNavTab>("visits");
   const [exceptionFilterPreset, setExceptionFilterPreset] = useState<
     ExceptionCategory | "All"
@@ -98,52 +102,178 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   }, []);
 
+  // Project unified AgencyStore visits into EVVVisit shape and blend with baseline history
+  const visits: EVVVisit[] = useMemo(() => {
+    const agencyEvvVisits: EVVVisit[] = agencyState.visits.map((v) => {
+      const existing = initialVisits.find((iv) => iv.id === v.evvId);
+      const client = getClientById(v.clientId);
+      const caregiver = getCaregiverById(v.caregiverId);
+      const override = localOverrides[v.evvId];
+
+      const projected: EVVVisit = {
+        id: v.evvId,
+        visitDate: v.visitDate,
+        visitDateLabel: v.visitDateLabel,
+        caregiver: {
+          id: caregiver?.id ?? "UNASSIGNED",
+          name: caregiver?.name ?? "Unassigned Shift",
+          role: caregiver?.roleTitle ?? "Caregiver",
+        },
+        client: {
+          id: client?.id ?? v.clientId,
+          name: client?.name ?? "Client",
+          medicaidIdMasked: client?.medicaidIdMasked ?? "•••••0000",
+        },
+        service: {
+          code: client?.serviceCode ?? "T1019",
+          name: client?.serviceName ?? "Personal Care",
+        },
+        scheduledWindowPassed: v.visitDateLabel !== "Today" || v.status === "Completed",
+        scheduledTime: {
+          start: v.scheduledStart,
+          end: v.scheduledEnd,
+        },
+        actualTime: {
+          start: v.clockInTime,
+          end: v.clockOutTime,
+        },
+        originalEvv: {
+          clockIn: v.clockInTime,
+          clockOut: v.clockOutTime,
+          method: v.evvMethod,
+          gpsDistanceFt: Math.round(v.gpsDistanceMeters * 3.28084),
+        },
+        visitStatus: mapAgencyStatusToEvvStatus(v.status),
+        evvMethod: v.evvMethod,
+        evvCompliance: v.evvCompliance,
+        exceptionCategory: v.exceptionCategory,
+        exceptionSeverity:
+          v.evvCompliance === "Exception"
+            ? v.exceptionCategory === "Missed Call" || v.exceptionCategory === "Missed In"
+              ? "critical"
+              : "warning"
+            : "none",
+        exceptionDetail: v.exceptionDetail,
+        timeDeltaMinutes: v.timeVarianceMinutes,
+        gpsDistanceFt: Math.round(v.gpsDistanceMeters * 3.28084),
+        serviceLocation: existing?.serviceLocation ?? {
+          addressLine1: client?.address ?? "412 Maplewood Drive",
+          cityStateZip: client?.cityStateZip ?? "Springfield, IL 62704",
+          lat: client?.coords.lat ?? 39.7817,
+          lng: client?.coords.lng ?? -89.6501,
+          locationType: "Patient Home",
+          associatedPhones: [
+            {
+              id: `ph-${v.clientId}`,
+              label: "Primary Residence",
+              number: client?.phone ?? "(217) 555-0194",
+              type: "Landline",
+              isVerifiedForIVR: true,
+            },
+          ],
+        },
+        verification: existing?.verification ?? {
+          signatureStatus: v.signatureCaptured ? "Captured" : "Pending",
+          voiceStatus: v.visitNotes ? "Captured" : "Not Required",
+        },
+        processing: {
+          aggregator: existing?.processing.aggregator ?? "Pending",
+          billing: v.billingStatus,
+          payroll: v.billingStatus === "Hold" ? "Hold" : "Approved",
+        },
+        estimatedBillingAmount: Math.round(
+          v.scheduledHours * (client?.hourlyBillRate ?? 38)
+        ),
+        authorization: {
+          authNumber: client?.authNumber ?? "AUTH-88291A",
+          status:
+            (client?.authorizedUnitsRemaining ?? 20) <= 10
+              ? "Expiring Soon"
+              : "Active",
+          remainingUnits: client?.authorizedUnitsRemaining ?? 24,
+          totalUnits: client?.authorizedUnitsTotal ?? 80,
+          unitLabel: "hrs",
+          expiresAt: `In ${client?.authExpiresInDays ?? 14} days`,
+        },
+        tasksSummary: {
+          completed: v.tasks.filter((t) => t.completed).length,
+          total: v.tasks.length,
+          items: v.tasks.map((t) => t.title),
+        },
+        ruleProfile: existing?.ruleProfile ?? RULE_PROFILES[0],
+        auditHistory:
+          v.auditHistory.length > 0
+            ? v.auditHistory
+            : existing?.auditHistory ?? [],
+      };
+
+      return override ? { ...projected, ...override } : projected;
+    });
+
+    const agencyEvvIds = new Set(agencyEvvVisits.map((v) => v.id));
+    const staticExtras = initialVisits
+      .filter((iv) => !agencyEvvIds.has(iv.id))
+      .map((iv) => localOverrides[iv.id] ?? iv);
+
+    return [...agencyEvvVisits, ...staticExtras];
+  }, [agencyState.visits, getCaregiverById, getClientById, localOverrides]);
+
   const updateVisit = useCallback(
-    (updated: EVVVisit, toast?: string) => {
-      setVisits((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
-      if (toast) showToast(toast);
+    (updated: EVVVisit, toastMsg?: string) => {
+      setLocalOverrides((prev) => ({ ...prev, [updated.id]: updated }));
+      if (updated.evvCompliance === "Resolved") {
+        resolveEvvException({
+          visitId: updated.id,
+          reasonCode: updated.resolution?.reasonCode ?? "RC-04",
+          reasonLabel: updated.resolution?.reasonLabel,
+          notes:
+            updated.resolution?.notes ??
+            "Resolved via EVV Monitoring workspace.",
+          attestationRef:
+            updated.resolution?.attestationRef ?? `EVV-${Date.now().toString().slice(-4)}`,
+        });
+      }
+      if (toastMsg) showToast(toastMsg);
     },
-    [showToast]
+    [resolveEvvException, showToast]
   );
 
   const reopenException = useCallback(
     (visitId: string, reason?: string) => {
-      setVisits((prev) =>
-        prev.map((v) => {
-          if (v.id !== visitId) return v;
-          const summary =
-            reason?.trim() ||
-            "Reopened for supervisory exception review after post-resolution check.";
-          return {
-            ...v,
-            evvCompliance: "Exception",
-            exceptionSeverity: "warning",
-            exceptionCategory:
-              v.exceptionCategory === "None"
-                ? "Time Variance"
-                : v.exceptionCategory,
-            exceptionDetail: summary,
-            processing: {
-              ...v.processing,
-              billing: "Hold",
-            },
-            auditHistory: [
-              createAuditEvent({
-                actorName: actor.name,
-                actorRole: actor.role,
-                actionType: "EXCEPTION_REOPENED",
-                summary,
-                previousValue: v.evvCompliance,
-                newValue: "Exception",
-              }),
-              ...v.auditHistory,
-            ],
-          };
-        })
-      );
+      const target = visits.find((v) => v.id === visitId);
+      if (!target) return;
+      const summary =
+        reason?.trim() ||
+        "Reopened for supervisory exception review after post-resolution check.";
+      const reopened: EVVVisit = {
+        ...target,
+        evvCompliance: "Exception",
+        exceptionSeverity: "warning",
+        exceptionCategory:
+          target.exceptionCategory === "None"
+            ? "Time Variance"
+            : target.exceptionCategory,
+        exceptionDetail: summary,
+        processing: {
+          ...target.processing,
+          billing: "Hold",
+        },
+        auditHistory: [
+          createAuditEvent({
+            actorName: actor.name,
+            actorRole: actor.role,
+            actionType: "EXCEPTION_REOPENED",
+            summary,
+            previousValue: target.evvCompliance,
+            newValue: "Exception",
+          }),
+          ...target.auditHistory,
+        ],
+      };
+      setLocalOverrides((prev) => ({ ...prev, [visitId]: reopened }));
       showToast(`Reopened ${visitId} for exception review; billing placed on hold.`);
     },
-    [actor.name, actor.role, showToast]
+    [actor.name, actor.role, showToast, visits]
   );
 
   const navigateTab = useCallback(
@@ -179,75 +309,88 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
       const reasonObj = REASON_CODES.find((r) => r.code === payload.reasonCode);
       const nowIso = new Date().toISOString();
 
-      setVisits((prev) =>
-        prev.map((v) => {
-          if (!payload.visitIds.includes(v.id)) return v;
+      payload.visitIds.forEach((visitId) => {
+        const v = visits.find((item) => item.id === visitId);
+        if (!v) return;
 
-          const nextStart =
-            payload.useScheduledTimes && !v.actualTime.start
-              ? v.scheduledTime.start
-              : v.actualTime.start;
-          const nextEnd =
-            payload.useScheduledTimes && !v.actualTime.end
-              ? v.scheduledTime.end
-              : v.actualTime.end;
+        const nextStart =
+          payload.useScheduledTimes && !v.actualTime.start
+            ? v.scheduledTime.start
+            : v.actualTime.start;
+        const nextEnd =
+          payload.useScheduledTimes && !v.actualTime.end
+            ? v.scheduledTime.end
+            : v.actualTime.end;
 
-          const nextVisitStatus = deriveVisitStatus(
-            nextStart,
-            nextEnd,
-            v.scheduledWindowPassed
-          );
-          const nextDelta = computeMaxTimeVarianceMinutes(
-            v.scheduledTime.start,
-            v.scheduledTime.end,
-            nextStart,
-            nextEnd
-          );
+        const nextVisitStatus = deriveVisitStatus(
+          nextStart,
+          nextEnd,
+          v.scheduledWindowPassed
+        );
+        const nextDelta = computeMaxTimeVarianceMinutes(
+          v.scheduledTime.start,
+          v.scheduledTime.end,
+          nextStart,
+          nextEnd
+        );
 
-          return {
-            ...v,
-            actualTime: { start: nextStart, end: nextEnd },
-            visitStatus: nextVisitStatus,
-            timeDeltaMinutes: nextDelta,
-            evvCompliance: "Resolved",
-            exceptionSeverity: "info",
-            exceptionDetail: `Resolved after bulk review (${payload.reasonCode})`,
-            resolution: {
-              acknowledged: true,
-              acknowledgedAt: nowIso,
-              acknowledgedBy: actor.name,
+        const resolvedVisit: EVVVisit = {
+          ...v,
+          actualTime: { start: nextStart, end: nextEnd },
+          visitStatus: nextVisitStatus,
+          timeDeltaMinutes: nextDelta,
+          evvCompliance: "Resolved",
+          exceptionSeverity: "info",
+          exceptionDetail: `Resolved after bulk review (${payload.reasonCode})`,
+          processing: {
+            ...v.processing,
+            billing: "Cleared",
+            payroll: "Approved",
+          },
+          resolution: {
+            acknowledged: true,
+            acknowledgedAt: nowIso,
+            acknowledgedBy: actor.name,
+            reasonCode: payload.reasonCode,
+            reasonLabel: reasonObj?.label,
+            resolutionCode: "RES-CALL-TS",
+            resolutionLabel: "Manual timesheet confirmation with attestation",
+            notes: payload.notes,
+            attestationConfirmed: true,
+            attestationRef: payload.attestationRef,
+            resolvedAt: nowIso,
+            resolvedBy: actor.name,
+          },
+          auditHistory: [
+            createAuditEvent({
+              actorName: actor.name,
+              actorRole: actor.role,
+              actionType: "MANUAL_CONFIRMATION",
+              summary: `Bulk visit confirmation with documentation attestation (${payload.attestationRef}).`,
               reasonCode: payload.reasonCode,
-              reasonLabel: reasonObj?.label,
               resolutionCode: "RES-CALL-TS",
-              resolutionLabel: "Manual timesheet confirmation with attestation",
-              notes: payload.notes,
-              attestationConfirmed: true,
-              attestationRef: payload.attestationRef,
-              resolvedAt: nowIso,
-              resolvedBy: actor.name,
-            },
-            auditHistory: [
-              createAuditEvent({
-                actorName: actor.name,
-                actorRole: actor.role,
-                actionType: "MANUAL_CONFIRMATION",
-                summary: `Bulk visit confirmation with documentation attestation (${payload.attestationRef}). Original EVV events preserved.`,
-                reasonCode: payload.reasonCode,
-                resolutionCode: "RES-CALL-TS",
-                previousValue: `In: ${v.originalEvv.clockIn ?? "null"} / Out: ${v.originalEvv.clockOut ?? "null"}`,
-                newValue: `In: ${nextStart ?? "null"} / Out: ${nextEnd ?? "null"}`,
-              }),
-              ...v.auditHistory,
-            ],
-          };
-        })
-      );
+              previousValue: `In: ${v.originalEvv.clockIn ?? "null"} / Out: ${v.originalEvv.clockOut ?? "null"}`,
+              newValue: `In: ${nextStart ?? "null"} / Out: ${nextEnd ?? "null"}`,
+            }),
+            ...v.auditHistory,
+          ],
+        };
+
+        setLocalOverrides((prev) => ({ ...prev, [v.id]: resolvedVisit }));
+        resolveEvvException({
+          visitId: v.id,
+          reasonCode: payload.reasonCode,
+          reasonLabel: reasonObj?.label,
+          notes: payload.notes,
+          attestationRef: payload.attestationRef,
+        });
+      });
 
       showToast(
-        `Confirmed ${payload.visitIds.length} visit(s) with documentation attestation.`
+        `Confirmed ${payload.visitIds.length} visit(s) & released billing holds.`
       );
     },
-    [actor.name, actor.role, capabilities.canBulkConfirm, showToast]
+    [actor.name, actor.role, capabilities.canBulkConfirm, resolveEvvException, showToast, visits]
   );
 
   const bulkSubmitAggregator = useCallback(
@@ -259,35 +402,37 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
       let submittedCount = 0;
       let skippedExceptions = 0;
 
-      setVisits((prev) =>
-        prev.map((v) => {
-          if (!visitIds.includes(v.id)) return v;
-          if (v.evvCompliance === "Exception") {
-            skippedExceptions += 1;
-            return v;
-          }
-          submittedCount += 1;
-          return {
-            ...v,
-            processing: {
-              ...v.processing,
-              aggregator: "Submitted",
-              aggregatorRef: nextId("BATCH"),
-            },
-            auditHistory: [
-              createAuditEvent({
-                actorName: actor.name,
-                actorRole: actor.role,
-                actionType: "AGGREGATOR_SUBMITTED",
-                summary: `Bulk submitted to ${v.ruleProfile.aggregator}.`,
-                previousValue: v.processing.aggregator,
-                newValue: "Submitted",
-              }),
-              ...v.auditHistory,
-            ],
-          };
-        })
-      );
+      const updates: Record<string, EVVVisit> = {};
+      visitIds.forEach((id) => {
+        const v = visits.find((item) => item.id === id);
+        if (!v) return;
+        if (v.evvCompliance === "Exception") {
+          skippedExceptions += 1;
+          return;
+        }
+        submittedCount += 1;
+        updates[v.id] = {
+          ...v,
+          processing: {
+            ...v.processing,
+            aggregator: "Submitted",
+            aggregatorRef: nextId("BATCH"),
+          },
+          auditHistory: [
+            createAuditEvent({
+              actorName: actor.name,
+              actorRole: actor.role,
+              actionType: "AGGREGATOR_SUBMITTED",
+              summary: `Bulk submitted to ${v.ruleProfile.aggregator}.`,
+              previousValue: v.processing.aggregator,
+              newValue: "Submitted",
+            }),
+            ...v.auditHistory,
+          ],
+        };
+      });
+
+      setLocalOverrides((prev) => ({ ...prev, ...updates }));
 
       if (skippedExceptions > 0) {
         showToast(
@@ -297,7 +442,7 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
         showToast(`Submitted ${submittedCount} visit(s) to state aggregator.`);
       }
     },
-    [actor.name, actor.role, capabilities.canBulkSubmitAggregator, showToast]
+    [actor.name, actor.role, capabilities.canBulkSubmitAggregator, showToast, visits]
   );
 
   return (
@@ -332,9 +477,6 @@ export function EvvVisitsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Returns the shared EVV monitoring context. Must be used under `EvvVisitsProvider`.
- */
 export function useEvvVisits(): EvvVisitsContextValue {
   const ctx = useContext(EvvVisitsContext);
   if (!ctx) {

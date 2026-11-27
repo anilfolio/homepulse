@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarToggleButton } from "@/components/layout/SidebarToggleButton";
+import { DemoStudioMenu } from "@/components/layout/DemoStudioMenu";
 
 interface CaregiverTopBarProps {
   onMenuClick: () => void;
@@ -77,6 +78,7 @@ export function CaregiverTopBar({
       </div>
 
       <div className="flex items-center gap-3">
+        <DemoStudioMenu />
         {/* Offline Toggle & Sync Badge */}
         <button
           onClick={onToggleOffline}

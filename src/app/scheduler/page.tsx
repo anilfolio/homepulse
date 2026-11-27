@@ -1,118 +1,30 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, CheckCircle2, AlertTriangle, ShieldCheck, MapPin } from "lucide-react";
+import { Plus, CheckCircle2, MapPin } from "lucide-react";
 import { SchedulerKpiStrip } from "@/components/scheduler/SchedulerKpiStrip";
 import { UnfilledShiftsQueue, type UnfilledShiftItem } from "@/components/scheduler/UnfilledShiftsQueue";
-import { CallOffQueue } from "@/components/scheduler/CallOffQueue";
+import { CallOffQueue, type CallOffItem } from "@/components/scheduler/CallOffQueue";
 import { CompactCoverageMap } from "@/components/scheduler/CompactCoverageMap";
 import { WeekAtAGlance } from "@/components/scheduler/WeekAtAGlance";
 import { CreateShiftModal } from "@/components/scheduling/CreateShiftModal";
-import { mockShifts, mockCaregivers, type Shift } from "@/lib/scheduling/mockData";
-
-const defaultUnfilledShifts: UnfilledShiftItem[] = [
-  {
-    id: "s1",
-    patientName: "Mabel Ortiz",
-    patientAddress: "1201 Grand St, Queens",
-    timeWindow: "10:00 AM - 2:00 PM",
-    requiredSkills: ["HHA", "Hoyer Lift"],
-    unfilledDuration: "2.5 hrs",
-    region: "Queens",
-    suggestedCaregivers: [
-      {
-        id: "c3",
-        name: "Maria Alvarez",
-        rating: 4.9,
-        distanceMiles: 1.8,
-        matchingSkills: ["HHA", "Dementia"],
-        matchScore: 94,
-        overtimeRisk: false,
-      },
-      {
-        id: "c1",
-        name: "Elena Rostova",
-        rating: 4.8,
-        distanceMiles: 2.1,
-        matchingSkills: ["HHA", "Hoyer"],
-        matchScore: 88,
-        overtimeRisk: true,
-      },
-      {
-        id: "c7",
-        name: "Aisha Nguyen",
-        rating: 4.8,
-        distanceMiles: 2.5,
-        matchingSkills: ["HHA", "Dementia"],
-        matchScore: 82,
-        overtimeRisk: false,
-      },
-    ],
-  },
-  {
-    id: "s2",
-    patientName: "George Patel",
-    patientAddress: "331 Wyckoff Ave, Brooklyn",
-    timeWindow: "3:00 PM - 7:00 PM",
-    requiredSkills: ["CNA"],
-    unfilledDuration: "1.2 hrs",
-    region: "Brooklyn",
-    suggestedCaregivers: [
-      {
-        id: "c2",
-        name: "David Miller",
-        rating: 4.5,
-        distanceMiles: 1.5,
-        matchingSkills: ["CNA"],
-        matchScore: 91,
-        overtimeRisk: false,
-      },
-      {
-        id: "c8",
-        name: "Robert Chen",
-        rating: 4.7,
-        distanceMiles: 1.9,
-        matchingSkills: ["CNA"],
-        matchScore: 85,
-        overtimeRisk: false,
-      },
-    ],
-  },
-  {
-    id: "s9",
-    patientName: "Betty Cooper",
-    patientAddress: "23 River Rd, Bronx",
-    timeWindow: "4:00 PM - 8:00 PM",
-    requiredSkills: ["CNA", "Diabetes"],
-    unfilledDuration: "45 mins",
-    region: "Bronx",
-    suggestedCaregivers: [
-      {
-        id: "c10",
-        name: "Harold Simmons",
-        rating: 4.6,
-        distanceMiles: 2.2,
-        matchingSkills: ["CNA", "Diabetes"],
-        matchScore: 89,
-        overtimeRisk: true,
-      },
-      {
-        id: "c4",
-        name: "James Okafor",
-        rating: 4.7,
-        distanceMiles: 4.2,
-        matchingSkills: ["CNA", "Diabetes"],
-        matchScore: 76,
-        overtimeRisk: false,
-      },
-    ],
-  },
-];
+import { type Shift } from "@/lib/scheduling/mockData";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 export default function SchedulerDashboardPage() {
-  const [unfilledShifts, setUnfilledShifts] = useState<UnfilledShiftItem[]>(defaultUnfilledShifts);
-  const [confirmedCount, setConfirmedCount] = useState(18);
+  const {
+    state,
+    getClientById,
+    getRankedCandidates,
+    assignShift,
+    autoFillAllUnfilled,
+    acceptBackfillOffer,
+    triggerCallOff,
+    createShift,
+  } = useAgencyStore();
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -121,36 +33,139 @@ export default function SchedulerDashboardPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleAssignUnfilledShift = (shiftId: string, caregiverId: string, caregiverName: string) => {
-    const assignedShift = unfilledShifts.find((s) => s.id === shiftId);
-    if (assignedShift) {
-      setConfirmedCount((prev) => prev + 1);
-      showToast(`Success: ${caregiverName} assigned to ${assignedShift.patientName} (${assignedShift.timeWindow})`);
+  const unfilledShifts: UnfilledShiftItem[] = useMemo(() => {
+    return state.visits
+      .filter((v) => v.status === "Unfilled")
+      .map((v) => {
+        const client = getClientById(v.clientId);
+        const ranked = getRankedCandidates(v.id);
+        return {
+          id: v.id,
+          patientName: client?.name ?? "Unknown Client",
+          patientAddress: client?.address ?? "Address pending",
+          timeWindow: `${v.scheduledStart} - ${v.scheduledEnd}`,
+          requiredSkills: v.requiredSkills,
+          unfilledDuration: "Urgent",
+          region: v.region,
+          suggestedCaregivers: ranked.map((r) => ({
+            id: r.caregiver.id,
+            name: r.caregiver.name,
+            rating: r.caregiver.rating,
+            distanceMiles: r.caregiver.distanceMiles,
+            matchingSkills: r.matchingSkills,
+            matchScore: r.matchScore,
+            overtimeRisk: r.overtimeRisk,
+          })),
+        };
+      });
+  }, [getClientById, getRankedCandidates, state.visits]);
+
+  const callOffItems: CallOffItem[] = useMemo(() => {
+    return state.visits
+      .filter((v) => v.status === "Call-Off")
+      .map((v) => {
+        const client = getClientById(v.clientId);
+        const ranked = getRankedCandidates(v.id);
+        const replacements =
+          v.backfillOffers && v.backfillOffers.length > 0
+            ? v.backfillOffers.map((o) => {
+                const cg = state.caregivers.find((c) => c.id === o.caregiverId);
+                return {
+                  id: o.caregiverId,
+                  name: o.caregiverName,
+                  rating: cg?.rating ?? 4.8,
+                  distanceMiles: o.distanceMiles,
+                  credentials: cg?.credentials ?? ["CNA"],
+                };
+              })
+            : ranked.slice(0, 2).map((r) => ({
+                id: r.caregiver.id,
+                name: r.caregiver.name,
+                rating: r.caregiver.rating,
+                distanceMiles: r.caregiver.distanceMiles,
+                credentials: r.caregiver.credentials,
+              }));
+
+        return {
+          id: v.id,
+          caregiverName: v.calledOffByName ?? "Assigned Caregiver",
+          patientName: client?.name ?? "Client",
+          timeUntilStart: "1h 45m",
+          reason: v.callOffReason ?? "Last-minute availability change",
+          calledOffAt: v.calledOffAt ?? "Just now",
+          suggestedReplacements: replacements,
+        };
+      });
+  }, [getClientById, getRankedCandidates, state.caregivers, state.visits]);
+
+  const confirmedCount = useMemo(
+    () =>
+      state.visits.filter(
+        (v) => v.status === "Scheduled" || v.status === "In Progress" || v.status === "Completed"
+      ).length,
+    [state.visits]
+  );
+
+  const handleAssignUnfilledShift = (
+    shiftId: string,
+    caregiverId: string,
+    caregiverName: string
+  ) => {
+    const target = state.visits.find((v) => v.id === shiftId);
+    const client = target ? getClientById(target.clientId) : undefined;
+    assignShift(shiftId, caregiverId);
+    showToast(
+      `Assigned ${caregiverName} to ${client?.name ?? "client"} (${target?.scheduledStart ?? ""})`
+    );
+  };
+
+  const handleAutoFillAll = () => {
+    const count = autoFillAllUnfilled();
+    if (count > 0) {
+      toast.success(`Smart Dispatch auto-filled ${count} open shift(s).`);
+    } else {
+      toast.info("All open shifts are already assigned.");
     }
   };
 
-  const handleReassignCallOff = (callOffId: string, replacementId: string, replacementName: string) => {
-    showToast(`Call-off resolved: ${replacementName} assigned to replacement shift!`);
+  const handleReassignCallOff = (
+    callOffId: string,
+    replacementId: string,
+    replacementName: string
+  ) => {
+    acceptBackfillOffer(callOffId, replacementId);
+    showToast(`Call-off resolved: ${replacementName} assigned & synced to Caregiver portal!`);
+  };
+
+  const handleSimulateCallOff = () => {
+    const scheduled = state.visits.find((v) => v.status === "Scheduled");
+    if (!scheduled) {
+      toast.info("No scheduled shift available to simulate a call-off.");
+      return;
+    }
+    triggerCallOff(scheduled.id, "Transit delay / Emergency");
+    toast.warning("Simulated call-off — Top-3 ranked replacement offers dispatched.");
   };
 
   const handleCreateShift = (newShift: Shift) => {
-    // Add to unfilled shifts queue
-    const newUnfilledItem: UnfilledShiftItem = {
-      id: newShift.id,
-      patientName: newShift.patientName,
-      patientAddress: newShift.patientAddress,
-      timeWindow: `${newShift.startTime.slice(11, 16)} - ${newShift.endTime.slice(11, 16)}`,
-      requiredSkills: newShift.requiredSkills,
-      unfilledDuration: "Just created",
-      region: newShift.region || "General",
-      suggestedCaregivers: [
-        { id: "c3", name: "Maria Alvarez", rating: 4.9, distanceMiles: 1.8, matchingSkills: ["HHA", "Dementia"], matchScore: 92, overtimeRisk: false },
-        { id: "c8", name: "Robert Chen", rating: 4.7, distanceMiles: 2.1, matchingSkills: ["CNA"], matchScore: 88, overtimeRisk: true },
-      ],
-    };
+    const matchedClient =
+      state.clients.find((c) =>
+        c.name.toLowerCase().includes(newShift.patientName.toLowerCase())
+      ) ?? state.clients[0];
 
-    setUnfilledShifts((prev) => [newUnfilledItem, ...prev]);
-    showToast(`New shift created for ${newShift.patientName} (#${newShift.shiftNumber})`);
+    const created = createShift({
+      clientId: matchedClient.id,
+      caregiverId: null,
+      scheduledStart: newShift.startTime.slice(11, 16) || "09:00 AM",
+      scheduledEnd: newShift.endTime.slice(11, 16) || "01:00 PM",
+      scheduledHours: 4,
+      requiredSkills: newShift.requiredSkills,
+      region: newShift.region || "Springfield North",
+    });
+
+    if (created) {
+      showToast(`Created open shift ${created.shiftNumber} for ${matchedClient.name}`);
+    }
   };
 
   return (
@@ -169,7 +184,8 @@ export default function SchedulerDashboardPage() {
           <p className="text-xs text-slate-600 mt-1 flex flex-wrap items-center gap-1.5 leading-normal">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
             <span>
-              <strong className="text-slate-800">{unfilledShifts.length} shifts</strong> need coverage today. Lead priority is urgent dispatch.
+              <strong className="text-slate-800">{unfilledShifts.length} unfilled</strong> and{" "}
+              <strong className="text-slate-800">{callOffItems.length} call-off</strong> shift(s) tracked in live Agency Store.
             </span>
           </p>
         </div>
@@ -188,6 +204,7 @@ export default function SchedulerDashboardPage() {
           </Link>
 
           <button
+            type="button"
             onClick={() => setIsCreateModalOpen(true)}
             className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2.5 min-h-[44px] rounded-full bg-brand-teal hover:bg-teal-600 text-white font-bold text-xs sm:text-sm :shadow-[0_6px_32px_rgba(0,0,0,0.04)] shadow-brand-teal/25 active:scale-95 transition-all cursor-pointer"
           >
@@ -200,18 +217,26 @@ export default function SchedulerDashboardPage() {
       {/* Row 1 — Urgency-First KPI Strip */}
       <SchedulerKpiStrip
         unfilledCount={unfilledShifts.length}
-        fillingSoonCount={2}
-        callOffsCount={1}
+        fillingSoonCount={callOffItems.length}
+        callOffsCount={callOffItems.length}
         confirmedCount={confirmedCount}
-        avgFillTimeMins={24}
-        availabilityGapsCount={5}
+        avgFillTimeMins={18}
+        availabilityGapsCount={unfilledShifts.length + callOffItems.length}
       />
 
       {/* Row 2 — Today's Unfilled/At-Risk Shifts (Action Queue) */}
-      <UnfilledShiftsQueue shifts={unfilledShifts} onAssign={handleAssignUnfilledShift} />
+      <UnfilledShiftsQueue
+        shifts={unfilledShifts}
+        onAssign={handleAssignUnfilledShift}
+        onAutoFillAll={handleAutoFillAll}
+      />
 
       {/* Row 3 — Call-Off Queue */}
-      <CallOffQueue onReassign={handleReassignCallOff} />
+      <CallOffQueue
+        items={callOffItems}
+        onReassign={handleReassignCallOff}
+        onSimulateCallOff={handleSimulateCallOff}
+      />
 
       {/* Row 4 — Live Coverage Map Embed */}
       <CompactCoverageMap />

@@ -13,10 +13,13 @@ import {
   Lock,
   UserCheck
 } from "lucide-react";
-import { Candidate, CandidateStage, CandidateSource } from "@/types/hr";
+import { Candidate, CandidateStage } from "@/types/hr";
 import { CandidateDetailPanel } from "./CandidateDetailPanel";
 import { AddCandidateModal } from "./AddCandidateModal";
 import clsx from "clsx";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { evaluateCandidateHireReadiness } from "@/lib/engine/hrAndLmsAutomation";
 
 interface RecruitingPipelineBoardProps {
   initialCandidates: Candidate[];
@@ -32,12 +35,14 @@ const STAGES: CandidateStage[] = [
   "Hired"
 ];
 
-export function RecruitingPipelineBoard({ initialCandidates, initialStageFilter }: RecruitingPipelineBoardProps) {
-  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
+export function RecruitingPipelineBoard({ initialCandidates }: RecruitingPipelineBoardProps) {
+  const { state, updateCandidate, addCandidate } = useAgencyStore();
+  const candidates = state.candidates.length > 0 ? state.candidates : initialCandidates;
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState<string>("All");
   const [sourceFilter, setSourceFilter] = useState<string>("All");
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const selectedCandidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [bulkActionMessage, setBulkActionMessage] = useState<string | null>(null);
@@ -85,22 +90,16 @@ export function RecruitingPipelineBoard({ initialCandidates, initialStageFilter 
 
     const cand = candidates.find(c => c.id === draggedCandidateId);
     if (cand) {
-      const isOigFlagged = cand.oigSamCheck.status === "Flagged" && !cand.oigSamCheck.overrideBy;
-      const isBgFlagged = cand.backgroundCheck.status === "Flagged";
-      const isOnboardingIncomplete =
-        !cand.onboardingChecklist.policyAcknowledged ||
-        !cand.onboardingChecklist.i9Submitted ||
-        !cand.onboardingChecklist.w4Submitted;
-
-      if (targetStage === "Hired" && (isOigFlagged || isBgFlagged || isOnboardingIncomplete)) {
-        alert(`Compliance Hard Gate: Cannot move ${cand.name} to Hired stage due to pending background check or OIG flags.`);
-        setDraggedCandidateId(null);
-        return;
+      if (targetStage === "Hired") {
+        const readiness = evaluateCandidateHireReadiness(cand);
+        if (!readiness.canHire) {
+          toast.error(`Compliance Hard Gate: ${readiness.blockers[0]}`);
+          setDraggedCandidateId(null);
+          return;
+        }
       }
 
-      setCandidates(prev =>
-        prev.map(c => (c.id === draggedCandidateId ? { ...c, stage: targetStage } : c))
-      );
+      updateCandidate({ ...cand, stage: targetStage });
     }
     setDraggedCandidateId(null);
   };
@@ -111,29 +110,24 @@ export function RecruitingPipelineBoard({ initialCandidates, initialStageFilter 
     if (currentIndex < STAGES.length - 1) {
       const nextStage = STAGES[currentIndex + 1];
 
-      const isOigFlagged = cand.oigSamCheck.status === "Flagged" && !cand.oigSamCheck.overrideBy;
-      const isBgFlagged = cand.backgroundCheck.status === "Flagged";
-      const isOnboardingIncomplete =
-        !cand.onboardingChecklist.policyAcknowledged ||
-        !cand.onboardingChecklist.i9Submitted ||
-        !cand.onboardingChecklist.w4Submitted;
-
-      if (nextStage === "Hired" && (isOigFlagged || isBgFlagged || isOnboardingIncomplete)) {
-        alert(`Compliance Hard Gate: Cannot move ${cand.name} to Hired stage due to pending flags.`);
-        return;
+      if (nextStage === "Hired") {
+        const readiness = evaluateCandidateHireReadiness(cand);
+        if (!readiness.canHire) {
+          toast.error(`Compliance Hard Gate: ${readiness.blockers[0]}`);
+          return;
+        }
       }
 
-      setCandidates(prev =>
-        prev.map(c => (c.id === cand.id ? { ...c, stage: nextStage } : c))
-      );
+      updateCandidate({ ...cand, stage: nextStage });
     }
   };
 
   // Bulk Actions
   const handleBulkMove = (newStage: CandidateStage) => {
-    setCandidates(prev =>
-      prev.map(c => (selectedCandidateIds.includes(c.id) ? { ...c, stage: newStage } : c))
-    );
+    selectedCandidateIds.forEach((id) => {
+      const cand = candidates.find((c) => c.id === id);
+      if (cand) updateCandidate({ ...cand, stage: newStage });
+    });
     setBulkActionMessage(`Moved ${selectedCandidateIds.length} candidate(s) to ${newStage}`);
     setSelectedCandidateIds([]);
     setTimeout(() => setBulkActionMessage(null), 3000);
@@ -272,7 +266,7 @@ export function RecruitingPipelineBoard({ initialCandidates, initialStageFilter 
                       key={cand.id}
                       draggable
                       onDragStart={() => handleDragStart(cand.id)}
-                      onClick={() => setSelectedCandidate(cand)}
+                      onClick={() => setSelectedCandidateId(cand.id)}
                       className={clsx(
                         "bg-white rounded-xl p-4 border transition-all duration-200 cursor-pointer shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 relative space-y-2.5 group",
                         isSelected ? "border-brand-teal ring-2 ring-brand-teal/20" : "border-slate-200/80 hover:border-brand-teal/40"
@@ -348,17 +342,19 @@ export function RecruitingPipelineBoard({ initialCandidates, initialStageFilter 
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         existingCandidates={candidates}
-        onAddCandidate={(newC) => setCandidates(prev => [newC, ...prev])}
+        onAddCandidate={(newC) => {
+          addCandidate(newC);
+          toast.success(`${newC.name} added to Recruiting Pipeline.`);
+        }}
       />
 
       {selectedCandidate && (
         <CandidateDetailPanel
           candidate={selectedCandidate}
           isOpen={Boolean(selectedCandidate)}
-          onClose={() => setSelectedCandidate(null)}
+          onClose={() => setSelectedCandidateId(null)}
           onUpdateCandidate={(updated) => {
-            setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c));
-            setSelectedCandidate(updated);
+            updateCandidate(updated);
           }}
         />
       )}

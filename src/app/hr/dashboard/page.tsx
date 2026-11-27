@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, Variants } from "framer-motion";
-import { Plus, Sparkles, ShieldCheck, UserPlus } from "lucide-react";
+import { Plus, Sparkles, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import {
   HrKpiStrip,
   RecruitingPipelineSnapshot,
@@ -12,8 +13,9 @@ import {
   AddCandidateModal,
   CandidateDetailPanel,
 } from "@/components/hr";
-import { initialCandidates, initialActionQueue, initialCredentialWatchlist, initialRetentionData } from "@/lib/hr/mockData";
+import { initialRetentionData } from "@/lib/hr/mockData";
 import { Candidate } from "@/types/hr";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -31,9 +33,17 @@ const itemVariants: Variants = {
 };
 
 export default function HrDashboardPage() {
-  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
+  const {
+    state,
+    addCandidate,
+    updateCandidate,
+    autoClearAndHireEligibleCandidates,
+  } = useAgencyStore();
+  const candidates = state.candidates;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const selectedCandidate =
+    candidates.find((c) => c.id === selectedCandidateId) ?? null;
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -42,12 +52,22 @@ export default function HrDashboardPage() {
   }).format(new Date());
 
   const handleAddCandidate = (newCand: Candidate) => {
-    setCandidates(prev => [newCand, ...prev]);
+    addCandidate(newCand);
+    toast.success(`${newCand.name} added to Recruiting Pipeline.`);
   };
 
   const handleOpenCandidateDetail = (candidateId: string) => {
-    const matched = candidates.find(c => c.id === candidateId) || candidates[0];
-    setSelectedCandidate(matched);
+    const matched = candidates.find((c) => c.id === candidateId) || candidates[0];
+    if (matched) setSelectedCandidateId(matched.id);
+  };
+
+  const handleAutoOnboard = () => {
+    const count = autoClearAndHireEligibleCandidates();
+    if (count > 0) {
+      toast.success(`Onboarded ${count} cleared candidate(s) directly into Scheduler Dispatch roster!`);
+    } else {
+      toast.info("All cleared candidates are already onboarded.");
+    }
   };
 
   return (
@@ -69,19 +89,27 @@ export default function HrDashboardPage() {
               onClick={() => document.getElementById("action-queue")?.scrollIntoView({ behavior: "smooth" })}
               className="text-slate-700 hover:text-brand-teal font-regular hover:underline cursor-pointer transition-colors"
             >
-              5 candidates awaiting action
+              {state.hrActionQueue.length} action item(s) pending
             </button>
             <span>&bull;</span>
             <button
               onClick={() => document.getElementById("credential-watchlist")?.scrollIntoView({ behavior: "smooth" })}
               className="text-amber-600 hover:text-amber-700 font-regular hover:underline cursor-pointer transition-colors"
             >
-              3 compliance items due
+              {state.credentialWatchlist.length} compliance items due
             </button>
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleAutoOnboard}
+            className="inline-flex items-center gap-2 bg-[#141D3C] hover:bg-[#1E2B58] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-full transition-all shadow-sm whitespace-nowrap cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-[#57EAB6]" />
+            Auto-Onboard Eligible
+          </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="inline-flex items-center gap-2 bg-brand-teal text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-full hover:bg-brand-teal/90 transition-all shadow-[0_6px_24px_rgba(14,163,131,0.28)] hover:shadow-[0_8px_30px_rgba(14,163,131,0.38)] active:scale-95 whitespace-nowrap cursor-pointer"
@@ -106,14 +134,14 @@ export default function HrDashboardPage() {
         {/* Row 3 — Urgent Action Queue */}
         <motion.div variants={itemVariants} id="action-queue">
           <HrActionQueue
-            initialItems={initialActionQueue}
+            initialItems={state.hrActionQueue}
             onOpenCandidateDetail={handleOpenCandidateDetail}
           />
         </motion.div>
 
         {/* Row 4 — Credential & Compliance Watchlist */}
         <motion.div variants={itemVariants} id="credential-watchlist">
-          <CredentialWatchlist initialItems={initialCredentialWatchlist} />
+          <CredentialWatchlist initialItems={state.credentialWatchlist} />
         </motion.div>
 
         {/* Row 5 — Retention Pulse */}
@@ -134,10 +162,9 @@ export default function HrDashboardPage() {
         <CandidateDetailPanel
           candidate={selectedCandidate}
           isOpen={Boolean(selectedCandidate)}
-          onClose={() => setSelectedCandidate(null)}
+          onClose={() => setSelectedCandidateId(null)}
           onUpdateCandidate={(updated: Candidate) => {
-            setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c));
-            setSelectedCandidate(updated);
+            updateCandidate(updated);
           }}
         />
       )}

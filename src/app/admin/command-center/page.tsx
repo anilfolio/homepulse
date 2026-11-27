@@ -10,11 +10,9 @@ import {
   MapPin, 
   DollarSign, 
   ArrowRight,
-  AlertCircle,
   ShieldCheck,
   ShieldAlert,
   Activity,
-  CheckCircle2,
   RefreshCw,
   Building2,
   Zap,
@@ -24,6 +22,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { buildExecutiveBriefing } from "@/lib/engine/aiCopilotSimulator";
 
 interface EscalationItem {
   id: string;
@@ -71,16 +71,48 @@ const TOP_ESCALATIONS: EscalationItem[] = [
 
 export default function CommandCenterPage() {
   const router = useRouter();
+  const { state, executeBriefingAction } = useAgencyStore();
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSurgeModalOpen, setIsSurgeModalOpen] = useState(false);
+
+  const openShiftsCount = state.visits.filter(
+    (v) => v.status === "Unfilled" || v.status === "Call-Off"
+  ).length;
+  const inProgressCount = state.visits.filter((v) => v.status === "In Progress").length;
+  const completedCount = state.visits.filter((v) => v.status === "Completed").length;
+  const evvExceptionCount = state.visits.filter(
+    (v) => v.evvCompliance === "Exception"
+  ).length;
+  const blockedClaimsAmount = state.claims
+    .filter((c) => c.scrubStatus === "Blocked")
+    .reduce((sum, c) => sum + c.amount, 0);
+  const cleanQueueAmount = state.claims
+    .filter((c) => c.scrubStatus === "Passed")
+    .reduce((sum, c) => sum + c.amount, 0);
+  const deniedCount = state.claims.filter((c) => c.status === "Denied").length;
+
+  const liveBriefing = React.useMemo(() => buildExecutiveBriefing(state), [state]);
+  const liveEscalations: EscalationItem[] =
+    liveBriefing.length > 0
+      ? liveBriefing.map((b) => ({
+          id: b.id,
+          department: b.category,
+          priority: b.severity === "critical" ? "CRITICAL" : "HIGH",
+          title: b.title,
+          description: b.summary,
+          time: "Live",
+          route: b.route,
+          actionText: b.actionLabel,
+        }))
+      : TOP_ESCALATIONS;
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => {
       setIsRefreshing(false);
       toast.success("Operational Telemetry Synchronized", {
-        description: "Aggregator feeds and shift queues are up to date.",
+        description: "Agency Store feeds and shift queues are up to date.",
       });
     }, 500);
   };
@@ -98,10 +130,13 @@ export default function CommandCenterPage() {
       title: "Scheduling & Dispatch",
       icon: Calendar,
       iconColor: "text-indigo-600 bg-indigo-50",
-      statusText: "4 Open Shifts",
-      statusType: "danger" as const,
-      detail: "2 unassigned visits starting in < 4 hours",
-      route: "/scheduler/requirements",
+      statusText: `${openShiftsCount} Open Shifts`,
+      statusType: (openShiftsCount > 0 ? "danger" : "normal") as "danger" | "warning" | "normal",
+      detail:
+        openShiftsCount > 0
+          ? `${openShiftsCount} unassigned / call-off shift(s) awaiting coverage`
+          : "All scheduled shifts are covered",
+      route: "/scheduler",
     },
     {
       id: "clinical",
@@ -118,30 +153,33 @@ export default function CommandCenterPage() {
       title: "Field Operations & EVV",
       icon: MapPin,
       iconColor: "text-amber-600 bg-amber-50",
-      statusText: "1 GPS Variance",
-      statusType: "warning" as const,
-      detail: "Caregiver CG-44 clocked in 0.42 mi off perimeter",
-      route: "/field-supervisor/evv-exceptions",
+      statusText: `${evvExceptionCount} EVV Exceptions`,
+      statusType: (evvExceptionCount > 0 ? "warning" : "normal") as "danger" | "warning" | "normal",
+      detail:
+        evvExceptionCount > 0
+          ? `${evvExceptionCount} visit(s) flagged for geofence or timing review`
+          : "All active EVV captures verified within 100m geofence",
+      route: "/evv-monitoring",
     },
     {
       id: "billing",
       title: "Billing & Claims Scrub",
       icon: DollarSign,
       iconColor: "text-emerald-600 bg-emerald-50",
-      statusText: "$42.8k in Queue",
-      statusType: "normal" as const,
-      detail: "1 active denial requiring retro-authorization",
-      route: "/billing/qa-scrub",
+      statusText: `$${cleanQueueAmount.toLocaleString()} Cleared`,
+      statusType: (blockedClaimsAmount > 0 ? "warning" : "normal") as "danger" | "warning" | "normal",
+      detail: `$${blockedClaimsAmount.toLocaleString()} held at scrub gate · ${deniedCount} denial(s)`,
+      route: "/billing/workspace",
     },
     {
       id: "intake",
       title: "Intake & Census",
       icon: Users,
       iconColor: "text-blue-600 bg-blue-50",
-      statusText: "3 New Referrals",
+      statusText: `${state.clients.length} Active Clients`,
       statusType: "normal" as const,
-      detail: "2 ready for admission sign-off today",
-      route: "/intake/pipeline",
+      detail: "Intake & authorization utilization monitored live",
+      route: "/intake/referrals",
     },
   ];
 
@@ -216,11 +254,11 @@ export default function CommandCenterPage() {
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-slate-900 tracking-tight">48</span>
-            <span className="text-xs text-slate-400">/ 142 Today</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tight">{inProgressCount}</span>
+            <span className="text-xs text-slate-400">/ {state.visits.length} Total</span>
           </div>
           <span className="text-[11px] text-emerald-600 font-semibold block mt-1">
-            +8.4% vs yesterday · 4 in transit
+            {completedCount} completed · live store sync
           </span>
         </div>
 
@@ -246,8 +284,10 @@ export default function CommandCenterPage() {
             <Calendar className="w-4 h-4 text-rose-500" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-rose-700 tracking-tight">4</span>
-            <span className="text-xs text-rose-700 font-bold bg-rose-50 px-1.5 py-0.2 rounded">Needs Action</span>
+            <span className="text-2xl font-black text-rose-700 tracking-tight">{openShiftsCount}</span>
+            <span className="text-xs text-rose-700 font-bold bg-rose-50 px-1.5 py-0.2 rounded">
+              {openShiftsCount > 0 ? "Needs Action" : "Covered"}
+            </span>
           </div>
           <span className="text-[11px] text-slate-500 font-medium block mt-1">
             2 shifts starting within 4 hours
@@ -348,12 +388,14 @@ export default function CommandCenterPage() {
                 <p className="text-xs text-slate-500">Immediate bottlenecks requiring administrative intervention.</p>
               </div>
               <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
-                3 Pending
+                {liveEscalations.length} Pending
               </span>
             </div>
 
             <div className="space-y-2.5">
-              {TOP_ESCALATIONS.map((esc) => (
+              {liveEscalations.map((esc) => {
+                const matchedBrief = liveBriefing.find((b) => b.id === esc.id);
+                return (
                 <div
                   key={esc.id}
                   className="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -376,15 +418,28 @@ export default function CommandCenterPage() {
                     <p className="text-xs text-slate-500 truncate">{esc.description}</p>
                   </div>
 
-                  <button
-                    onClick={() => router.push(esc.route)}
-                    className="self-end sm:self-center px-3 py-1.5 bg-[#141D3C] hover:bg-[#1E2B58] text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer active:scale-95 flex items-center gap-1"
-                  >
-                    <span>{esc.actionText}</span>
-                    <ArrowRight className="w-3 h-3 text-[#57EAB6]" />
-                  </button>
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    {matchedBrief && (
+                      <button
+                        type="button"
+                        onClick={() => executeBriefingAction(matchedBrief.actionType)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                      >
+                        Auto-Fix
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => router.push(esc.route)}
+                      className="px-3 py-1.5 bg-[#141D3C] hover:bg-[#1E2B58] text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                    >
+                      <span>Open</span>
+                      <ArrowRight className="w-3 h-3 text-[#57EAB6]" />
+                    </button>
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

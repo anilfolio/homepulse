@@ -5,70 +5,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Clock, CheckCircle2, ChevronRight, User } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
-
-export interface EscalationItem {
-  id: string;
-  clientName: string;
-  clientId: string;
-  reporter: string;
-  reporterRole: string;
-  whatChanged: string;
-  timeReported: string; // ISO string for sorting/aging
-  type: "condition_change" | "reassessment_request" | "urgent_question";
-}
-
-const mockEscalations: EscalationItem[] = [
-  {
-    id: "esc-1",
-    clientName: "Eleanor Ruth Whitfield",
-    clientId: "c-1",
-    reporter: "Maria Santos",
-    reporterRole: "CNA",
-    whatChanged: "BP elevated 160/95 over two consecutive readings, complaining of mild headache.",
-    timeReported: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago (Escalated)
-    type: "condition_change",
-  },
-  {
-    id: "esc-2",
-    clientName: "Arthur Pendelton",
-    clientId: "c-2",
-    reporter: "James O.",
-    reporterRole: "Field Supervisor",
-    whatChanged: "Family requested reassessment for increased weekend coverage after recent fall.",
-    timeReported: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
-    type: "reassessment_request",
-  },
-  {
-    id: "esc-3",
-    clientName: "Margaret Chen",
-    clientId: "c-1",
-    reporter: "Sarah J.",
-    reporterRole: "HHA",
-    whatChanged: "Question regarding PRN medication instructions - Tylenol dosage clarification.",
-    timeReported: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
-    type: "urgent_question",
-  },
-  {
-    id: "esc-4",
-    clientName: "Sarah Connor",
-    clientId: "ref-ew-001",
-    reporter: "Maya Alvarez",
-    reporterRole: "CNA",
-    whatChanged: "Severe flare-up of Rheumatoid Arthritis pain, requested PRN medication.",
-    timeReported: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 mins ago
-    type: "condition_change",
-  },
-];
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function ClinicalEscalationQueue() {
-  const [items, setItems] = useState<EscalationItem[]>(mockEscalations);
+  const { state, acknowledgeEscalation } = useAgencyStore();
+  const [nowMs] = useState(() => Date.now());
+  const items = state.clinicalEscalations;
 
   const handleAcknowledge = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    acknowledgeEscalation(id);
+    toast.success("Escalation acknowledged and logged to clinical audit trail.");
   };
 
   const getUrgencyLevel = (timeReported: string) => {
-    const hours = (Date.now() - new Date(timeReported).getTime()) / (1000 * 60 * 60);
+    const hours = (nowMs - new Date(timeReported).getTime()) / (1000 * 60 * 60);
     if (hours > 2) return "critical"; // Red
     if (hours > 1) return "warning"; // Amber
     return "normal"; // Blue/Teal
@@ -93,17 +44,6 @@ export function ClinicalEscalationQueue() {
         return "text-amber-700";
       default:
         return "text-slate-500";
-    }
-  };
-
-  const getUrgencyIconStyles = (level: string) => {
-    switch (level) {
-      case "critical":
-        return "text-rose-600 bg-rose-100";
-      case "warning":
-        return "text-amber-600 bg-amber-100";
-      default:
-        return "text-blue-600 bg-blue-100";
     }
   };
 

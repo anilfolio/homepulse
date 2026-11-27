@@ -5,33 +5,28 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Users, Star, ShieldAlert, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/components/ui/Card";
-
-type TeamMember = {
-  id: string;
-  name: string;
-  reliability: number;
-  lastVisitRating: number;
-  incidentInvolvement: boolean;
-};
-
-const mockTeam: TeamMember[] = [
-  { id: "cg-1", name: "Maria Santos, CNA", reliability: 98, lastVisitRating: 5, incidentInvolvement: false },
-  { id: "cg-2", name: "James Wilson", reliability: 82, lastVisitRating: 4, incidentInvolvement: true },
-  { id: "cg-3", name: "Sarah Jenkins", reliability: 95, lastVisitRating: 4.5, incidentInvolvement: false },
-  { id: "cg-4", name: "David Chen", reliability: 100, lastVisitRating: 5, incidentInvolvement: false },
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function MyTeamSnapshot() {
+  const { state } = useAgencyStore();
+  const team = state.caregivers.map((cg) => ({
+    id: cg.id,
+    name: cg.name,
+    reliability: cg.complianceValid ? 98 : 82,
+    lastVisitRating: cg.rating,
+    incidentInvolvement: !cg.complianceValid,
+  }));
+
   return (
     <Card className="flex flex-col h-full bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden">
       <CardHeader
         title="My Team Snapshot"
-        subtitle="Assigned caregivers performance"
+        subtitle="Active agency field caregivers"
         action={<Users className="w-5 h-5 text-slate-400" />}
       />
 
       <div className="flex-1 space-y-3 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-        {mockTeam.map((member) => (
+        {team.map((member) => (
           <div key={member.id} className="flex gap-4 items-center p-3 rounded-xl border border-border-subtle bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-text-primary text-sm truncate flex items-center gap-1.5 mb-1">

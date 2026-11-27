@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface Module {
   id: string;
@@ -27,7 +29,8 @@ interface Module {
 
 export function CourseBuilder() {
   const router = useRouter();
-  const [courseTitle, setCourseTitle] = useState("Draft: Infection Control V4");
+  const { publishLmsCourse } = useAgencyStore();
+  const [courseTitle, setCourseTitle] = useState("Infection Control V4.1");
   const [modules, setModules] = useState<Module[]>([
     { id: "m1", title: "Introduction to Pathogens", type: "video", duration: "5 mins" },
     { id: "m2", title: "Hand Hygiene Standard Operating Procedure", type: "pdf", duration: "10 mins" },
@@ -120,7 +123,20 @@ export function CourseBuilder() {
           >
             <Eye className="w-3.5 h-3.5" /> Preview
           </button>
-          <button onClick={() => router.push('/training-admin/courses')} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-1.5 bg-brand-teal text-sm text-white font-medium rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.04)] shadow-brand-teal/20 hover:bg-brand-teal/90 active:scale-95 transition-all">
+          <button
+            onClick={() => {
+              publishLmsCourse({
+                title: courseTitle.trim() || "New Clinical Course",
+                category: complianceLinked !== "none" ? "Required" : "Clinical Skills",
+                durationMinutes: modules.length * 15,
+                ceUnits: 1.5,
+                complianceLinked: complianceLinked !== "none",
+              });
+              toast.success(`Published "${courseTitle}" to Course Library & Caregiver LMS!`);
+              router.push("/training-admin/courses");
+            }}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-1.5 bg-brand-teal text-sm text-white font-medium rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.04)] shadow-brand-teal/20 hover:bg-brand-teal/90 active:scale-95 transition-all cursor-pointer"
+          >
             <Save className="w-3.5 h-3.5" /> Publish
           </button>
         </div>
@@ -286,10 +302,10 @@ export function CourseBuilder() {
 }
 
 // Temporary icon components to keep imports clean
-function CheckSquare(props: any) {
+function CheckSquare(props: React.SVGProps<SVGSVGElement>) {
   return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>;
 }
 
-function RefreshCw(props: any) {
+function RefreshCw(props: React.SVGProps<SVGSVGElement>) {
   return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
 }

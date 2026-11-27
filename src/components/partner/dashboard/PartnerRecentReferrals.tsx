@@ -2,11 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
-import { mockReferrals } from "@/lib/partner/mockData";
 import { ArrowRight, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ReferralStatus } from "@/lib/partner/types";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function getStatusColor(status: ReferralStatus) {
   switch (status) {
@@ -27,8 +27,17 @@ export function getStatusColor(status: ReferralStatus) {
 }
 
 export function PartnerRecentReferrals() {
-  // Show top 4 recent referrals
-  const recentReferrals = mockReferrals.slice(0, 4);
+  const { state } = useAgencyStore();
+  // Show top 5 recent referrals synced live with Intake
+  const recentReferrals = state.referrals.slice(0, 5).map((r) => ({
+    id: r.id,
+    patientName: r.clientName,
+    patientInitials: r.clientInitials,
+    submittedAt: r.dateReceived,
+    status: r.partnerStatus,
+    urgency: r.urgency === "High" ? ("Discharge within 24-48h" as const) : ("Normal" as const),
+    serviceRequested: r.serviceRequested || r.diagnosis || "Home Care Services",
+  }));
 
   return (
     <div className="bg-white backdrop-blur-xl rounded-2xl border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative flex flex-col">

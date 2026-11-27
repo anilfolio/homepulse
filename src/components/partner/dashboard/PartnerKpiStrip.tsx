@@ -3,13 +3,23 @@
 import React from "react";
 import { Send, CheckCircle2, Clock, Inbox } from "lucide-react";
 import { mockKPIs } from "@/lib/partner/mockData";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function PartnerKpiStrip() {
+  const { state } = useAgencyStore();
+  const referrals = state.referrals;
+  const totalCount = referrals.length;
+  const acceptedCount = referrals.filter((r) => r.partnerStatus === "Accepted as Client").length;
+  const conversionRate = totalCount > 0 ? Math.round((acceptedCount / totalCount) * 100) : mockKPIs.conversionRate;
+  const openInReview = referrals.filter(
+    (r) => r.partnerStatus === "Received" || r.partnerStatus === "Under Review" || r.partnerStatus === "Additional Info Requested"
+  ).length;
+
   const kpis = [
     {
       label: "Referrals Submitted",
-      value: mockKPIs.referralsSubmittedThisMonth.toString(),
-      subtext: "This month",
+      value: totalCount.toString(),
+      subtext: "Live in pipeline",
       subtextColor: "text-slate-500",
       icon: Send,
       color: "text-blue-600",
@@ -17,7 +27,7 @@ export function PartnerKpiStrip() {
     },
     {
       label: "Conversion Rate",
-      value: `${mockKPIs.conversionRate}%`,
+      value: `${conversionRate}%`,
       subtext: "Referred → Active Client",
       subtextColor: "text-brand-teal",
       icon: CheckCircle2,
@@ -35,7 +45,7 @@ export function PartnerKpiStrip() {
     },
     {
       label: "Open / In-Review",
-      value: mockKPIs.openInReview.toString(),
+      value: openInReview.toString(),
       subtext: "Awaiting update",
       subtextColor: "text-indigo-600",
       icon: Inbox,

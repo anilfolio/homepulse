@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ComplianceScoreCard } from "@/components/compliance/ComplianceScoreCard";
 import { KpiCardStrip } from "@/components/compliance/KpiCardStrip";
 import { RestrictedIncidentQueue } from "@/components/compliance/RestrictedIncidentQueue";
 import { StateReportingDeadlineTracker } from "@/components/compliance/StateReportingDeadlineTracker";
@@ -10,13 +9,49 @@ import { QualityTrends } from "@/components/compliance/QualityTrends";
 import { CalendarDays, FileDown, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-import { mockComplianceScore, mockKpiSummary, mockVerificationQueue } from "@/lib/mock-data/compliance";
-import { mockRestrictedIncidents, mockStateDeadlines } from "@/lib/mock-data/compliance-dashboard";
+import { mockKpiSummary } from "@/lib/mock-data/compliance";
+import { RestrictedIncident } from "@/lib/mock-data/compliance-dashboard";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { computeSurveyReadinessScore } from "@/lib/engine/complianceAutomation";
 
 export function ComplianceDashboard() {
+  const { state } = useAgencyStore();
+  const [nowMs] = useState(() => Date.now());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("This Quarter");
   const filterRef = useRef<HTMLDivElement>(null);
+
+  const liveRestrictedIncidents: RestrictedIncident[] = state.incidents
+    .filter((inc) => inc.isRestricted && inc.status !== "Closed")
+    .map((inc) => {
+      const patient = inc.peopleInvolved.find((p) => p.role === "Patient")?.name || "Agency / PHI Record";
+      const deadlineMins = inc.regulatoryReport.deadline
+        ? Math.max(60, Math.round((new Date(inc.regulatoryReport.deadline).getTime() - nowMs) / 60000))
+        : 24 * 60;
+      return {
+        id: inc.id,
+        client: patient,
+        date: inc.reportedDate,
+        type: inc.type,
+        notificationChainStatus: inc.supervisorAlert
+          ? "Executive & QA Officer Notified"
+          : "Logged in Restricted Vault",
+        stateReportingDeadline: deadlineMins,
+        investigationStatus:
+          inc.status === "Investigated"
+            ? "Under Review"
+            : inc.status === "Corrective Action"
+              ? "Pending Sign-off"
+              : "Open",
+      };
+    });
+
+  const readinessScore = computeSurveyReadinessScore(
+    state.incidents,
+    state.stateDeadlines,
+    state.verificationQueue,
+    state.caregivers
+  );
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,7 +73,7 @@ export function ComplianceDashboard() {
           <h1 className="text-xl font-bold text-slate-900">Good morning, David</h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-            17 compliance items due, {mockRestrictedIncidents.length} restricted incidents open, survey readiness at {mockComplianceScore.overallScore}%
+            {state.verificationQueue.length} credential(s) pending, {liveRestrictedIncidents.length} restricted incident(s) open, survey readiness at {readinessScore}%
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
@@ -88,17 +123,17 @@ export function ComplianceDashboard() {
         
         {/* Restricted Incident Queue */}
         <div className="col-span-1 lg:col-span-2 xl:col-span-2 h-auto lg:h-[450px]">
-          <RestrictedIncidentQueue incidents={mockRestrictedIncidents} />
+          <RestrictedIncidentQueue incidents={liveRestrictedIncidents} />
         </div>
 
         {/* Verification Queue */}
         <div className="col-span-1 h-auto lg:h-[450px]">
-          <VerificationQueue items={mockVerificationQueue} />
+          <VerificationQueue items={state.verificationQueue} />
         </div>
 
         {/* State Reporting Deadline Tracker */}
         <div className="col-span-1 h-auto lg:h-[450px]">
-          <StateReportingDeadlineTracker deadlines={mockStateDeadlines} />
+          <StateReportingDeadlineTracker deadlines={state.stateDeadlines} />
         </div>
 
         {/* Quality Trends */}

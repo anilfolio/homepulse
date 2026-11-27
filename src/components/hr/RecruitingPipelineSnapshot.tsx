@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronRight, UserCheck, FileSearch, PhoneCall, CalendarCheck, ShieldAlert, Award } from "lucide-react";
 import { CandidateStage } from "@/types/hr";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface StageCount {
   stage: CandidateStage;
@@ -13,17 +14,20 @@ interface StageCount {
   color: string;
 }
 
-const stageData: StageCount[] = [
-  { stage: "Applied", count: 8, icon: UserCheck, color: "bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400" },
-  { stage: "Phone Screen", count: 6, icon: PhoneCall, color: "bg-blue-50/70 text-blue-700 border-blue-200 hover:border-blue-400" },
-  { stage: "Interview Scheduled", count: 5, icon: CalendarCheck, color: "bg-blue-100/60 text-blue-800 border-blue-300 hover:border-blue-500" },
-  { stage: "Background Check", count: 4, icon: ShieldAlert, color: "bg-amber-50/70 text-amber-800 border-amber-200 hover:border-amber-400" },
-  { stage: "Offer", count: 3, icon: FileSearch, color: "bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:border-emerald-400" },
-  { stage: "Hired", count: 2, icon: Award, color: "bg-brand-teal/10 text-brand-teal border-brand-teal/30 hover:border-brand-teal" },
-];
-
 export function RecruitingPipelineSnapshot() {
   const router = useRouter();
+  const { state } = useAgencyStore();
+  const countStage = (stage: CandidateStage) =>
+    state.candidates.filter((c) => c.stage === stage).length;
+
+  const stageData: StageCount[] = [
+    { stage: "Applied", count: countStage("Applied"), icon: UserCheck, color: "bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400" },
+    { stage: "Phone Screen", count: countStage("Phone Screen"), icon: PhoneCall, color: "bg-blue-50/70 text-blue-700 border-blue-200 hover:border-blue-400" },
+    { stage: "Interview Scheduled", count: countStage("Interview Scheduled"), icon: CalendarCheck, color: "bg-blue-100/60 text-blue-800 border-blue-300 hover:border-blue-500" },
+    { stage: "Background Check", count: countStage("Background Check"), icon: ShieldAlert, color: "bg-amber-50/70 text-amber-800 border-amber-200 hover:border-amber-400" },
+    { stage: "Offer", count: countStage("Offer"), icon: FileSearch, color: "bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:border-emerald-400" },
+    { stage: "Hired", count: countStage("Hired"), icon: Award, color: "bg-brand-teal/10 text-brand-teal border-brand-teal/30 hover:border-brand-teal" },
+  ];
 
   const handleStageClick = (stage: CandidateStage) => {
     router.push(`/hr/recruiting?stage=${encodeURIComponent(stage)}`);

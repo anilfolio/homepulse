@@ -13,56 +13,40 @@ import {
   Users
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { cn } from "@/components/ui/Card";
-
-interface Assessment {
-  id: string;
-  patientId: string;
-  clientName: string;
-  address: string;
-  time: string;
-  assessor: string;
-}
-
-const initialAssessments: Assessment[] = [
-  {
-    id: "assm-1",
-    patientId: "c-1",
-    clientName: "David Miller",
-    address: "142 Oak St, Apt 4B",
-    time: "10:00 AM",
-    assessor: "Sarah Jenkins, RN"
-  },
-  {
-    id: "assm-2",
-    patientId: "c-2",
-    clientName: "Evelyn Carter",
-    address: "89 Pine Lane",
-    time: "2:30 PM",
-    assessor: "Maria Santos, CC"
-  }
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 export function AssessmentBookingWidget() {
   const router = useRouter();
-  const [assessments, setAssessments] = useState<Assessment[]>(initialAssessments);
+  const { state, completeSupervisoryVisit } = useAgencyStore();
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
+  const assessments = state.supervisoryVisits
+    .filter((v) => v.visitType === "initial_30" || v.status === "scheduled")
+    .map((v) => ({
+      id: v.id,
+      patientId: v.clientId,
+      clientName: v.clientName,
+      address: v.location,
+      time: new Date(v.dueDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      assessor: v.assignedRn,
+    }));
+
   const handleMarkComplete = (id: string) => {
-    const assessment = assessments.find(a => a.id === id);
+    const assessment = assessments.find((a) => a.id === id);
     if (!assessment) return;
 
     setCompletedIds((prev) => new Set(prev).add(id));
     setTimeout(() => {
-      setAssessments((prev) => prev.filter((a) => a.id !== id));
+      completeSupervisoryVisit(id);
+      toast.success(`Initial assessment completed for ${assessment.clientName}.`);
       setCompletedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-      // Navigate to the care plan builder
-      router.push(`/intake/patients/${assessment.patientId}?tab=care-plan`);
-    }, 800);
+      router.push("/clinical/assessments");
+    }, 500);
   };
 
   return (
@@ -73,7 +57,7 @@ export function AssessmentBookingWidget() {
             <CalendarCheck className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">Today's Assessments</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Today&apos;s Assessments</h3>
             <p className="text-[11px] text-slate-500">Scheduled initial visits</p>
           </div>
         </div>

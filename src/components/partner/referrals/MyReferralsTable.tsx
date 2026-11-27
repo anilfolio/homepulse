@@ -1,23 +1,37 @@
 "use client";
 
 import React, { useState } from "react";
-import { mockReferrals, mockTeamMembers } from "@/lib/partner/mockData";
-import { ReferralStatus } from "@/lib/partner/types";
+import { mockTeamMembers } from "@/lib/partner/mockData";
 import { format, parseISO } from "date-fns";
 import { Search, Filter, Clock, ChevronDown } from "lucide-react";
 import { getStatusColor } from "@/components/partner/dashboard/PartnerRecentReferrals";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function MyReferralsTable() {
+  const { state } = useAgencyStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [memberFilter, setMemberFilter] = useState<string>("All");
 
-  const filteredReferrals = mockReferrals.filter(ref => {
-    const matchesSearch = ref.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const mappedReferrals = state.referrals.map((r) => ({
+    id: r.id,
+    patientName: r.clientName,
+    serviceRequested: r.serviceRequested || r.diagnosis || "Home Care Services",
+    submittingMember: r.referringParty || r.assignedCoordinator.name,
+    submittedAt: r.dateReceived,
+    status: r.partnerStatus,
+    urgency: r.urgency === "High" ? ("Discharge within 24-48h" as const) : ("Normal" as const),
+    notes: r.intakeNotes,
+  }));
+
+  const filteredReferrals = mappedReferrals.filter((ref) => {
+    const matchesSearch =
+      ref.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ref.serviceRequested.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All" || ref.status === statusFilter;
-    const matchesMember = memberFilter === "All" || ref.submittingMember === memberFilter;
+    const matchesMember =
+      memberFilter === "All" || ref.submittingMember.includes(memberFilter);
     return matchesSearch && matchesStatus && matchesMember;
   });
 

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Briefcase, Users, Clock, ShieldCheck, TrendingDown, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface KpiCardProps {
   title: string;
@@ -85,6 +86,11 @@ function KpiCard({ title, value, suffix = "", decimals = 0, subtext, icon: Icon,
 
 export function HrKpiStrip() {
   const router = useRouter();
+  const { state } = useAgencyStore();
+  const activePipelineCount = state.candidates.filter((c) => c.stage !== "Hired").length;
+  const bgCheckCount = state.candidates.filter((c) => c.stage === "Background Check").length;
+  const expiringCredCount = state.credentialWatchlist.length;
+  const expiredCredCount = state.credentialWatchlist.filter((w) => w.daysRemaining <= 0).length;
 
   const scrollToElement = (id: string) => {
     const el = document.getElementById(id);
@@ -106,8 +112,8 @@ export function HrKpiStrip() {
       />
       <KpiCard
         title="Candidates in Pipeline"
-        value={28}
-        subtext="8 in interview / bg check"
+        value={activePipelineCount}
+        subtext={`${bgCheckCount} in background check`}
         icon={Users}
         colorTheme="blue"
         delay={0.1}
@@ -148,8 +154,8 @@ export function HrKpiStrip() {
       />
       <KpiCard
         title="Expiring Credentials"
-        value={4}
-        subtext="Next 30 days (1 expired)"
+        value={expiringCredCount}
+        subtext={`Next 30 days (${expiredCredCount} expired)`}
         icon={AlertTriangle}
         colorTheme="amber"
         delay={0.3}

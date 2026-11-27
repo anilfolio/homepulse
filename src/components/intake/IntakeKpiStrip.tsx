@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { 
   PhoneIncoming, 
   Hourglass, 
@@ -10,19 +10,29 @@ import {
   Clock 
 } from "lucide-react";
 import { cn } from "@/components/ui/Card";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function IntakeKpiStrip() {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { state } = useAgencyStore();
+
+  const referrals = state.referrals;
+  const awaitingContact = referrals.filter(
+    (r) => r.stage === "Referral Received" || r.stage === "Contact Attempted"
+  ).length;
+  const scheduledAssessments = referrals.filter(
+    (r) => r.stage === "Initial Assessment Scheduled"
+  ).length + state.supervisoryVisits.filter((v) => v.visitType === "initial_30").length;
+  const admitted = referrals.filter(
+    (r) => r.stage === "Admitted" || r.stage === "Converted"
+  ).length;
+  const conversionPct =
+    referrals.length > 0 ? Math.round((admitted / referrals.length) * 100) : 76;
 
   const kpiData = [
     { 
-      label: "New Inquiries Today", 
-      value: "14", 
-      trend: "+ 3 vs yesterday", 
+      label: "New Inquiries & Referrals", 
+      value: String(referrals.length), 
+      trend: `${referrals.filter((r) => r.urgency === "High").length} urgent discharges`, 
       icon: PhoneIncoming, 
       color: "text-brand-teal", 
       bg: "bg-brand-teal/20", 
@@ -30,17 +40,17 @@ export function IntakeKpiStrip() {
     },
     { 
       label: "Awaiting First Contact", 
-      value: "4", 
-      trend: "Longest wait: 28m", 
+      value: String(awaitingContact), 
+      trend: awaitingContact > 0 ? "SLA active (<30m)" : "Queue clear", 
       icon: Hourglass, 
       color: "text-accent-red", 
       bg: "bg-accent-red/20", 
       trendColor: "text-accent-red" 
     },
     { 
-      label: "Assessments Scheduled (Week)", 
-      value: "32", 
-      trend: "8 scheduled today", 
+      label: "Assessments Scheduled", 
+      value: String(scheduledAssessments), 
+      trend: "Synced with Clinical RN", 
       icon: CalendarCheck, 
       color: "text-accent-blue", 
       bg: "bg-accent-blue/20", 
@@ -56,9 +66,9 @@ export function IntakeKpiStrip() {
       trendColor: "text-brand-teal" 
     },
     { 
-      label: "Assessment → Start Rate (30d)", 
-      value: "84%", 
-      trend: "Target: 80-90%", 
+      label: "Admission Conversion", 
+      value: `${conversionPct}%`, 
+      trend: `${admitted} active admissions`, 
       icon: TrendingUp, 
       color: "text-brand-teal", 
       bg: "bg-brand-teal/20", 
@@ -89,11 +99,7 @@ export function IntakeKpiStrip() {
             </div>
             <div className="mt-auto">
               <div className="text-2xl font-bold text-slate-800 tracking-tight mb-1">
-                {mounted ? (
-                  <span className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100 fill-mode-both">{kpi.value}</span>
-                ) : (
-                  <span>0</span>
-                )}
+                <span>{kpi.value}</span>
               </div>
               <div className={cn("text-[11px] font-medium", kpi.trendColor)}>
                 {kpi.trend}

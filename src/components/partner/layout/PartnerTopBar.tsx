@@ -2,9 +2,10 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
 import { mockOrganization } from "@/lib/partner/mockData";
 import { SidebarToggleButton } from "@/components/layout/SidebarToggleButton";
+import { DemoStudioMenu } from "@/components/layout/DemoStudioMenu";
+import { NotificationsCenter } from "@/components/layout/NotificationsCenter";
 
 export function PartnerTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -27,12 +28,9 @@ export function PartnerTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         </h1>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Simple notification bell for the partner portal */}
-        <button className="p-2 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#F4F6F8]"></span>
-        </button>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <DemoStudioMenu />
+        <NotificationsCenter />
       </div>
     </header>
   );

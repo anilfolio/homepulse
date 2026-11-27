@@ -5,59 +5,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronRight, FileText, CalendarDays, AlertTriangle, ArrowUpDown } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
-
-export interface CarePlanReview {
-  id: string;
-  clientName: string;
-  clientId: string;
-  dueDate: string; // ISO String
-  triggerReason: "periodic_60" | "post_hospitalization" | "condition_change" | "incident" | "family_request";
-  status: "approaching" | "overdue";
-}
-
-const mockReviews: CarePlanReview[] = [
-  {
-    id: "cp-1",
-    clientName: "Eleanor Ruth Whitfield",
-    clientId: "c-1",
-    dueDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days overdue
-    triggerReason: "periodic_60",
-    status: "overdue",
-  },
-  {
-    id: "cp-2",
-    clientName: "Arthur Pendelton",
-    clientId: "c-2",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days from now
-    triggerReason: "post_hospitalization",
-    status: "approaching",
-  },
-  {
-    id: "cp-3",
-    clientName: "Margaret Chen",
-    clientId: "c-1",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), // 7 days from now
-    triggerReason: "periodic_60",
-    status: "approaching",
-  },
-  {
-    id: "cp-4",
-    clientName: "Sarah Connor",
-    clientId: "ref-ew-001",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days from now
-    triggerReason: "condition_change",
-    status: "approaching",
-  },
-];
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function CarePlanReviewQueue() {
-  const [items, setItems] = useState<CarePlanReview[]>(mockReviews);
+  const { state, completeCarePlanReview } = useAgencyStore();
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const items = state.carePlanReviews.filter((c) => c.status !== "completed");
 
   const handleStartReview = (id: string) => {
-    // In a real app, this might open a modal or navigate to a pre-filled form.
-    // For now, we'll just remove it from the queue for success feedback.
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    completeCarePlanReview(id);
+    toast.success("Care plan review signed off & linked intake clearance updated.");
   };
 
   const sortedItems = useMemo(() => {
@@ -90,6 +48,7 @@ export function CarePlanReviewQueue() {
       case "condition_change": return "Condition Change";
       case "incident": return "Incident Triggered";
       case "family_request": return "Family Request";
+      case "initial_admission": return "Initial Admission";
       default: return reason;
     }
   };

@@ -5,8 +5,9 @@ import { motion, Variants } from "framer-motion";
 import { PartnerKpiStrip } from "@/components/partner/dashboard/PartnerKpiStrip";
 import { PartnerRecentReferrals } from "@/components/partner/dashboard/PartnerRecentReferrals";
 import { ReferralSubmitWidget } from "@/components/partner/dashboard/ReferralSubmitWidget";
-import { Bell, ShieldCheck, Building2 } from "lucide-react";
+import { Bell, Building2 } from "lucide-react";
 import { mockOrganization } from "@/lib/partner/mockData";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -24,6 +25,14 @@ const itemVariants: Variants = {
 };
 
 export default function PartnerDashboard() {
+  const { state } = useAgencyStore();
+  const activeCount = state.referrals.filter(
+    (r) => r.partnerStatus !== "Not a Fit" && r.partnerStatus !== "Referred Elsewhere"
+  ).length;
+  const pendingReviewCount = state.referrals.filter(
+    (r) => r.partnerStatus === "Received" || r.partnerStatus === "Under Review"
+  ).length;
+
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -47,9 +56,9 @@ export default function PartnerDashboard() {
           <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-2 font-regular flex-wrap">
             <span>{today}</span>
             <span>&bull;</span>
-            <span><span className="text-brand-teal font-semibold">5 active</span> referrals</span>
+            <span><span className="text-brand-teal font-semibold">{activeCount} active</span> referrals</span>
             <span>&bull;</span>
-            <span><span className="text-indigo-600 font-semibold">2 pending</span> review</span>
+            <span><span className="text-indigo-600 font-semibold">{pendingReviewCount} pending</span> review</span>
           </p>
         </div>
       </div>
@@ -81,7 +90,7 @@ export default function PartnerDashboard() {
                 <h3 className="font-semibold text-lg">Agency Updates</h3>
               </div>
               <p className="text-xs text-slate-300 mb-3 lg:mb-4 leading-relaxed">
-                We've recently expanded our service area to include the North County region. You can now refer patients in zip codes starting with 902xx.
+                We&apos;ve recently expanded our service area to include the North County region. You can now refer patients in zip codes starting with 902xx.
               </p>
               <div className="text-xs font-medium text-brand-teal">
                 Posted 2 days ago

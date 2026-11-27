@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth/RBACContext";
 import { RBACProvider } from "@/lib/rbac/rbacStore";
+import { AgencyStoreProvider } from "@/lib/store/AgencyStoreContext";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -35,7 +36,9 @@ export default function RootLayout({
     >
       <body className="min-h-screen antialiased bg-page-bg text-text-primary font-sans">
         <RBACProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <AgencyStoreProvider>{children}</AgencyStoreProvider>
+          </AuthProvider>
         </RBACProvider>
         <Toaster position="top-right" richColors />
       </body>

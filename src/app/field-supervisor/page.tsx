@@ -4,6 +4,7 @@ import React from "react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { ShieldCheck } from "lucide-react";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import { FieldSupervisorKpiStrip } from "../../components/supervisor/FieldSupervisorKpiStrip";
 import { VisitDueQueue } from "../../components/supervisor/VisitDueQueue";
 import { FindingsFollowUpQueue } from "../../components/supervisor/FindingsFollowUpQueue";
@@ -27,6 +28,9 @@ const itemVariants: Variants = {
 
 export default function FieldSupervisorDashboard() {
   const { currentUser } = useAuth();
+  const { state } = useAgencyStore();
+  const pendingVisits = state.supervisoryVisits.filter((v) => v.status !== "completed");
+  const overdueCount = pendingVisits.filter((v) => v.status === "overdue").length;
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -51,9 +55,9 @@ export default function FieldSupervisorDashboard() {
           <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-2 font-regular flex-wrap">
             <span>{today}</span>
             <span>&bull;</span>
-            <span><span className="text-brand-teal font-semibold">12 visits due</span> this week</span>
+            <span><span className="text-brand-teal font-semibold">{pendingVisits.length} visit(s) due</span> this week</span>
             <span>&bull;</span>
-            <span><span className="text-accent-red font-semibold">2 overdue</span></span>
+            <span><span className="text-accent-red font-semibold">{overdueCount} overdue</span></span>
           </p>
         </div>
       </div>

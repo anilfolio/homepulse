@@ -1,13 +1,14 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertCircle, Phone, Mail, Calendar, FileText, CheckCircle2, ChevronRight, MessageSquarePlus, Stethoscope, Copy, ShieldCheck, AlertTriangle, ExternalLink, CalendarCheck, Clock, User, Sparkles, Play, Volume2 } from "lucide-react";
+import { X, AlertCircle, Phone, Mail, FileText, CheckCircle2, MessageSquarePlus, Copy, ShieldCheck, AlertTriangle, Clock, User, Sparkles, Play, Volume2 } from "lucide-react";
 import clsx from "clsx";
-import { useAuth } from "@/hooks/useAuth";
 import { ReferredOutModal } from "../intake/ReferredOutModal";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { recommendRnForAssessment } from "@/lib/engine/intakeAutomation";
 
-import { Referral, ReferralStage } from "./types";
+import { Referral } from "./types";
 
 interface ReferralDetailPanelProps {
   referral: Referral | null;
@@ -15,29 +16,23 @@ interface ReferralDetailPanelProps {
   onUpdate: (referral: Referral) => void;
 }
 
-const STAGES: ReferralStage[] = [
-  "Referral Received",
-  "Contact Attempted",
-  "Clinical Review",
-  "Insurance Verification",
-  "Eligibility Confirmed",
-  "Assigned to Care Team",
-  "Consent & Agreements",
-  "Admitted",
-  "Converted"
-];
-
 export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDetailPanelProps) {
-  const { currentUser } = useAuth();
+  const {
+    admitReferralToActiveCare,
+    scheduleReferralAssessment,
+    declineOrReferOutReferral,
+  } = useAgencyStore();
   const [isReferredOutModalOpen, setIsReferredOutModalOpen] = React.useState(false);
   const [isBookAssessmentModalOpen, setIsBookAssessmentModalOpen] = React.useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = React.useState(false);
   const [isBooking, setIsBooking] = React.useState(false);
   const [isFollowingUp, setIsFollowingUp] = React.useState(false);
-  const isIntakeCoordinator = currentUser?.role === "INTAKE_COORDINATOR";
+  const [assessDate, setAssessDate] = React.useState("2026-07-23");
+  const [assessRn, setAssessRn] = React.useState("Rachel Miller, RN");
 
   if (!referral) return null;
 
+  const recommendedRns = recommendRnForAssessment(referral);
   const latestAICall = referral.communications.find(c => c.summary && c.recordingUrl);
 
   return (
@@ -420,22 +415,25 @@ export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDet
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => {
-                    onUpdate({ ...referral, stage: "Converted" });
+                    const admitted = admitReferralToActiveCare(referral.id);
+                    toast.success(
+                      `${admitted?.name ?? referral.clientName} admitted! Initial RN Care Plan & Scheduler shift queued.`
+                    );
                     onClose();
                   }}
-                  className="flex-1 bg-brand-teal hover:bg-teal-600 text-white text-[13px] font-bold py-3 px-4 rounded-xl shadow-[0_4px_12px_rgba(14,163,131,0.2)] hover:shadow-[0_6px_16px_rgba(14,163,131,0.3)] hover:-translate-y-0.5 transition-all text-center"
+                  className="flex-1 bg-brand-teal hover:bg-teal-600 text-white text-[13px] font-bold py-3 px-4 rounded-xl shadow-[0_4px_12px_rgba(14,163,131,0.2)] hover:shadow-[0_6px_16px_rgba(14,163,131,0.3)] hover:-translate-y-0.5 transition-all text-center cursor-pointer"
                 >
                   Convert to Active Admission
                 </button>
                 <button
                   onClick={() => setIsBookAssessmentModalOpen(true)}
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-bold py-3 px-4 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all text-center"
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-bold py-3 px-4 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all text-center cursor-pointer"
                 >
                   Fast-Track Assessment
                 </button>
                 <button
                   onClick={() => setIsReferredOutModalOpen(true)}
-                  className="flex-1 bg-white border-2 border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-600 text-[13px] font-bold py-3 px-4 rounded-xl transition-all text-center"
+                  className="flex-1 bg-white border-2 border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-600 text-[13px] font-bold py-3 px-4 rounded-xl transition-all text-center cursor-pointer"
                 >
                   Mark Unqualified / Decline
                 </button>
@@ -449,8 +447,9 @@ export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDet
         isOpen={isReferredOutModalOpen}
         onClose={() => setIsReferredOutModalOpen(false)}
         onConfirm={(reason, agency) => {
-          console.log("Referred out", { reason, agency });
-          onUpdate({ ...referral, stage: "Converted" });
+          const nextPartnerStatus = agency ? "Referred Elsewhere" : "Not a Fit";
+          declineOrReferOutReferral(referral.id, reason, nextPartnerStatus);
+          toast.info(`Referral status updated to "${nextPartnerStatus}" (Partner Portal synced).`);
           onClose();
         }}
         clientName={referral?.clientName}
@@ -460,7 +459,7 @@ export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDet
         isOpen={isBookAssessmentModalOpen}
         onClose={() => !isBooking && setIsBookAssessmentModalOpen(false)}
         title="Schedule Assessment"
-        description={`Schedule an initial assessment for ${referral?.clientName}. This will add them to the daily schedule queue.`}
+        description={`Schedule an initial assessment for ${referral?.clientName}. This will notify Clinical RN & Partner Portal.`}
         maxWidth="md"
         footer={
           <>
@@ -474,13 +473,11 @@ export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDet
             <button
               onClick={() => {
                 setIsBooking(true);
-                setTimeout(() => {
-                  setIsBooking(false);
-                  setIsBookAssessmentModalOpen(false);
-                  toast.success("Assessment booked! Added to today's schedule queue.");
-                  onUpdate({ ...referral, stage: "Initial Assessment Scheduled" });
-                  onClose();
-                }, 1000);
+                scheduleReferralAssessment(referral.id, assessRn, assessDate);
+                setIsBooking(false);
+                setIsBookAssessmentModalOpen(false);
+                toast.success(`Assessment scheduled with ${assessRn}. Clinical & Partner portals updated.`);
+                onClose();
               }}
               disabled={isBooking}
               className="px-4 py-2 text-sm font-medium bg-brand-teal text-white rounded-xl hover:bg-teal-600 transition-colors flex items-center gap-2 disabled:opacity-70"
@@ -493,18 +490,31 @@ export function ReferralDetailPanel({ referral, onClose, onUpdate }: ReferralDet
         <div className="space-y-4 py-2">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-            <input type="date" disabled={isBooking} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal disabled:opacity-50" />
+            <input
+              type="date"
+              value={assessDate}
+              onChange={(e) => setAssessDate(e.target.value)}
+              disabled={isBooking}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal disabled:opacity-50"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
-            <input type="time" disabled={isBooking} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal disabled:opacity-50" />
+            <input type="time" defaultValue="10:00" disabled={isBooking} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal disabled:opacity-50" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Assign Clinician</label>
-            <select disabled={isBooking} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal bg-white disabled:opacity-50">
-              <option value="">Select assessor...</option>
-              <option value="sarah">Sarah Jenkins, RN</option>
-              <option value="maria">Maria Santos, CC</option>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Assign Clinician (Smart Match)</label>
+            <select
+              value={assessRn}
+              onChange={(e) => setAssessRn(e.target.value)}
+              disabled={isBooking}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal bg-white disabled:opacity-50"
+            >
+              {recommendedRns.map((rn) => (
+                <option key={rn.rnName} value={rn.rnName}>
+                  {rn.rnName} — {rn.distanceMiles} mi ({rn.badge})
+                </option>
+              ))}
             </select>
           </div>
           <div>

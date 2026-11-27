@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 import { ClinicalKpiStrip } from "@/components/clinical/ClinicalKpiStrip";
 import { ClinicalEscalationQueue } from "@/components/clinical/ClinicalEscalationQueue";
@@ -27,9 +28,12 @@ const item = {
 
 export default function ClinicalDashboardPage() {
   const { currentUser } = useAuth();
+  const { state } = useAgencyStore();
 
-  // Example of subtext based on the user's requirements
-  const headerSubtext = "8 care plans due for review, 3 clinical incidents need review, 4 supervisory visits due this week.";
+  const plansCount = state.carePlanReviews.filter((c) => c.status !== "completed").length;
+  const openIncidentsCount = state.incidents.filter((i) => i.status !== "Closed").length;
+  const visitsCount = state.supervisoryVisits.filter((v) => v.status !== "completed").length;
+  const headerSubtext = `${plansCount} care plan(s) due for review, ${openIncidentsCount} clinical incident(s) open, ${visitsCount} supervisory visit(s) scheduled.`;
 
   return (
     <div className="w-full mx-auto space-y-3 sm:space-y-4 lg:space-y-6">

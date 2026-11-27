@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { CheckCircle2, AlertTriangle, ShieldCheck, ArrowLeft } from "lucide-react";
 import clsx from "clsx";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface CarePlanSignOffProps {
   onComplete: () => void;
@@ -27,6 +29,7 @@ const SECTIONS = [
 ];
 
 export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
+  const { state, completeCarePlanReview } = useAgencyStore();
   const [attested, setAttested] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -39,7 +42,7 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
           </div>
           <h2 className="text-xl font-semibold text-slate-900 mb-2">Care plan finalized</h2>
           <p className="text-sm text-slate-600 mb-2">
-            Version 1.0 saved to Evelyn Harper's chart and locked for edits.
+            Version 1.0 saved to Evelyn Harper&apos;s chart and locked for edits.
           </p>
           <p className="text-xs text-slate-400 mb-4">
             Signed by Rachel Miller, RN • 8/11/2026, 12:14:32 PM
@@ -138,7 +141,14 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
 
             <button
               onClick={() => {
-                if (attested) setIsSuccess(true);
+                if (attested) {
+                  const firstPending = state.carePlanReviews.find((c) => c.status !== "completed");
+                  if (firstPending) {
+                    completeCarePlanReview(firstPending.id, "Rachel Miller, RN");
+                  }
+                  toast.success("Care plan finalized & signed by Rachel Miller, RN.");
+                  setIsSuccess(true);
+                }
               }}
               disabled={!attested}
               className={clsx(
@@ -157,7 +167,7 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
             <h3 className="text-lg font-semibold text-slate-900 mb-2">POA / Client Sign-Off</h3>
             <p className="text-xs text-slate-500 mb-6">Electronic signature capture for Legal POA.</p>
             <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 mb-4">
-              <p className="text-sm font-medium text-slate-700">Signed by: Margaret "Meg" Whitfield-Cho (POA)</p>
+              <p className="text-sm font-medium text-slate-700">Signed by: Margaret &quot;Meg&quot; Whitfield-Cho (POA)</p>
               <p className="text-xs text-slate-500">Date: Pending</p>
             </div>
             <button className="w-full py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition-colors">Capture POA Signature</button>

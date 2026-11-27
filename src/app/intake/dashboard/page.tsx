@@ -11,13 +11,30 @@ import { FollowUpQueue } from "@/components/intake/FollowUpQueue";
 import { Plus, Sparkles, PlayCircle, PauseCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export default function IntakeDashboard() {
   const { currentUser } = useAuth();
-  const [greeting, setGreeting] = useState("Good morning");
+  const { state } = useAgencyStore();
+  const [greeting] = useState(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  });
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const urgentReferrals = state.referrals.filter(
+    (r) => r.urgency === "High" && r.stage !== "Admitted" && r.stage !== "Converted"
+  );
+  const newInquiryCount = state.referrals.filter(
+    (r) => r.stage === "Referral Received" || r.stage === "Contact Attempted"
+  ).length;
+  const scheduledAssessmentCount = state.supervisoryVisits.filter(
+    (v) => v.visitType === "initial_30" || v.status === "scheduled"
+  ).length;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +50,9 @@ export default function IntakeDashboard() {
       return;
     }
 
-    const text = `${greeting} James. You have 2 urgent hospital discharges pending S L A breach for Eleanor Ruth Whitfield and Arthur Pendelton. 3 assessments are unassigned for tomorrow.`;
+    const firstName = currentUser?.name?.split(" ")[0] || "James";
+    const urgentNames = urgentReferrals.map((r) => r.clientName).join(" and ") || "no urgent cases";
+    const text = `${greeting} ${firstName}. You have ${urgentReferrals.length} urgent hospital discharges pending S L A breach for ${urgentNames}. ${scheduledAssessmentCount} initial assessments are active.`;
     const utterance = new SpeechSynthesisUtterance(text);
 
     utterance.onend = () => setIsPlayingAudio(false);
@@ -50,13 +69,6 @@ export default function IntakeDashboard() {
         window.speechSynthesis.cancel();
       }
     };
-  }, []);
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 17) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
   }, []);
 
   useEffect(() => {
@@ -90,7 +102,18 @@ export default function IntakeDashboard() {
               </h2>
             </div>
             <p className="text-xs text-slate-700 font-medium leading-relaxed">
-              {greeting} James. You have <span className="text-red-600 font-semibold bg-red-50 px-1 rounded">2 urgent hospital discharges pending SLA breach</span> (Eleanor Ruth Whitfield & Arthur Pendelton). <span className="text-amber-600 font-bold bg-amber-50 px-1 rounded">3 assessments are unassigned</span> for tomorrow.
+              {greeting} {currentUser?.name?.split(" ")[0] || "James"}. You have{" "}
+              <span className="text-red-600 font-semibold bg-red-50 px-1 rounded">
+                {urgentReferrals.length} urgent hospital discharge(s) pending SLA
+              </span>{" "}
+              {urgentReferrals.length > 0
+                ? `(${urgentReferrals.slice(0, 2).map((r) => r.clientName).join(" & ")})`
+                : ""}
+              .{" "}
+              <span className="text-amber-600 font-bold bg-amber-50 px-1 rounded">
+                {scheduledAssessmentCount} assessment(s) active
+              </span>{" "}
+              in pipeline.
             </p>
           </div>
           <button
@@ -117,7 +140,7 @@ export default function IntakeDashboard() {
               Intake Control Center
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              <span className="font-semibold text-brand-teal">4 new inquiries</span> need first contact, <span className="font-semibold text-accent-blue">8 assessments</span> scheduled today.
+              <span className="font-semibold text-brand-teal">{newInquiryCount} new inquiries/referrals</span> need first contact, <span className="font-semibold text-accent-blue">{scheduledAssessmentCount} assessments</span> scheduled.
             </p>
           </div>
 

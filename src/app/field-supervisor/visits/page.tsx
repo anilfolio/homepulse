@@ -1,18 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { toast } from "sonner";
-import { Calendar, User, Save, AlertTriangle, ArrowUpRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowUpRight, Save, User } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
-export default function SupervisoryVisitsPage() {
+interface FindingDraft {
+  description: string;
+  severity: "minor" | "moderate" | "urgent";
+}
+
+function SupervisoryVisitsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { submitFieldEvaluation } = useAgencyStore();
+  const visitIdParam = searchParams.get("visitId") || undefined;
+  const clientParam = searchParams.get("client") || "Eleanor Ruth Whitfield";
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [findings, setFindings] = useState<{ description: string; severity: "minor" | "moderate" | "urgent" }[]>([]);
+  const [findings, setFindings] = useState<FindingDraft[]>([]);
 
   const [formData, setFormData] = useState({
-    clientName: "Eleanor Ruth Whitfield", // Mocked from context
+    clientName: clientParam,
     caregiverName: "Maria Santos, CNA",
     visitType: "Periodic",
     isUnannounced: false,
@@ -30,10 +41,19 @@ export default function SupervisoryVisitsPage() {
     setFindings([...findings, { description: "", severity: "minor" }]);
   };
 
-  const updateFinding = (index: number, field: string, value: string) => {
-    const newFindings = [...findings];
-    (newFindings[index] as any)[field] = value;
-    setFindings(newFindings);
+  const updateFindingDescription = (index: number, value: string) => {
+    setFindings((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, description: value } : item))
+    );
+  };
+
+  const updateFindingSeverity = (
+    index: number,
+    value: "minor" | "moderate" | "urgent"
+  ) => {
+    setFindings((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, severity: value } : item))
+    );
   };
 
   const removeFinding = (index: number) => {
@@ -44,12 +64,16 @@ export default function SupervisoryVisitsPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success("Visit Evaluation submitted successfully");
-      router.push("/field-supervisor");
-    }, 1000);
+    submitFieldEvaluation({
+      visitId: visitIdParam,
+      clientName: formData.clientName,
+      caregiverName: formData.caregiverName,
+      findings,
+    });
+
+    setIsSubmitting(false);
+    toast.success("Visit Evaluation submitted & synced to Field / Clinical queues.");
+    router.push("/field-supervisor");
   };
 
   return (
@@ -128,7 +152,7 @@ export default function SupervisoryVisitsPage() {
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-800">Is the client's condition stable, improving, or declining?</label>
+              <label className="text-sm font-semibold text-slate-800">Is the client&apos;s condition stable, improving, or declining?</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                   <input type="radio" name="clientCondition" value="improving" checked={formData.clientCondition === "improving"} onChange={(e) => setFormData({ ...formData, clientCondition: e.target.value })} className="w-4 h-4 text-brand-teal focus:ring-brand-teal accent-brand-teal" /> Improving
@@ -142,7 +166,7 @@ export default function SupervisoryVisitsPage() {
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-800">Does the care plan still accurately reflect the client's needs?</label>
+              <label className="text-sm font-semibold text-slate-800">Does the care plan still accurately reflect the client&apos;s needs?</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                   <input type="radio" name="carePlanAccurate" value="yes" checked={formData.carePlanAccurate === "yes"} onChange={(e) => setFormData({ ...formData, carePlanAccurate: e.target.value })} className="w-4 h-4 text-brand-teal focus:ring-brand-teal accent-brand-teal" /> Yes
@@ -197,7 +221,7 @@ export default function SupervisoryVisitsPage() {
             </div>
 
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-800">Are there any concerns the caregiver hasn't reported?</label>
+              <label className="text-sm font-semibold text-slate-800">Are there any concerns the caregiver hasn&apos;t reported?</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                   <input type="radio" name="unreportedConcerns" value="yes" checked={formData.unreportedConcerns === "yes"} onChange={(e) => setFormData({ ...formData, unreportedConcerns: e.target.value })} className="w-4 h-4 text-brand-teal focus:ring-brand-teal accent-brand-teal" /> Yes
@@ -236,7 +260,7 @@ export default function SupervisoryVisitsPage() {
                       <input
                         type="text"
                         value={finding.description}
-                        onChange={(e) => updateFinding(idx, "description", e.target.value)}
+                        onChange={(e) => updateFindingDescription(idx, e.target.value)}
                         placeholder="Describe what was observed..."
                         className="w-full p-2 bg-white border border-slate-300 rounded-lg text-sm"
                         required
@@ -246,7 +270,12 @@ export default function SupervisoryVisitsPage() {
                       <label className="text-xs font-semibold text-slate-700">Severity</label>
                       <select
                         value={finding.severity}
-                        onChange={(e) => updateFinding(idx, "severity", e.target.value)}
+                        onChange={(e) =>
+                          updateFindingSeverity(
+                            idx,
+                            e.target.value as "minor" | "moderate" | "urgent"
+                          )
+                        }
                         className="w-full p-2 bg-white border border-slate-300 rounded-lg text-sm"
                       >
                         <option value="minor">Minor</option>
@@ -274,5 +303,13 @@ export default function SupervisoryVisitsPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function SupervisoryVisitsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-slate-500">Loading Visit Evaluation...</div>}>
+      <SupervisoryVisitsContent />
+    </Suspense>
   );
 }

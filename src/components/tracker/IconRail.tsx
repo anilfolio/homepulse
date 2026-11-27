@@ -32,7 +32,7 @@ const adminNavItems = [
 
 const schedulerNavItems = [
   { id: "dashboard", icon: LayoutDashboard, href: "/scheduler", title: "Dashboard" },
-  { id: "scheduling", icon: CalendarDays, href: "/scheduler/board", title: "Scheduling & Shift Board" },
+  { id: "scheduling", icon: CalendarDays, href: "/scheduler/shifts/board", title: "Scheduling & Shift Board" },
   { id: "tracker", icon: MapPin, href: "/scheduler/tracker", title: "Caregiver Tracker" },
   { id: "caregivers", icon: HeartHandshake, href: "/scheduler/caregivers", title: "Caregivers" },
   { id: "messages", icon: MessageSquare, href: "/scheduler/messages", title: "Messages" },

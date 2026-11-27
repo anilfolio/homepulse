@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, Upload, AlertTriangle } from "lucide-react";
 import { cn } from "@/components/ui/Card";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { IncidentCategory } from "@/types/incidents";
 
 interface ReportIncidentFormProps {
   isOpen: boolean;
@@ -20,41 +23,56 @@ const INCIDENT_CATEGORIES = [
 ];
 
 export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps) {
+  const { reportIncident } = useAgencyStore();
   const [incidentType, setIncidentType] = useState("");
+  const [patientName, setPatientName] = useState("Eleanor Ruth Whitfield");
+  const [caregiverName, setCaregiverName] = useState("Maria Santos, CNA");
+  const [incidentDate, setIncidentDate] = useState("2026-07-22");
+  const [location, setLocation] = useState("Patient Home - Living Room");
+  const [description, setDescription] = useState("");
   const [notifySupervisor, setNotifySupervisor] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [createdIncidentId, setCreatedIncidentId] = useState("INC-2026-042");
 
-  // Auto-check supervisor notification for high-severity types
-  useEffect(() => {
-    if (HIGH_SEVERITY_TYPES.includes(incidentType)) {
+  const handleTypeChange = (nextType: string) => {
+    setIncidentType(nextType);
+    if (HIGH_SEVERITY_TYPES.includes(nextType)) {
       setNotifySupervisor(true);
     }
-  }, [incidentType]);
+  };
 
-  // Reset state when opened
-  useEffect(() => {
-    if (isOpen) {
-      setIncidentType("");
-      setNotifySupervisor(false);
-      setIsSubmitting(false);
-      setIsSuccess(false);
-    }
-  }, [isOpen]);
+  const resetAndClose = () => {
+    setIncidentType("");
+    setDescription("");
+    setNotifySupervisor(false);
+    setIsSubmitting(false);
+    setIsSuccess(false);
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!incidentType) return;
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
+    const newId = reportIncident({
+      type: incidentType as IncidentCategory,
+      patientName,
+      caregiverName,
+      location,
+      description,
+      incidentDate: incidentDate ? new Date(incidentDate).toISOString() : undefined,
+      notifySupervisor,
+    });
 
-      // Auto close after success
-      setTimeout(() => {
-        onClose();
-      }, 2500);
+    setCreatedIncidentId(newId);
+    setIsSubmitting(false);
+    setIsSuccess(true);
+    toast.success(`Incident ${newId} submitted & routed to Clinical / QA queues.`);
+
+    setTimeout(() => {
+      resetAndClose();
     }, 1500);
   };
 
@@ -67,7 +85,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={!isSuccess ? onClose : undefined}
+          onClick={!isSuccess ? resetAndClose : undefined}
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         />
 
@@ -88,7 +106,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                 <CheckCircle className="w-8 h-8" />
               </motion.div>
               <h3 className="text-xl font-bold text-slate-800 mb-2">Incident Reported</h3>
-              <p className="text-slate-500">Incident #INC-2026-042 has been successfully submitted.</p>
+              <p className="text-slate-500">Incident #{createdIncidentId} has been successfully submitted.</p>
               {notifySupervisor && (
                 <p className="text-sm font-medium text-brand-teal mt-2">Supervisor has been notified immediately.</p>
               )}
@@ -98,7 +116,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
               <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h2 className="text-base font-semibold text-slate-800">Report Incident</h2>
                 <button
-                  onClick={onClose}
+                  onClick={resetAndClose}
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -114,7 +132,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                       required
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all bg-white"
                       value={incidentType}
-                      onChange={(e) => setIncidentType(e.target.value)}
+                      onChange={(e) => handleTypeChange(e.target.value)}
                     >
                       <option value="" disabled>Select incident type...</option>
                       {INCIDENT_CATEGORIES.map(cat => (
@@ -128,6 +146,8 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                       <label className="block text-sm font-medium text-slate-700 mb-1">Patient</label>
                       <input
                         type="text"
+                        value={patientName}
+                        onChange={(e) => setPatientName(e.target.value)}
                         placeholder="Search patient..."
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all"
                       />
@@ -136,6 +156,8 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                       <label className="block text-sm font-medium text-slate-700 mb-1">Caregiver(s)</label>
                       <input
                         type="text"
+                        value={caregiverName}
+                        onChange={(e) => setCaregiverName(e.target.value)}
                         placeholder="Search caregiver..."
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all"
                       />
@@ -148,6 +170,8 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                       <input
                         type="date"
                         required
+                        value={incidentDate}
+                        onChange={(e) => setIncidentDate(e.target.value)}
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all text-slate-700"
                       />
                     </div>
@@ -155,6 +179,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                       <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
                       <input
                         type="time"
+                        defaultValue="10:30"
                         required
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all text-slate-700"
                       />
@@ -164,6 +189,8 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                     <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
                     <input
                       type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
                       placeholder="e.g. Patient Home - Bathroom"
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all"
                     />
@@ -173,6 +200,8 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
                     <textarea
                       required
                       rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
                       placeholder="Provide a detailed, objective account of what happened..."
                       className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all resize-none"
                     />
@@ -218,7 +247,7 @@ export function ReportIncidentForm({ isOpen, onClose }: ReportIncidentFormProps)
               <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={resetAndClose}
                   className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancel

@@ -3,17 +3,23 @@
 import React from "react";
 import { Users, CalendarCheck, ShieldAlert, CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { cn } from "@/components/ui/Card";
-
-const kpiData = [
-  { label: "Visits Due This Week", value: "12", trend: "4 scheduled today", icon: CalendarCheck, color: "text-brand-teal", bg: "bg-brand-teal/20", trendColor: "text-brand-teal" },
-  { label: "Visits Overdue", value: "2", trend: "Needs immediate action", icon: AlertTriangle, color: "text-accent-red", bg: "bg-accent-red/20", trendColor: "text-accent-red" },
-  { label: "Unannounced Visits", value: "85%", trend: "42 of 49 annual requirement", icon: CheckCircle2, color: "text-accent-blue", bg: "bg-accent-blue/20", trendColor: "text-text-secondary" },
-  { label: "Open Findings", value: "5", trend: "3 need clinical review", icon: ShieldAlert, color: "text-accent-amber", bg: "bg-accent-amber/20", trendColor: "text-accent-amber" },
-  { label: "My Caregivers", value: "18", trend: "2 new this month", icon: Users, color: "text-accent-purple", bg: "bg-accent-purple/20", trendColor: "text-text-secondary" },
-  { label: "Avg. Client Satisfaction", value: "4.8", trend: "Based on last 30 visits", icon: Star, color: "text-brand-teal", bg: "bg-brand-teal/20", trendColor: "text-brand-teal" },
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function FieldSupervisorKpiStrip() {
+  const { state } = useAgencyStore();
+  const pendingVisits = state.supervisoryVisits.filter((v) => v.status !== "completed");
+  const overdueCount = pendingVisits.filter((v) => v.status === "overdue").length;
+  const openFindings = state.fieldFindings.filter((f) => f.status === "Open");
+  const urgentFindings = openFindings.filter((f) => f.severity === "urgent" || f.severity === "moderate").length;
+
+  const kpiData = [
+    { label: "Visits Due This Week", value: String(pendingVisits.length), trend: "Synced with Clinical RN", icon: CalendarCheck, color: "text-brand-teal", bg: "bg-brand-teal/20", trendColor: "text-brand-teal" },
+    { label: "Visits Overdue", value: String(overdueCount), trend: overdueCount > 0 ? "Needs immediate action" : "All on schedule", icon: AlertTriangle, color: "text-accent-red", bg: "bg-accent-red/20", trendColor: "text-accent-red" },
+    { label: "Unannounced Visits", value: "85%", trend: "42 of 49 annual requirement", icon: CheckCircle2, color: "text-accent-blue", bg: "bg-accent-blue/20", trendColor: "text-text-secondary" },
+    { label: "Open Findings", value: String(openFindings.length), trend: `${urgentFindings} need clinical review`, icon: ShieldAlert, color: "text-accent-amber", bg: "bg-accent-amber/20", trendColor: "text-accent-amber" },
+    { label: "My Caregivers", value: String(state.caregivers.length), trend: "Active field roster", icon: Users, color: "text-accent-purple", bg: "bg-accent-purple/20", trendColor: "text-text-secondary" },
+    { label: "Avg. Client Satisfaction", value: "4.8", trend: "Based on last 30 visits", icon: Star, color: "text-brand-teal", bg: "bg-brand-teal/20", trendColor: "text-brand-teal" },
+  ];
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
       {kpiData.map((kpi, idx) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/Card";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 interface Inquiry {
   id: string;
@@ -29,64 +31,47 @@ interface Inquiry {
   phone: string;
 }
 
-const initialInquiries: Inquiry[] = [
-  {
-    id: "inq-101",
-    patientId: "c-1",
-    name: "Eleanor Ruth Whitfield (Family: Robert)",
-    source: "Hospital Discharge (Mercy Gen)",
-    waitTimeStr: "12m",
-    waitTimeMins: 12,
-    isHospitalDischarge: true,
-    phone: "(555) 123-4567"
-  },
-  {
-    id: "inq-ew-101",
-    patientId: "ref-ew-001",
-    name: "Sarah Connor",
-    source: "Hospital Discharge (Cedar Falls)",
-    waitTimeStr: "5m",
-    waitTimeMins: 5,
-    isHospitalDischarge: true,
-    phone: "(610) 555-0148"
-  },
-  {
-    id: "inq-102",
-    patientId: "c-2",
-    name: "Arthur Pendelton",
-    source: "Website Lead",
-    waitTimeStr: "45m",
-    waitTimeMins: 45,
-    isHospitalDischarge: false,
-    phone: "(555) 987-6543"
-  },
-  {
-    id: "inq-103",
-    patientId: "c-1",
-    name: "Margaret Smith",
-    source: "Physician Referral",
-    waitTimeStr: "18m",
-    waitTimeMins: 18,
-    isHospitalDischarge: false,
-    phone: "(555) 234-5678"
-  },
-];
-
 export function IntakeUrgencyQueue() {
   const router = useRouter();
+  const { state, updateReferral } = useAgencyStore();
+  const [nowMs] = useState(() => Date.now());
 
-  // Sort logic: Hospital Discharges first, then by longest wait time
-  const sortInquiries = (inqs: Inquiry[]) => {
-    return [...inqs].sort((a, b) => {
+  const liveInquiries: Inquiry[] = state.referrals
+    .filter(
+      (r) =>
+        r.stage === "Referral Received" ||
+        r.stage === "Contact Attempted" ||
+        r.stage === "Insurance Verification"
+    )
+    .map((r) => {
+      const mins = Math.max(
+        5,
+        Math.round((nowMs - new Date(r.dateReceived).getTime()) / 60000)
+      );
+      const waitTimeStr = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`;
+      return {
+        id: r.id,
+        patientId: r.id,
+        name: r.clientName,
+        source: r.sourceDetails ? `${r.source} (${r.sourceDetails})` : r.source,
+        waitTimeStr,
+        waitTimeMins: mins,
+        isHospitalDischarge:
+          r.urgency === "High" ||
+          r.source === "Hospital Discharge" ||
+          r.source === "Hospital",
+        phone: r.phone || r.demographics?.phone || "(217) 555-0148",
+      };
+    })
+    .sort((a, b) => {
       if (a.isHospitalDischarge && !b.isHospitalDischarge) return -1;
       if (!a.isHospitalDischarge && b.isHospitalDischarge) return 1;
       return b.waitTimeMins - a.waitTimeMins;
     });
-  };
 
-  const [inquiries, setInquiries] = useState<Inquiry[]>(sortInquiries(initialInquiries));
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const inquiries = liveInquiries;
 
   const getWaitTimeColor = (mins: number, isUrgent: boolean) => {
     if (isUrgent || mins > 30) return "bg-red-100 text-red-700 border-red-200 animate-pulse shadow-[0_4px_20px_rgba(0,0,0,0.04)] shadow-red-500/20";
@@ -94,27 +79,25 @@ export function IntakeUrgencyQueue() {
     return "bg-emerald-100 text-emerald-700 border-emerald-200";
   };
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const handleLogContact = (id: string) => {
-    const inquiry = inquiries.find(i => i.id === id);
-    if (!inquiry) return;
+    const targetRef = state.referrals.find((r) => r.id === id);
+    if (!targetRef) return;
 
     setCompletedIds((prev) => new Set(prev).add(id));
     setTimeout(() => {
-      setInquiries((prev) => prev.filter((inq) => inq.id !== id));
+      updateReferral({
+        ...targetRef,
+        stage: "Clinical Review",
+        daysInStage: 0,
+      });
+      toast.success(`First contact logged for ${targetRef.clientName} — moved to Clinical Review.`);
       setCompletedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-      if (inquiry.patientId) {
-        router.push(`/intake/patients/${inquiry.patientId}`);
-      }
-    }, 800); // Wait for success animation
+      router.push("/intake/referrals");
+    }, 500);
   };
 
   return (
@@ -233,7 +216,7 @@ export function IntakeUrgencyQueue() {
       </div>
 
       {/* VoIP Call Transcription Modal */}
-      {mounted && typeof document !== 'undefined' && createPortal(
+      {activeCallId && typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {activeCallId && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -271,7 +254,7 @@ export function IntakeUrgencyQueue() {
                   <div className="flex gap-2">
                     <div className="w-8 h-8 rounded-full bg-brand-teal/20 text-brand-teal flex items-center justify-center shrink-0 font-semibold text-xs">You</div>
                     <div className="bg-white border border-slate-200 p-2.5 rounded-2xl rounded-tl-sm text-sm text-slate-700 shadow-[0_4px_20px_rgba(0,0,0,0.04)] leading-relaxed">
-                      Hi, this is James from HomePulse. I'm calling about the hospital discharge pending for {inquiries.find(i => i.id === activeCallId)?.name?.split(" ")[0]}.
+                      Hi, this is James from HomePulse. I&apos;m calling about the hospital discharge pending for {inquiries.find(i => i.id === activeCallId)?.name?.split(" ")[0]}.
                     </div>
                   </div>
                   <div className="flex gap-2 flex-row-reverse">

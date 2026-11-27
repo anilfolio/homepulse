@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { CaregiverLayout } from "@/components/caregiver/CaregiverLayout";
-import { INITIAL_TRAINING_COURSES, TrainingCourse } from "@/lib/caregiver/caregiverPortalData";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import {
   GraduationCap,
   Award,
@@ -11,14 +11,11 @@ import {
   PlayCircle,
   CheckCircle2,
   AlertTriangle,
-  BookOpen,
-  X,
-  Sparkles,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function CaregiverTrainingPage() {
-  const [courses, setCourses] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
+  const { state } = useAgencyStore();
+  const courses = state.lmsCourses.filter((c) => c.publishState === "published");
 
   return (
     <CaregiverLayout>
@@ -51,7 +48,6 @@ export default function CaregiverTrainingPage() {
           {courses.map((course) => {
             const isCompleted = course.status === "Completed";
             const isExpiring = course.status === "Expiring";
-            const isInProgress = course.status === "In Progress";
 
             return (
               <div

@@ -1,31 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { INITIAL_TRAINING_COURSES, TrainingCourse } from "@/lib/caregiver/caregiverPortalData";
+import { INITIAL_TRAINING_COURSES } from "@/lib/caregiver/caregiverPortalData";
 import { ChevronLeft, ChevronRight, CheckCircle2, Home, Check } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const TOTAL_PAGES = 3;
 
 export default function CourseViewerClient() {
   const { id } = useParams();
   const router = useRouter();
-  const [course, setCourse] = useState<TrainingCourse | null>(null);
+  const { state, completeCaregiverCourse } = useAgencyStore();
+  const course =
+    state.lmsCourses.find((c) => c.id === id) ||
+    INITIAL_TRAINING_COURSES.find((c) => c.id === id) ||
+    null;
   const [currentPage, setCurrentPage] = useState(1);
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
-
-  useEffect(() => {
-    const found = INITIAL_TRAINING_COURSES.find((c) => c.id === id);
-    if (found) {
-      setCourse(found);
-      setIsCompleted(found.status === "Completed");
-    }
-  }, [id]);
+  const [justCompleted, setJustCompleted] = useState(false);
 
   if (!course) return null;
+
+  const isCompleted = justCompleted || course.status === "Completed";
 
   const handleNext = () => {
     if (currentPage < TOTAL_PAGES) {
@@ -40,11 +40,12 @@ export default function CourseViewerClient() {
   };
 
   const handleComplete = () => {
-    setIsCompleted(true);
-    // In a real app, this would save to the backend.
+    completeCaregiverCourse(course.id);
+    setJustCompleted(true);
+    toast.success(`Completed "${course.title}" (+${course.ceUnits} CE). Trainer LMS updated!`);
     setTimeout(() => {
       router.push("/caregiver/training");
-    }, 1500);
+    }, 1000);
   };
 
   return (

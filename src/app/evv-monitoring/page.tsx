@@ -19,6 +19,7 @@ import clsx from "clsx";
 
 import { ExceptionCategory } from "./types";
 import { EVVNavTab, useEvvVisits } from "./EvvVisitsContext";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import { EvvOverviewTab } from "./_components/EvvOverviewTab";
 import { VisitsTable } from "./_components/VisitsTable";
 import { AggregatorBillingTab } from "./_components/AggregatorBillingTab";
@@ -26,6 +27,7 @@ import { BulkConfirmModal } from "./_components/BulkConfirmModal";
 
 export default function EVVMonitoringPage() {
   const router = useRouter();
+  const { autoResolveMinorEvv } = useAgencyStore();
   const {
     visits,
     capabilities,
@@ -227,6 +229,23 @@ export default function EVVMonitoringPage() {
               )}
             </div>
 
+            {openExceptionsCount > 0 && capabilities.canBulkConfirm && (
+              <button
+                type="button"
+                onClick={() => {
+                  const count = autoResolveMinorEvv();
+                  if (count > 0) {
+                    showToast(`Auto-resolved ${count} completed EVV exception(s) & released billing holds.`);
+                  } else {
+                    showToast("No completed exceptions eligible for auto-resolution.");
+                  }
+                }}
+                className="flex items-center justify-center gap-1.5 bg-[#141D3C] hover:bg-[#1E2B58] text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                <FileCheck2 className="w-4 h-4 text-[#57EAB6]" />
+                Auto-Resolve Eligible
+              </button>
+            )}
             {capabilities.canExportCsv && (
               <button
                 type="button"

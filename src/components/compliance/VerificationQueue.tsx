@@ -1,28 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Check, X, FileText, Clock } from "lucide-react";
 import { VerificationQueueItem } from "@/types/compliance";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface VerificationQueueProps {
   items: VerificationQueueItem[];
 }
 
-export function VerificationQueue({ items: initialItems }: VerificationQueueProps) {
-  const [items, setItems] = useState(initialItems);
+export function VerificationQueue({ items }: VerificationQueueProps) {
+  const { verifyComplianceDocument } = useAgencyStore();
   const { currentUser } = useAuth();
-  const isQA = currentUser?.role === "QA_COMPLIANCE_OFFICER";
+  const isQA = currentUser?.role === "QA_COMPLIANCE_OFFICER" || currentUser?.role === "ADMIN";
 
   const handleApprove = (id: string, name: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    verifyComplianceDocument(id, true);
     toast.success(`Approved document for ${name}`);
   };
 
   const handleReject = (id: string, name: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    verifyComplianceDocument(id, false);
     toast.error(`Rejected document for ${name}`);
   };
 

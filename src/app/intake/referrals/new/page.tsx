@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/components/ui/Card";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const SectionBadge = ({ number, title, optional = false }: { number: number; title: string; optional?: boolean }) => (
   <div className="flex items-center gap-3 mb-4">
@@ -23,6 +24,7 @@ const SectionBadge = ({ number, title, optional = false }: { number: number; tit
 export default function NewReferralPage() {
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { createIntakeReferral } = useAgencyStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'cancel' | 'draft' | 'submit' | null>(null);
@@ -125,11 +127,25 @@ export default function NewReferralPage() {
 
   const executeSubmit = () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success("Referral created successfully");
-      router.back();
-    }, 600);
+    const created = createIntakeReferral({
+      workflowType: "Referral",
+      clientName: formData.clientName || "New Referred Patient",
+      dob: formData.dob,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      zip: formData.zip,
+      gender: formData.gender,
+      facilityName: formData.facilityName,
+      physicianName: formData.physicianName,
+      npi: formData.npi,
+      urgency: "High",
+    });
+    setIsSubmitting(false);
+    toast.success(`Referral ${created.id} logged in Intake pipeline`);
+    router.push("/intake/referrals");
   };
 
   const executeConfirmAction = () => {
@@ -473,7 +489,7 @@ export default function NewReferralPage() {
                   <option>Select</option>
                   <option>Alert and oriented</option>
                   <option>Mild cognitive impairment</option>
-                  <option>Dementia / Alzheimer's</option>
+                  <option>Dementia / Alzheimer&apos;s</option>
                   <option>Confusion</option>
                 </select>
               </div>

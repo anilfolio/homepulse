@@ -11,9 +11,10 @@ import { ARAging } from "@/components/billing/ARAging";
 import { DeniedClaims } from "@/components/billing/DeniedClaims";
 import { PaymentRemittance } from "@/components/billing/PaymentRemittance";
 import { ClaimDetailPanel } from "@/components/billing/ClaimDetailPanel";
+import { AgencyClaim } from "@/types/agency";
 
 export default function BillingWorkspace() {
-  const [selectedClaim, setSelectedClaim] = React.useState<any | null>(null);
+  const [selectedClaim, setSelectedClaim] = React.useState<AgencyClaim | null>(null);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -32,7 +33,7 @@ export default function BillingWorkspace() {
         className="w-full space-y-6"
       >
         <BillingHeader />
-        
+
         <PreBillingScrubGate />
 
         <FinancialSummaryStrip />
@@ -41,7 +42,7 @@ export default function BillingWorkspace() {
 
         <ClaimsPipeline onClaimClick={setSelectedClaim} />
 
-        <ARAging onClaimClick={setSelectedClaim} />
+        <ARAging onClaimClick={() => setSelectedClaim(null)} />
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <DeniedClaims onClaimClick={setSelectedClaim} />
@@ -50,9 +51,9 @@ export default function BillingWorkspace() {
       </motion.div>
 
       {selectedClaim && (
-        <ClaimDetailPanel 
-          claim={selectedClaim} 
-          onClose={() => setSelectedClaim(null)} 
+        <ClaimDetailPanel
+          claim={selectedClaim}
+          onClose={() => setSelectedClaim(null)}
         />
       )}
     </>

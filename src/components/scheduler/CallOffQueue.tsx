@@ -60,24 +60,39 @@ const defaultCallOffs: CallOffItem[] = [
 ];
 
 interface CallOffQueueProps {
+  items?: CallOffItem[];
   onReassign: (callOffId: string, replacementId: string, replacementName: string) => void;
+  onSimulateCallOff?: () => void;
 }
 
-export function CallOffQueue({ onReassign }: CallOffQueueProps) {
-  const [callOffs, setCallOffs] = useState<CallOffItem[]>(defaultCallOffs);
+export function CallOffQueue({ items, onReassign, onSimulateCallOff }: CallOffQueueProps) {
+  const [localCallOffs, setLocalCallOffs] = useState<CallOffItem[]>(defaultCallOffs);
   const [reassignedItems, setReassignedItems] = useState<Record<string, string>>({});
   const [isSimulating, setIsSimulating] = useState(false);
+
+  const callOffs = items ?? localCallOffs;
 
   const handleReassign = (callOffId: string, replacementId: string, replacementName: string) => {
     setReassignedItems((prev) => ({ ...prev, [callOffId]: replacementName }));
 
     setTimeout(() => {
       onReassign(callOffId, replacementId, replacementName);
-      setCallOffs((prev) => prev.filter((co) => co.id !== callOffId));
-    }, 600);
+      if (!items) {
+        setLocalCallOffs((prev) => prev.filter((co) => co.id !== callOffId));
+      }
+      setReassignedItems((prev) => {
+        const next = { ...prev };
+        delete next[callOffId];
+        return next;
+      });
+    }, 500);
   };
 
   const handleSimulateCallOff = () => {
+    if (onSimulateCallOff) {
+      onSimulateCallOff();
+      return;
+    }
     setIsSimulating(true);
     const newId = `co-${Date.now()}`;
     const sampleNames = ["David Miller", "Elena Rostova", "Marcus Vance"];
@@ -100,7 +115,7 @@ export function CallOffQueue({ onReassign }: CallOffQueueProps) {
     };
 
     setTimeout(() => {
-      setCallOffs((prev) => [newCallOff, ...prev]);
+      setLocalCallOffs((prev) => [newCallOff, ...prev]);
       setIsSimulating(false);
     }, 300);
   };

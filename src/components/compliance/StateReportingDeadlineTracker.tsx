@@ -1,20 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { StateDeadlineIncident } from "@/lib/mock-data/compliance-dashboard";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface Props {
   deadlines: StateDeadlineIncident[];
 }
 
-export function StateReportingDeadlineTracker({ deadlines: initialDeadlines }: Props) {
-  const [deadlines, setDeadlines] = useState(initialDeadlines);
+export function StateReportingDeadlineTracker({ deadlines }: Props) {
+  const { submitStateReport } = useAgencyStore();
 
   const handleAction = (id: string) => {
-    setDeadlines(prev => prev.filter(d => d.id !== id));
+    submitStateReport(id);
     toast.success(`State report for ${id} marked as submitted`);
   };
 

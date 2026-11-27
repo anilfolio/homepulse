@@ -1,85 +1,42 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, FileWarning, CheckCircle2, ChevronRight, User } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
-
-export interface IncidentReview {
-  id: string;
-  clientName: string;
-  clientId: string;
-  reporter: string;
-  dateReported: string;
-  type: "fall" | "medication_error" | "medical_emergency" | "elopement" | "abuse" | "neglect" | "hipaa_breach";
-  isRestricted: boolean;
-  status: "pending_review" | "followup_required";
-  summary: string;
-}
-
-const mockIncidents: IncidentReview[] = [
-  {
-    id: "inc-1",
-    clientName: "Arthur Pendelton",
-    clientId: "c-2",
-    reporter: "Maria Santos",
-    dateReported: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    type: "neglect",
-    isRestricted: true,
-    status: "pending_review",
-    summary: "Suspicion of neglect from family member observed during weekend visit. Requires immediate state reporting determination.",
-  },
-  {
-    id: "inc-2",
-    clientName: "Eleanor Ruth Whitfield",
-    clientId: "c-1",
-    reporter: "James O.",
-    dateReported: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    type: "fall",
-    isRestricted: false,
-    status: "followup_required",
-    summary: "Unwitnessed fall in bathroom, no obvious injuries. Vitals stable. Follow-up required for care plan update.",
-  },
-  {
-    id: "inc-3",
-    clientName: "Margaret Chen",
-    clientId: "c-1",
-    reporter: "Sarah J.",
-    dateReported: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    type: "medication_error",
-    isRestricted: false,
-    status: "pending_review",
-    summary: "Missed morning dose of Lisinopril due to pharmacy delivery delay.",
-  },
-  {
-    id: "inc-4",
-    clientName: "Sarah Connor",
-    clientId: "ref-ew-001",
-    reporter: "Maya Alvarez",
-    dateReported: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    type: "medical_emergency",
-    isRestricted: false,
-    status: "pending_review",
-    summary: "Reported intense joint pain and swelling requiring immediate assessment.",
-  }
-];
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function IncidentReviewQueue() {
-  const [items, setItems] = useState<IncidentReview[]>(mockIncidents);
+  const { state, resolveRestrictedIncident } = useAgencyStore();
+  const items = state.incidents
+    .filter((inc) => inc.status !== "Closed")
+    .map((inc) => ({
+      id: inc.id,
+      clientName:
+        inc.peopleInvolved.find((p) => p.role === "Patient")?.name || "Agency Incident",
+      clientId: inc.peopleInvolved.find((p) => p.role === "Patient")?.id || "c-1",
+      reporter:
+        inc.peopleInvolved.find((p) => p.role === "Caregiver")?.name ||
+        inc.investigatorName ||
+        "Field Staff",
+      dateReported: inc.reportedDate,
+      type: inc.type,
+      isRestricted: inc.isRestricted,
+      summary: inc.description,
+    }));
 
   const handleSignOff = (id: string, isRestricted: boolean) => {
+    resolveRestrictedIncident(id, isRestricted ? "acknowledge" : "resolve");
     if (isRestricted) {
-      // In a real app, this would open a modal to document follow-up actions before closing.
-      alert("Restricted incidents require documented follow-up action and confirmation of state notification (if applicable) before closing.");
-      return;
+      toast.warning(`Restricted incident ${id} escalated for QA Compliance documentation.`);
+    } else {
+      toast.success(`Incident ${id} clinically signed off and closed.`);
     }
-    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const formatType = (type: string) => {
-    return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  };
+  const formatType = (type: string) => type;
 
   return (
     <div className="bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden flex flex-col h-full">

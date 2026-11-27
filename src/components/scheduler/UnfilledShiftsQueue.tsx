@@ -38,22 +38,29 @@ export interface UnfilledShiftItem {
 interface UnfilledShiftsQueueProps {
   shifts: UnfilledShiftItem[];
   onAssign: (shiftId: string, caregiverId: string, caregiverName: string) => void;
+  onAutoFillAll?: () => void;
 }
 
-export function UnfilledShiftsQueue({ shifts: initialShifts, onAssign }: UnfilledShiftsQueueProps) {
-  const [shifts, setShifts] = useState<UnfilledShiftItem[]>(initialShifts);
+export function UnfilledShiftsQueue({
+  shifts: propShifts,
+  onAssign,
+  onAutoFillAll,
+}: UnfilledShiftsQueueProps) {
   const [assignedShiftIds, setAssignedShiftIds] = useState<Record<string, string>>({});
+  const shifts = propShifts;
 
   const handleAssignCaregiver = (shiftId: string, caregiverId: string, caregiverName: string) => {
     // Instant feedback checkmark
     setAssignedShiftIds((prev) => ({ ...prev, [shiftId]: caregiverName }));
 
     setTimeout(() => {
-      // Trigger parent callback
       onAssign(shiftId, caregiverId, caregiverName);
-      // Remove from queue
-      setShifts((prev) => prev.filter((s) => s.id !== shiftId));
-    }, 600);
+      setAssignedShiftIds((prev) => {
+        const next = { ...prev };
+        delete next[shiftId];
+        return next;
+      });
+    }, 500);
   };
 
   return (
@@ -63,17 +70,27 @@ export function UnfilledShiftsQueue({ shifts: initialShifts, onAssign }: Unfille
           <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">
             <AlertCircle className="w-4.5 h-4.5" />
           </div>
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 flex flex-wrap items-center gap-2">
-              <span>Today's Unfilled / At-Risk Shifts</span>
-              <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
-                {shifts.length} Needs Attention
-              </span>
-            </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500">Action queue — match & assign in one click</p>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                <span>Today&apos;s Unfilled / At-Risk Shifts</span>
+                <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
+                  {shifts.length} Needs Attention
+                </span>
+              </h2>
+              <p className="text-[11px] sm:text-xs text-slate-500">Action queue — match & assign manually or auto-fill all</p>
+            </div>
           </div>
+          {onAutoFillAll && shifts.length > 0 && (
+            <button
+              type="button"
+              onClick={onAutoFillAll}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[36px] rounded-xl bg-[#141D3C] hover:bg-[#1E2B58] text-white text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#57EAB6]" />
+              <span>Smart Auto-Fill All</span>
+            </button>
+          )}
         </div>
-      </div>
 
       {shifts.length === 0 ? (
         <motion.div

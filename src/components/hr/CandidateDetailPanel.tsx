@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Candidate, CandidateStage, IntegrationCheckStatus } from "@/types/hr";
 import clsx from "clsx";
+import { toast } from "sonner";
 
 interface CandidateDetailPanelProps {
   candidate: Candidate;
@@ -47,10 +48,13 @@ export function CandidateDetailPanel({ candidate, isOpen, onClose, onUpdateCandi
 
   const handleStageChange = (newStage: CandidateStage) => {
     if (newStage === "Hired" && isHireBlocked) {
-      alert("Hiring Gated: Candidate has pending compliance or background check flags preventing hire.");
+      toast.error("Hiring Gated: Candidate has pending compliance or background check flags preventing hire.");
       return;
     }
     onUpdateCandidate({ ...candidate, stage: newStage });
+    if (newStage === "Hired") {
+      toast.success(`${candidate.name} hired and promoted to active Dispatch roster!`);
+    }
   };
 
   const handleAddNote = (e: React.FormEvent) => {

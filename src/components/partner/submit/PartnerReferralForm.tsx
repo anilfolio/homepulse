@@ -4,13 +4,31 @@ import React, { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
 import { Send, CheckCircle2, Building2, User, Phone, Mail, AlertTriangle, FileText } from "lucide-react";
+import { toast } from "sonner";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+
+const SERVICE_LABEL_MAP: Record<string, string> = {
+  "post-op": "Post-operative Care",
+  dementia: "Memory / Dementia Care",
+  adl: "Daily Living Assistance (ADLs)",
+  companionship: "Companionship & Med Reminders",
+  other: "Custom Home Care",
+};
 
 export function PartnerReferralForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isUrgent = searchParams.get("urgent") === "true";
+  const isUrgentParam = searchParams.get("urgent") === "true";
+  const { submitPartnerReferral } = useAgencyStore();
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dob, setDob] = useState("");
+  const [phone, setPhone] = useState("");
+  const [serviceCode, setServiceCode] = useState("");
+  const [urgentChecked, setUrgentChecked] = useState(isUrgentParam);
+  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -21,16 +39,26 @@ export function PartnerReferralForm() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate network request
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
+    const created = submitPartnerReferral({
+      firstName,
+      lastName,
+      dob,
+      phone,
+      serviceRequested: SERVICE_LABEL_MAP[serviceCode] || serviceCode || "Home Care Services",
+      isUrgent: isUrgentParam || urgentChecked,
+      notes,
+      submittingMember: activeMember.name,
+      partnerOrgName: mockOrganization.name,
+      attachmentName: file?.name,
+    });
 
-      // Redirect back to dashboard after a delay
-      setTimeout(() => {
-        router.push("/partner");
-      }, 2000);
-    }, 1500);
+    setIsSubmitting(false);
+    setIsSuccess(true);
+    toast.success(`Referral ${created.id} sent to HomePulse Intake Queue`);
+
+    setTimeout(() => {
+      router.push("/partner");
+    }, 1200);
   };
 
   if (isSuccess) {
@@ -56,7 +84,7 @@ export function PartnerReferralForm() {
             <h2 className="font-semibold text-slate-800 text-lg">New Referral</h2>
             <p className="text-xs text-slate-500">Securely submit patient information to HomePulse.</p>
           </div>
-          {isUrgent && (
+          { (isUrgentParam || urgentChecked) && (
             <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg border border-red-200">
               <AlertTriangle className="w-4 h-4" />
               <span className="text-sm font-medium">Urgent Discharge (24-48h)</span>
@@ -100,19 +128,44 @@ export function PartnerReferralForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
-                <input type="text" required className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors" placeholder="Patient's first name" />
+                <input
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors"
+                  placeholder="Patient's first name"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
-                <input type="text" required className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors" placeholder="Patient's last name" />
+                <input
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors"
+                  placeholder="Patient's last name"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
-                <input type="date" className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors text-slate-600" />
+                <input
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors text-slate-600"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Patient Phone</label>
-                <input type="tel" className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors" placeholder="(555) 000-0000" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors"
+                  placeholder="(555) 000-0000"
+                />
               </div>
             </div>
           </section>
@@ -123,7 +176,12 @@ export function PartnerReferralForm() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Primary Reason for Referral *</label>
-                <select required className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors bg-white text-slate-700">
+                <select
+                  required
+                  value={serviceCode}
+                  onChange={(e) => setServiceCode(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors bg-white text-slate-700"
+                >
                   <option value="">Select primary need...</option>
                   <option value="post-op">Post-operative Care</option>
                   <option value="dementia">Memory/Dementia Care</option>
@@ -133,10 +191,15 @@ export function PartnerReferralForm() {
                 </select>
               </div>
 
-              {!isUrgent && (
+              {!isUrgentParam && (
                 <div>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="rounded text-brand-teal focus:ring-brand-teal border-slate-300 w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={urgentChecked}
+                      onChange={(e) => setUrgentChecked(e.target.checked)}
+                      className="rounded text-brand-teal focus:ring-brand-teal border-slate-300 w-4 h-4 cursor-pointer"
+                    />
                     <span className="text-sm font-medium text-slate-700">Mark as Urgent (Discharging within 24-48 hours)</span>
                   </label>
                 </div>
@@ -144,7 +207,13 @@ export function PartnerReferralForm() {
               <hr className="border-slate-200" />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
-                <textarea rows={4} className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors resize-none" placeholder="Include any relevant medical context, discharge instructions, or specific family requests..."></textarea>
+                <textarea
+                  rows={4}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] focus:border-brand-teal focus:ring-brand-teal text-sm py-2 px-3 border outline-none transition-colors resize-none"
+                  placeholder="Include any relevant medical context, discharge instructions, or specific family requests..."
+                ></textarea>
               </div>
 
               {/* File Upload */}

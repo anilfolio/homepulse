@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, AlertTriangle, FileText, CheckCircle2, Copy, Activity, MapPin, Loader2, Building2, Globe, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Activity, MapPin, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import { Referral, ReferralStage } from "./types";
-import { initialReferrals } from "./MockData";
 import { ReferralDetailPanel } from './ReferralDetailPanel';
 import { ReferralListView } from "./ReferralListView";
 import { ReferralTaskView } from "./ReferralTaskView";
@@ -82,17 +83,19 @@ function ReferralCard({ referral, onClick, onDragStart }: ReferralCardProps) {
   const docs = calculateDocsCompleteness(referral.documents);
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ scale: 1.02 }}
+    <div
       draggable
-      onDragStart={(e: any) => onDragStart(e, referral.id)}
+      onDragStart={(e) => onDragStart(e, referral.id)}
       onClick={() => onClick(referral)}
-      className="bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden cursor-pointer select-none mb-3"
     >
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        whileHover={{ scale: 1.02 }}
+        className="bg-white backdrop-blur-xl rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden cursor-pointer select-none mb-3"
+      >
       <div className="flex justify-between items-start mb-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -210,7 +213,8 @@ function ReferralCard({ referral, onClick, onDragStart }: ReferralCardProps) {
           <span className="text-[10px] font-medium text-red-600">Action Overdue</span>
         )}
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -221,9 +225,10 @@ interface PipelineBoardProps {
 }
 
 export function PipelineBoard({ viewMode, referrals, setReferrals }: PipelineBoardProps) {
+  const { admitReferralToActiveCare, scheduleReferralAssessment } = useAgencyStore();
   const [segment, setSegment] = useState<"All" | "Referral" | "Inquiry">("All");
   const [activeReferral, setActiveReferral] = useState<Referral | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [, setDraggedId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<ReferralStage | null>(null);
 
   const [handoffModalOpen, setHandoffModalOpen] = useState(false);
@@ -269,7 +274,7 @@ export function PipelineBoard({ viewMode, referrals, setReferrals }: PipelineBoa
 
       if (ref.workflowType === "Referral" && stage === "Eligibility Confirmed") {
         if (ref.clinicalReviewStatus === "Pending" || ref.clinicalReviewStatus === "Denied") {
-          alert("Cannot move to Eligibility Confirmed: Clinical Review must be Approved");
+          toast.error("Cannot move to Eligibility Confirmed: Clinical Review must be Approved.");
           setDraggedId(null);
           setDragOverStage(null);
           return;
@@ -310,32 +315,25 @@ export function PipelineBoard({ viewMode, referrals, setReferrals }: PipelineBoa
 
   const confirmAdmit = () => {
     if (pendingAdmitReferral) {
-      setReferrals(prev => prev.map(ref => {
-        if (ref.id === pendingAdmitReferral.id) {
-          return { ...ref, stage: "Admitted", daysInStage: 0 };
-        }
-        return ref;
-      }));
+      const admitted = admitReferralToActiveCare(pendingAdmitReferral.id);
       setHandoffModalOpen(false);
       setPendingAdmitReferral(null);
-      // In a real app, redirect to /patients/[id] or show a success toast here
+      if (admitted) {
+        toast.success(`${admitted.name} admitted! Care Plan queued for Clinical RN & open shift created in Scheduler.`);
+      }
     }
   };
 
   const confirmAssessment = (rnName: string) => {
     if (pendingAssessmentRef) {
-      setReferrals(prev => prev.map(ref => {
-        if (ref.id === pendingAssessmentRef.id) {
-          return { ...ref, stage: "Initial Assessment Scheduled", daysInStage: 0, assessment: { assignedAssessor: rnName, status: "Pending" } };
-        }
-        return ref;
-      }));
+      scheduleReferralAssessment(pendingAssessmentRef.id, rnName);
       setAssessmentModalOpen(false);
       setPendingAssessmentRef(null);
+      toast.success(`Initial RN assessment assigned to ${rnName} & Partner portal updated.`);
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleDragLeave = () => {
     setDragOverStage(null);
   };
 

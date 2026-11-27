@@ -23,7 +23,7 @@ import { Avatar } from "@/components/ui/Avatar";
 interface ClockInOutCardProps {
   visit: Visit;
   isClockedIn: boolean;
-  onClockIn: (method: "gps" | "ivr" | "fvv", reason?: string) => void;
+  onClockIn: (method: "gps" | "ivr" | "fvv", reason?: string, distanceMeters?: number) => void;
   onClockOutClick: () => void;
 }
 
@@ -83,7 +83,8 @@ export function ClockInOutCard({
     setTimeout(() => {
       setIsVerifying(false);
       setShowFVVForm(false);
-      onClockIn("fvv", `${fvvReason}: ${fvvNotes || "No extra note"}`);
+      const meters = Math.round(distanceMiles * 1609.34);
+      onClockIn("fvv", `${fvvReason}: ${fvvNotes || "No extra note"}`, meters);
     }, 700);
   };
 
@@ -92,7 +93,7 @@ export function ClockInOutCard({
     setTimeout(() => {
       setIsVerifying(false);
       setShowIVRModal(false);
-      onClockIn("ivr", "Telephony IVR call verification from client landline");
+      onClockIn("ivr", "Telephony IVR call verification from client landline", 15);
     }, 900);
   };
 
@@ -255,7 +256,7 @@ export function ClockInOutCard({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
-                onClick={() => onClockIn("gps")}
+                onClick={() => onClockIn("gps", undefined, Math.round(distanceMiles * 1609.34))}
                 disabled={geoStatus === "out_of_radius"}
                 className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-md transition-all ${geoStatus === "out_of_radius"
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
@@ -265,6 +266,22 @@ export function ClockInOutCard({
                 <Play className="w-4 h-4 fill-white" />
                 <span>Clock In Now (GPS Verified)</span>
               </button>
+              {geoStatus === "out_of_radius" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onClockIn(
+                      "gps",
+                      "Out-of-radius GPS capture flagged for EVV review",
+                      Math.max(185, Math.round(distanceMiles * 1609.34))
+                    )
+                  }
+                  className="px-4 py-3.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span>Clock In (Flag Exception)</span>
+                </button>
+              )}
 
               {/* Fallback Buttons */}
               <div className="flex items-center gap-2 shrink-0">

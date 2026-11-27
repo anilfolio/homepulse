@@ -1,21 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, ShieldAlert } from "lucide-react";
+import React from "react";
+import { CheckCircle, Clock, ShieldAlert } from "lucide-react";
 import { RestrictedIncident } from "@/lib/mock-data/compliance-dashboard";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface Props {
   incidents: RestrictedIncident[];
 }
 
-export function RestrictedIncidentQueue({ incidents: initialIncidents }: Props) {
-  const [incidents, setIncidents] = useState(initialIncidents);
+export function RestrictedIncidentQueue({ incidents }: Props) {
+  const { resolveRestrictedIncident } = useAgencyStore();
 
-  const handleAction = (id: string, actionName: string) => {
-    setIncidents(prev => prev.filter(inc => inc.id !== id));
-    toast.success(`Incident ${id} ${actionName} successfully`);
+  const handleAction = (id: string, action: "acknowledge" | "resolve") => {
+    resolveRestrictedIncident(id, action);
+    toast.success(
+      `Incident ${id} ${action === "resolve" ? "resolved & closed" : "acknowledged for investigation"}`
+    );
   };
 
   return (
@@ -85,13 +88,13 @@ export function RestrictedIncidentQueue({ incidents: initialIncidents }: Props) 
 
                 <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => handleAction(incident.id, "acknowledged")}
+                    onClick={() => handleAction(incident.id, "acknowledge")}
                     className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-full hover:bg-slate-50 transition-colors cursor-pointer active:scale-95"
                   >
                     Acknowledge
                   </button>
                   <button
-                    onClick={() => handleAction(incident.id, "resolved & closed")}
+                    onClick={() => handleAction(incident.id, "resolve")}
                     className="px-3 py-1.5 text-xs font-semibold text-white bg-brand-teal rounded-full hover:bg-brand-teal/90 transition-colors cursor-pointer active:scale-95"
                   >
                     Resolve & Close

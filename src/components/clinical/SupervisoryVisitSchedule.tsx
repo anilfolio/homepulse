@@ -1,57 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Calendar, Clock, MapPin, CheckCircle2, Navigation, AlertTriangle } from "lucide-react";
+import { UserPlus, Clock, MapPin, CheckCircle2, Navigation, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
-
-export interface SupervisoryVisit {
-  id: string;
-  clientName: string;
-  clientId: string;
-  assignedRn: string;
-  dueDate: string; // ISO string
-  visitType: "initial_30" | "periodic_60" | "annual_unannounced" | "post_incident";
-  status: "scheduled" | "overdue" | "pending_scheduling";
-  location: string;
-}
-
-const mockVisits: SupervisoryVisit[] = [
-  {
-    id: "sv-1",
-    clientName: "Eleanor Ruth Whitfield",
-    clientId: "c-1",
-    assignedRn: "Rachel Miller, RN",
-    dueDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(), // 1 day overdue
-    visitType: "periodic_60",
-    status: "overdue",
-    location: "Home (123 Main St)",
-  },
-  {
-    id: "sv-2",
-    clientName: "Arthur Pendelton",
-    clientId: "c-2",
-    assignedRn: "Rachel Miller, RN",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(), // In 2 days
-    visitType: "initial_30",
-    status: "scheduled",
-    location: "Home (456 Oak Ln)",
-  },
-  {
-    id: "sv-3",
-    clientName: "Margaret Chen",
-    clientId: "c-1",
-    assignedRn: "Unassigned",
-    dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(), // In 14 days
-    visitType: "annual_unannounced",
-    status: "pending_scheduling",
-    location: "Assisted Living (789 Pine Rd)",
-  },
-];
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function SupervisoryVisitSchedule() {
-  const [items, setItems] = useState<SupervisoryVisit[]>(mockVisits);
+  const { state } = useAgencyStore();
+  const items = state.supervisoryVisits.filter((v) => v.status !== "completed");
 
   const getStatusStyles = (status: string) => {
     switch (status) {

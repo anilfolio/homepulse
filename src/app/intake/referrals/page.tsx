@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ListFilter, Kanban, CheckSquare } from "lucide-react";
+import { Plus, ListFilter, Kanban, CheckSquare, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { KpiCardsRow } from "@/components/referrals/KpiCardsRow";
 import { PipelineBoard } from "@/components/referrals/PipelineBoard";
@@ -10,8 +11,8 @@ import { SourcePerformanceChart } from "@/components/referrals/SourcePerformance
 import { OnlineReferralQueue } from "@/components/referrals/OnlineReferralQueue";
 import { RecentlyDeclinedList } from "@/components/referrals/RecentlyDeclinedList";
 import { useRouter } from "next/navigation";
-import { initialReferrals } from "@/components/referrals/MockData";
 import { Referral } from "@/components/referrals/types";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const container = {
   hidden: { opacity: 0 },
@@ -34,10 +35,29 @@ export default function IntakeReferralsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("pipeline");
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [referrals, setReferrals] = useState<Referral[]>(initialReferrals);
+  const { state, updateReferral, autoTriagePendingReferrals } = useAgencyStore();
+  const referrals = state.referrals;
 
-  const handleAddReferral = (newReferral: Referral) => {
-    setReferrals(prev => [newReferral, ...prev]);
+  const setReferrals: React.Dispatch<React.SetStateAction<Referral[]>> = (updater) => {
+    const nextList = typeof updater === "function" ? updater(referrals) : updater;
+    nextList.forEach((nextItem) => {
+      const prevItem = referrals.find((p) => p.id === nextItem.id);
+      if (prevItem && JSON.stringify(prevItem) !== JSON.stringify(nextItem)) {
+        updateReferral({
+          ...prevItem,
+          ...nextItem,
+        });
+      }
+    });
+  };
+
+  const handleAutoTriage = () => {
+    const count = autoTriagePendingReferrals();
+    if (count > 0) {
+      toast.success(`AI Triage verified 270/271 eligibility & routed ${count} referral(s) to Clinical Review.`);
+    } else {
+      toast.info("No pending referrals awaiting initial eligibility triage.");
+    }
   };
 
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -62,6 +82,15 @@ export default function IntakeReferralsPage() {
           <p className="text-xs text-text-secondary mt-1">Manage incoming inquiries and admissions</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleAutoTriage}
+            className="inline-flex items-center gap-2 bg-[#141D3C] hover:bg-[#1E2B58] text-white px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-[#57EAB6]" />
+            Auto-Triage &amp; Verify
+          </button>
+
           {/* View Toggles */}
           <div className="flex items-center gap-2 bg-white p-1 rounded-full border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)]">
             <button
