@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Play, Pause, Save, Square, AlertCircle, CheckCircle2, AlertTriangle, FileText, Upload, Video, ArrowLeft } from "lucide-react";
+import { Mic, Play, Pause, Save, Square, CheckCircle2, ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { ComprehensiveCarePlanForm } from "./ComprehensiveCarePlanForm";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 type ConfidenceLevel = "high" | "review" | "missing";
 
@@ -13,17 +15,24 @@ interface TranscriptSegment {
   text: string;
   timestamp: string;
   confidence: ConfidenceLevel;
-  fieldId?: string; // Maps to a field in the form
+  fieldId?: string;
 }
 
-const initialMockTranscript: TranscriptSegment[] = [
-  { id: "t1", timestamp: "00:12", text: "Patient is Evelyn Harper.", confidence: "high", fieldId: "id-fullname" },
-  { id: "t2", timestamp: "00:15", text: "Date of birth is April 12, 1952.", confidence: "high", fieldId: "id-dob" },
-  { id: "t3", timestamp: "01:05", text: "Patient reports difficulty dressing lower extremities due to right hip stiffness.", confidence: "review", fieldId: "adls-dressing" },
-  { id: "t4", timestamp: "01:42", text: "Requires assistance with bathing from one person.", confidence: "review", fieldId: "adls-bathing" },
-  { id: "t5", timestamp: "02:15", text: "She is at high risk for falls, Morse score is 65.", confidence: "high", fieldId: "safety-falls" },
-  { id: "t6", timestamp: "03:10", text: "Currently taking Lisinopril 10mg daily for hypertension.", confidence: "high", fieldId: "meds-1" },
+const HYBRID_WAVEFORM_BARS = [
+  28, 52, 74, 40, 88, 62, 45, 92, 68, 36, 80, 56, 70, 32, 95, 60, 48, 84, 54, 72,
+  38, 90, 64, 44, 76, 50, 86, 58, 66, 34, 82, 46, 94, 52, 78, 40, 88, 60, 70, 48,
 ];
+
+function buildTranscriptSegments(clientName: string, fallRisk: string): TranscriptSegment[] {
+  return [
+    { id: "t1", timestamp: "00:12", text: `Patient is ${clientName}.`, confidence: "high", fieldId: "id-fullname" },
+    { id: "t2", timestamp: "00:15", text: "Verified demographic baseline and insurance eligibility.", confidence: "high", fieldId: "id-dob" },
+    { id: "t3", timestamp: "01:05", text: "Patient reports difficulty dressing lower extremities due to joint stiffness.", confidence: "review", fieldId: "adls-dressing" },
+    { id: "t4", timestamp: "01:42", text: "Requires assist of one person with bathing and safe transfers.", confidence: "review", fieldId: "adls-bathing" },
+    { id: "t5", timestamp: "02:15", text: `Fall risk assessment evaluated as ${fallRisk} risk; safety rails verified.`, confidence: "high", fieldId: "safety-falls" },
+    { id: "t6", timestamp: "03:10", text: "Reviewed active medication reminders and adherence log.", confidence: "high", fieldId: "meds-1" },
+  ];
+}
 
 interface HybridWorkspaceProps {
   patientId: string;
@@ -34,11 +43,24 @@ interface HybridWorkspaceProps {
 }
 
 export function HybridCarePlanWorkspace({ patientId, templateId, initialMode, onComplete, onBack }: HybridWorkspaceProps) {
+  const { getClientById, logAuditEvent } = useAgencyStore();
+  const client = getClientById(patientId);
+  const clientName = client?.name ?? "Assigned Client";
+  const initials = clientName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
   const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
-  const [isTranscriptOpen, setIsTranscriptOpen] = useState(initialMode !== "manual");
-  const [transcript, setTranscript] = useState<TranscriptSegment[]>(initialMockTranscript);
+  const [isTranscriptOpen] = useState(initialMode !== "manual");
+  const [transcript, setTranscript] = useState<TranscriptSegment[]>(() =>
+    buildTranscriptSegments(clientName, client?.fallRiskLevel ?? "High")
+  );
   const [isRecordingNote, setIsRecordingNote] = useState(false);
 
   // Handlers for bidirectional hover
@@ -80,12 +102,12 @@ export function HybridCarePlanWorkspace({ patientId, templateId, initialMode, on
       <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10 shrink-0">
         <div className="flex items-center gap-3 md:gap-4">
           <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold tracking-wider shrink-0">
-            EH
+            {initials || "CL"}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-bold text-slate-900 leading-tight truncate">Evelyn Harper</h2>
+            <h2 className="text-base font-bold text-slate-900 leading-tight truncate">{clientName}</h2>
             <p className="text-xs text-slate-500 mt-0.5 truncate">
-              DOB 04/12/1952 · Comprehensive Initial
+              {client?.mrn ?? patientId} · {templateId.toUpperCase()} Assessment
             </p>
           </div>
         </div>
@@ -109,7 +131,20 @@ export function HybridCarePlanWorkspace({ patientId, templateId, initialMode, on
                 <ArrowLeft className="w-4 h-4 text-slate-500" /> <span className="hidden sm:inline">Back</span>
               </button>
             )}
-            <button className="px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-[0_6px_32px_rgba(239,68,68,0.04)] flex items-center justify-center gap-1.5 flex-1 md:flex-none">
+            <button
+              type="button"
+              onClick={() => {
+                logAuditEvent({
+                  action: "UPDATE",
+                  resourceType: "CarePlan",
+                  resourceId: client?.id ?? patientId,
+                  summary: `Saved draft care plan transcript workspace for ${clientName}.`,
+                  status: "Success",
+                });
+                toast.success("Care plan draft saved & audited");
+              }}
+              className="px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-[0_6px_32px_rgba(239,68,68,0.04)] flex items-center justify-center gap-1.5 flex-1 md:flex-none"
+            >
               <Save className="w-4 h-4 text-slate-500" /> <span className="hidden sm:inline">Save</span>
             </button>
             <button
@@ -153,13 +188,13 @@ export function HybridCarePlanWorkspace({ patientId, templateId, initialMode, on
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                   </button>
 
-                  {/* Simulated Waveform */}
+                  {/* Deterministic Audio Waveform */}
                   <div className="flex-1 flex items-center gap-0.5 h-6 opacity-70">
-                    {[...Array(40)].map((_, i) => (
+                    {HYBRID_WAVEFORM_BARS.map((height, i) => (
                       <div
                         key={i}
                         className="flex-1 bg-brand-teal rounded-full"
-                        style={{ height: `${Math.max(20, Math.random() * 100)}%` }}
+                        style={{ height: `${height}%` }}
                       />
                     ))}
                   </div>
@@ -194,7 +229,7 @@ export function HybridCarePlanWorkspace({ patientId, templateId, initialMode, on
                             "text-xs leading-relaxed",
                             isHovered ? "text-slate-900 font-medium" : "text-slate-600"
                           )}>
-                            "{segment.text}"
+                            &ldquo;{segment.text}&rdquo;
                           </p>
                         </div>
                       </div>

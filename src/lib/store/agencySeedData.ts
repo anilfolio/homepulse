@@ -1,4 +1,5 @@
 import { initialReferrals } from "@/components/referrals/MockData";
+import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
 import { mockStateDeadlines } from "@/lib/mock-data/compliance-dashboard";
 import { mockVerificationQueue } from "@/lib/mock-data/compliance";
 import { mockIncidents } from "@/lib/mockIncidentData";
@@ -10,14 +11,17 @@ import {
 import { INITIAL_TRAINING_COURSES } from "@/lib/caregiver/caregiverPortalData";
 import { mapStageToPartnerStatus, scoreReferralUrgency } from "@/lib/engine/intakeAutomation";
 import {
+  AgencyAuditLogEntry,
   AgencyCaregiver,
   AgencyCarePlanReview,
   AgencyClaim,
   AgencyClient,
   AgencyClinicalEscalation,
+  AgencyConversation,
   AgencyFieldFinding,
   AgencyLmsCourse,
   AgencyNotification,
+  AgencyPrivatePayInvoice,
   AgencyReferral,
   AgencyShiftVisit,
   AgencyStoreState,
@@ -763,6 +767,206 @@ export const INITIAL_FIELD_FINDINGS: AgencyFieldFinding[] = [
   },
 ];
 
+export const INITIAL_AUDIT_LOGS: AgencyAuditLogEntry[] = [
+  {
+    id: "aud-101",
+    timestampUtc: "2026-11-28T08:15:00.000Z",
+    actorName: "Rachel Miller, RN",
+    actorRole: "CLINICAL_SUPERVISOR_RN",
+    action: "CARE_PLAN_SYNC",
+    resourceType: "CarePlan",
+    resourceId: "cl-eleanor",
+    summary: "Care plan v2.1 synced to scheduled visits for Client ID cl-eleanor",
+    status: "Success",
+  },
+  {
+    id: "aud-102",
+    timestampUtc: "2026-11-28T09:04:00.000Z",
+    actorName: "Maria Santos, CNA",
+    actorRole: "CAREGIVER",
+    action: "EVV_OFFLINE_SYNC",
+    resourceType: "Visit",
+    resourceId: "EVV-2026-001",
+    summary: "GPS EVV clock-in verified within 18m geofence threshold",
+    status: "Success",
+  },
+  {
+    id: "aud-103",
+    timestampUtc: "2026-11-28T09:42:00.000Z",
+    actorName: "Billing Coordinator",
+    actorRole: "BILLING_FINANCE_STAFF",
+    action: "UPDATE",
+    resourceType: "Claim",
+    resourceId: "CLM-904",
+    summary: "Claim scrub gate evaluated; prior authorization verified",
+    status: "Success",
+  },
+  {
+    id: "aud-104",
+    timestampUtc: "2026-11-28T10:12:00.000Z",
+    actorName: "QA Compliance Officer",
+    actorRole: "QA_COMPLIANCE_OFFICER",
+    action: "VIEW_PHI",
+    resourceType: "Compliance",
+    resourceId: "INC-2026-01",
+    summary: "Restricted incident dossier inspected under PoLP policy",
+    status: "Success",
+  },
+];
+
+export const INITIAL_PRIVATE_PAY_INVOICES: AgencyPrivatePayInvoice[] = [
+  {
+    id: "INV-2026-1021",
+    clientId: "cl-eleanor",
+    clientName: "Eleanor Ruth Whitfield",
+    visitIds: ["sh-eleanor-01"],
+    visitCount: 2,
+    totalHours: 6,
+    amount: 228.0,
+    status: "Draft",
+    scheduledDateLabel: "Today, 5:00 PM",
+    createdAtIso: "2026-11-28T09:00:00.000Z",
+  },
+  {
+    id: "INV-2026-1020",
+    clientId: "cl-mabel",
+    clientName: "Mabel Ortiz",
+    visitIds: ["sh-mabel-01"],
+    visitCount: 3,
+    totalHours: 9,
+    amount: 342.0,
+    status: "Sent",
+    scheduledDateLabel: "Yesterday",
+    createdAtIso: "2026-11-27T17:00:00.000Z",
+  },
+];
+
+export const INITIAL_CONVERSATIONS: AgencyConversation[] = [
+  {
+    id: "conv-eleanor-care",
+    categoryId: "Care Team Channels",
+    title: "Eleanor Whitfield — Care Team",
+    participantRole: "Caregiver • Clinical RN • Family",
+    participantStatus: "online",
+    phoneMasked: "(•••) •••-0194",
+    preferredLanguage: "English",
+    linkedRecord: {
+      id: "cl-eleanor",
+      type: "Client",
+      label: "Client Chart • cl-eleanor",
+      route: "/patients/cl-eleanor",
+    },
+    unreadCount: 1,
+    isUrgent: false,
+    messages: [
+      {
+        id: "msg-101",
+        conversationId: "conv-eleanor-care",
+        senderName: "Maria Santos, CNA",
+        senderRole: "CAREGIVER",
+        content: "Morning mobility assist & meal prep completed. Client tolerated ambulation well with walker.",
+        timestampLabel: "09:15 AM",
+        channelMode: "in-app",
+        isInternalNote: true,
+        deliveryStatus: "read",
+      },
+      {
+        id: "msg-102",
+        conversationId: "conv-eleanor-care",
+        senderName: "Rachel Miller, RN",
+        senderRole: "CLINICAL_SUPERVISOR_RN",
+        content: "Great update. Keep shower chair safety check active for afternoon visit.",
+        timestampLabel: "09:24 AM",
+        channelMode: "in-app",
+        isInternalNote: true,
+        deliveryStatus: "read",
+      },
+    ],
+  },
+  {
+    id: "conv-family-ortiz",
+    categoryId: "Family Members",
+    title: "Carlos Ortiz (Family Guardian)",
+    participantRole: "Authorized Guardian • Mabel Ortiz",
+    participantStatus: "online",
+    phoneMasked: "(•••) •••-4418",
+    preferredLanguage: "Spanish",
+    linkedRecord: {
+      id: "cl-mabel",
+      type: "Visit",
+      label: "Today's Visit Schedule",
+      route: "/portal/visits",
+    },
+    unreadCount: 1,
+    isUrgent: false,
+    messages: [
+      {
+        id: "msg-201",
+        conversationId: "conv-family-ortiz",
+        senderName: "Carlos Ortiz",
+        senderRole: "FAMILY",
+        content: "Can you confirm when the caregiver arrives for Mom's afternoon Hoyer transfer?",
+        timestampLabel: "10:02 AM",
+        channelMode: "sms",
+        isInternalNote: false,
+        deliveryStatus: "read",
+      },
+    ],
+  },
+  {
+    id: "conv-billing-ops",
+    categoryId: "Staff & Caregivers",
+    title: "Dispatch & Billing Escalation",
+    participantRole: "Scheduler • Billing EVV Ops",
+    participantStatus: "away",
+    phoneMasked: "(•••) •••-8810",
+    linkedRecord: {
+      id: "evv-hold",
+      type: "Claim",
+      label: "EVV Monitoring & Scrub Gate",
+      route: "/evv-monitoring",
+    },
+    unreadCount: 0,
+    isUrgent: true,
+    messages: [
+      {
+        id: "msg-301",
+        conversationId: "conv-billing-ops",
+        senderName: "Billing Coordinator",
+        senderRole: "BILLING_FINANCE_STAFF",
+        content: "1 EVV geofence exception is holding claim release. Please verify supervisor attestation.",
+        timestampLabel: "10:30 AM",
+        channelMode: "in-app",
+        isInternalNote: true,
+        deliveryStatus: "delivered",
+      },
+    ],
+  },
+  {
+    id: "conv-agency-announce",
+    categoryId: "Announcements",
+    title: "Agency Compliance & EVV Update",
+    participantRole: "QA Compliance Broadcast",
+    participantStatus: "online",
+    phoneMasked: "All Active Staff",
+    unreadCount: 0,
+    isUrgent: false,
+    messages: [
+      {
+        id: "msg-401",
+        conversationId: "conv-agency-announce",
+        senderName: "QA Compliance Officer",
+        senderRole: "QA_COMPLIANCE_OFFICER",
+        content: "Reminder: Offline HMAC EVV sync is active for low-signal zones. Always capture client signature before clock-out.",
+        timestampLabel: "Yesterday",
+        channelMode: "in-app",
+        isInternalNote: false,
+        deliveryStatus: "read",
+      },
+    ],
+  },
+];
+
 export function buildInitialAgencyStoreState(): AgencyStoreState {
   return {
     caregivers: INITIAL_AGENCY_CAREGIVERS,
@@ -782,6 +986,12 @@ export function buildInitialAgencyStoreState(): AgencyStoreState {
     credentialWatchlist: initialCredentialWatchlist,
     lmsCourses: INITIAL_LMS_COURSES,
     fieldFindings: INITIAL_FIELD_FINDINGS,
+    auditLogs: INITIAL_AUDIT_LOGS,
+    offlineEvvQueue: [],
+    invoices: INITIAL_PRIVATE_PAY_INVOICES,
+    conversations: INITIAL_CONVERSATIONS,
+    partnerOrg: mockOrganization,
+    partnerTeamMembers: mockTeamMembers,
     lastUpdatedAt: new Date().toISOString(),
   };
 }

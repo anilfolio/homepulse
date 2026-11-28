@@ -16,13 +16,28 @@ import {
   mockScheduledReports,
   ReportDefinition
 } from "@/lib/reports-mock-data";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { computeSurveyReadiness } from "@/lib/engine/predictiveOpsEngine";
 
 const categories: ReportCategory[] = ["Compliance", "Clinical", "HR", "Scheduling", "Financial", "Custom Reports"];
 
 export default function ComplianceReportsPage() {
+  const { state, logAuditEvent } = useAgencyStore();
+  const readiness = computeSurveyReadiness(state);
   // Default to Compliance category for this role
   const [activeCategory, setActiveCategory] = useState<ReportCategory>("Compliance");
   const [activeReport, setActiveReport] = useState<ReportDefinition | null>(null);
+
+  const handleViewReport = (r: ReportDefinition) => {
+    logAuditEvent({
+      action: "EXPORT",
+      resourceType: "Compliance",
+      resourceId: r.id,
+      summary: `Opened Compliance Report: ${r.title} (${readiness.overallScore}% readiness snapshot).`,
+      status: "Success",
+    });
+    setActiveReport(r);
+  };
 
   // Filter reports for the active category
   const categoryReports = allPrebuiltReports.filter(r => r.category === activeCategory);
@@ -68,7 +83,7 @@ export default function ComplianceReportsPage() {
                 <ReportCard
                   key={report.id}
                   report={report}
-                  onView={(r) => setActiveReport(r)}
+                  onView={handleViewReport}
                 />
               ))}
               {categoryReports.length === 0 && (

@@ -1,77 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  History,
-  Mail,
-  MessageCircle,
-  Clock,
-  CheckCircle2
-} from "lucide-react";
-import { Card } from "@/components/ui/Card";
-import { cn } from "@/components/ui/Card";
-
-interface FollowUpLead {
-  id: string;
-  patientId: string;
-  name: string;
-  lastContact: string;
-  daysStale: number;
-  note: string;
-}
-
-const initialFollowUps: FollowUpLead[] = [
-  {
-    id: "lead-201",
-    patientId: "c-1",
-    name: "James Wilson (Family: Sarah)",
-    lastContact: "Last Tuesday",
-    daysStale: 6,
-    note: "Comparing agencies, waiting on pricing confirmation."
-  },
-  {
-    id: "lead-202",
-    patientId: "c-2",
-    name: "Thomas Anderson",
-    lastContact: "Yesterday",
-    daysStale: 1,
-    note: "Left voicemail, try again morning."
-  },
-  {
-    id: "lead-203",
-    patientId: "c-1",
-    name: "Nancy Davis",
-    lastContact: "3 days ago",
-    daysStale: 3,
-    note: "Decision maker (son) was out of town until today."
-  },
-];
+import { History, Mail, MessageCircle, Clock, CheckCircle2 } from "lucide-react";
+import { Card, cn } from "@/components/ui/Card";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function FollowUpQueue() {
   const router = useRouter();
-  const sortLeads = (leads: FollowUpLead[]) => {
-    return [...leads].sort((a, b) => b.daysStale - a.daysStale);
-  };
-
-  const [leads, setLeads] = useState<FollowUpLead[]>(sortLeads(initialFollowUps));
+  const { state, updateReferral, logAuditEvent } = useAgencyStore();
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
-  const handleAction = (id: string, actionType: 'email' | 'sms') => {
-    const lead = leads.find(l => l.id === id);
-    if (!lead) return;
+  const followUpLeads = useMemo(() => {
+    return state.referrals
+      .filter(
+        (r) =>
+          r.stage !== "Admitted" &&
+          r.stage !== "Converted" &&
+          r.partnerStatus !== "Not a Fit" &&
+          r.partnerStatus !== "Referred Elsewhere" &&
+          !completedIds.has(r.id)
+      )
+      .sort((a, b) => b.daysInStage - a.daysInStage)
+      .slice(0, 5);
+  }, [state.referrals, completedIds]);
 
-    setCompletedIds((prev) => new Set(prev).add(id));
-    setTimeout(() => {
-      setLeads((prev) => prev.filter((l) => l.id !== id));
-      setCompletedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      router.push(`/intake/patients/${lead.patientId}`);
-    }, 800);
+  const handleFollowUp = (referralId: string, channel: "email" | "text") => {
+    const target = state.referrals.find((r) => r.id === referralId);
+    if (!target) return;
+
+    const nextIndex = target.communications.length + 1;
+    setCompletedIds((prev) => new Set(prev).add(referralId));
+    updateReferral({
+      ...target,
+      daysInStage: 0,
+      communications: [
+        {
+          id: `comm-${target.id}-${nextIndex}`,
+          timestamp: new Date().toISOString(),
+          author: "Intake Coordinator",
+          type: channel,
+          content: `Sent ${channel.toUpperCase()} follow-up to ${target.clientName} / ${target.referringParty}.`,
+        },
+        ...target.communications,
+      ],
+    });
+    logAuditEvent({
+      action: "MESSAGE_SENT",
+      resourceType: "Communication",
+      resourceId: referralId,
+      summary: `Intake sent ${channel.toUpperCase()} follow-up for referral ${referralId}.`,
+    });
+    toast.success(`Follow-up ${channel.toUpperCase()} logged for ${target.clientName}.`);
   };
 
   return (
@@ -83,16 +65,16 @@ export function FollowUpQueue() {
           </div>
           <div>
             <h3 className="font-semibold text-slate-900 text-sm">Follow-Up Queue</h3>
-            <p className="text-[11px] text-slate-500">Stale leads needing touches</p>
+            <p className="text-[11px] text-slate-500">Live referrals awaiting coordinator touch</p>
           </div>
         </div>
         <div className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-          {leads.length} Due
+          {followUpLeads.length} Due
         </div>
       </div>
       <div className="p-4 flex-1 overflow-y-auto">
         <AnimatePresence mode="popLayout">
-          {leads.length === 0 ? (
+          {followUpLeads.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -100,13 +82,11 @@ export function FollowUpQueue() {
               className="flex flex-col items-center justify-center h-40 text-slate-400"
             >
               <CheckCircle2 className="w-10 h-10 mb-3 text-emerald-400 opacity-50" />
-              <p className="text-sm font-medium">No leads need follow-up today.</p>
+              <p className="text-sm font-medium">All active referrals followed up today.</p>
             </motion.div>
           ) : (
-            leads.map((lead) => {
-              const isCompleting = completedIds.has(lead.id);
-              const isVeryStale = lead.daysStale > 3;
-
+            followUpLeads.map((lead) => {
+              const isVeryStale = lead.daysInStage >= 2 || lead.urgency === "High";
               return (
                 <motion.div
                   layout
@@ -115,61 +95,60 @@ export function FollowUpQueue() {
                   exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
                   key={lead.id}
                   className={cn(
-                    "mb-3 p-3.5 rounded-xl border transition-colors relative overflow-hidden",
+                    "mb-3 p-3.5 rounded-xl border transition-colors relative overflow-hidden cursor-pointer",
                     isVeryStale
-                      ? "bg-amber-50/40 border-amber-200 hover:border-amber-300 shadow-[0_6px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_32px_rgba(0,0,0,0.06)]"
-                      : "bg-white border-slate-200 hover:border-slate-300 shadow-[0_6px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_32px_rgba(0,0,0,0.06)]"
+                      ? "bg-amber-50/40 border-amber-200 hover:border-amber-300"
+                      : "bg-white border-slate-200 hover:border-slate-300"
                   )}
+                  onClick={() => router.push("/intake/referrals")}
                 >
-                  <AnimatePresence>
-                    {isCompleting && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute inset-0 z-10 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center gap-2 text-emerald-600 font-semibold text-sm"
-                      >
-                        <CheckCircle2 className="w-5 h-5" />
-                        Follow-up Logged
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
                   <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={cn("font-bold text-sm truncate",
-                          isVeryStale ? "text-amber-700 " : "text-slate-900  "
-                        )}>{lead.name}</span>
-                      </div>
-                      <div className={cn("text-xs text-slate-500 line-clamp-1 mb-2",
-                        isVeryStale ? "text-amber-700 " : "text-slate-600 "
-                      )}>
-                        {lead.note}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                          isVeryStale ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-600 border-slate-200"
-                        )}>
-                          <Clock className="w-3 h-3" />
-                          Last touch: {lead.lastContact}
+                        <span
+                          className={cn(
+                            "font-bold text-sm truncate",
+                            isVeryStale ? "text-amber-800" : "text-slate-900"
+                          )}
+                        >
+                          {lead.clientName}
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          {lead.stage}
                         </span>
                       </div>
+                      <div className="text-xs text-slate-600 line-clamp-1 mb-2">
+                        {lead.intakeNotes || lead.serviceRequested || "Awaiting coordinator action"}
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                          isVeryStale
+                            ? "bg-amber-100 text-amber-800 border-amber-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        )}
+                      >
+                        <Clock className="w-3 h-3" />
+                        {lead.daysInStage}d in stage • {lead.referringParty}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                    <div
+                      className="flex items-center gap-2 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        onClick={() => handleAction(lead.id, 'email')}
-                        disabled={isCompleting}
-                        className="flex-1 sm:flex-none flex items-center justify-center p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                        title="Send Email"
+                        type="button"
+                        onClick={() => handleFollowUp(lead.id, "email")}
+                        className="flex items-center justify-center p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg cursor-pointer"
+                        title="Log Email Follow-Up"
                       >
                         <Mail className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleAction(lead.id, 'sms')}
-                        disabled={isCompleting}
-                        className="flex-1 sm:flex-none flex items-center justify-center p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                        title="Send SMS"
+                        type="button"
+                        onClick={() => handleFollowUp(lead.id, "text")}
+                        className="flex items-center justify-center p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg cursor-pointer"
+                        title="Log SMS Follow-Up"
                       >
                         <MessageCircle className="w-4 h-4" />
                       </button>

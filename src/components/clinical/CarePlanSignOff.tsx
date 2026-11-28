@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 interface CarePlanSignOffProps {
+  patientId?: string;
+  patientName?: string;
   onComplete: () => void;
   onBack?: () => void;
 }
@@ -28,10 +30,13 @@ const SECTIONS = [
   "14. Care Team & Appointments"
 ];
 
-export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
-  const { state, completeCarePlanReview } = useAgencyStore();
+export function CarePlanSignOff({ patientId, patientName, onComplete, onBack }: CarePlanSignOffProps) {
+  const { state, completeCarePlanReview, syncCarePlanToClientVisits } = useAgencyStore();
   const [attested, setAttested] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const targetClient =
+    (patientId ? state.clients.find((c) => c.id === patientId) : undefined) ?? state.clients[0];
+  const displayName = patientName || targetClient?.name || "Assigned Client";
 
   if (isSuccess) {
     return (
@@ -42,7 +47,7 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
           </div>
           <h2 className="text-xl font-semibold text-slate-900 mb-2">Care plan finalized</h2>
           <p className="text-sm text-slate-600 mb-2">
-            Version 1.0 saved to Evelyn Harper&apos;s chart and locked for edits.
+            Care plan synced to {displayName}&apos;s chart and active caregiver visit checklists.
           </p>
           <p className="text-xs text-slate-400 mb-4">
             Signed by Rachel Miller, RN • 8/11/2026, 12:14:32 PM
@@ -124,7 +129,7 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
                 />
               </div>
               <span className="text-xs text-slate-700 leading-relaxed group-hover:text-slate-900 transition-colors">
-                I, Rachel Miller RN, confirm this care plan accurately reflects my clinical assessment of Evelyn Harper and is ready to be filed.
+                I, Rachel Miller RN, confirm this care plan accurately reflects my clinical assessment of {displayName} and is ready to be filed.
               </span>
             </label>
 
@@ -142,11 +147,30 @@ export function CarePlanSignOff({ onComplete, onBack }: CarePlanSignOffProps) {
             <button
               onClick={() => {
                 if (attested) {
-                  const firstPending = state.carePlanReviews.find((c) => c.status !== "completed");
-                  if (firstPending) {
-                    completeCarePlanReview(firstPending.id, "Rachel Miller, RN");
+                  const matchingPending =
+                    state.carePlanReviews.find(
+                      (c) => c.status !== "completed" && (!patientId || c.clientId === patientId)
+                    ) ?? state.carePlanReviews.find((c) => c.status !== "completed");
+                  if (matchingPending) {
+                    completeCarePlanReview(matchingPending.id, "Rachel Miller, RN");
                   }
-                  toast.success("Care plan finalized & signed by Rachel Miller, RN.");
+                  const syncClientId = patientId || matchingPending?.clientId || targetClient?.id;
+                  if (syncClientId) {
+                    syncCarePlanToClientVisits({
+                      clientId: syncClientId,
+                      goals: [
+                        "Zero fall incidents during care hours",
+                        "100% medication reminder adherence",
+                      ],
+                      taskTitles: [
+                        "RN Care Plan: Fall Prevention Ambulation Check",
+                        "RN Care Plan: Hydration & Nutrition Log",
+                      ],
+                      medicationReminders: ["Daily Medication Adherence Verify"],
+                      signedBy: "Rachel Miller, RN",
+                    });
+                  }
+                  toast.success(`Care plan finalized & synced to ${displayName}'s active caregiver visits.`);
                   setIsSuccess(true);
                 }
               }}

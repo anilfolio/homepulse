@@ -6,7 +6,6 @@ import { PartnerKpiStrip } from "@/components/partner/dashboard/PartnerKpiStrip"
 import { PartnerRecentReferrals } from "@/components/partner/dashboard/PartnerRecentReferrals";
 import { ReferralSubmitWidget } from "@/components/partner/dashboard/ReferralSubmitWidget";
 import { Bell, Building2 } from "lucide-react";
-import { mockOrganization } from "@/lib/partner/mockData";
 import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const containerVariants: Variants = {
@@ -32,6 +31,9 @@ export default function PartnerDashboard() {
   const pendingReviewCount = state.referrals.filter(
     (r) => r.partnerStatus === "Received" || r.partnerStatus === "Under Review"
   ).length;
+  const infoRequestedCount = state.referrals.filter(
+    (r) => r.partnerStatus === "Additional Info Requested"
+  ).length;
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -41,59 +43,67 @@ export default function PartnerDashboard() {
 
   return (
     <div className="w-full mx-auto space-y-4">
-      {/* Premium Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/80 backdrop-blur-xl p-4 rounded-2xl border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/80 backdrop-blur-xl p-4 rounded-2xl border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] transition-all duration-300 relative">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
-              Welcome back, {mockOrganization.name}
+              Welcome back, {state.partnerOrg.name}
             </h1>
-            <span className="inline-flex items-center gap-1 bg-brand-teal/10 text-brand-teal text-xs font-medium px-3 py-1 rounded-full border border-brand-teal/20 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <span className="inline-flex items-center gap-1 bg-brand-teal/10 text-brand-teal text-xs font-medium px-3 py-1 rounded-full border border-brand-teal/20">
               <Building2 className="w-3.5 h-3.5" />
-              Referral Partner
+              {state.partnerOrg.type}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-2 font-regular flex-wrap">
+          <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-2 flex-wrap">
             <span>{today}</span>
             <span>&bull;</span>
-            <span><span className="text-brand-teal font-semibold">{activeCount} active</span> referrals</span>
+            <span>
+              <span className="text-brand-teal font-semibold">{activeCount} active</span> referrals
+            </span>
             <span>&bull;</span>
-            <span><span className="text-indigo-600 font-semibold">{pendingReviewCount} pending</span> review</span>
+            <span>
+              <span className="text-indigo-600 font-semibold">{pendingReviewCount} pending</span> review
+            </span>
+            {infoRequestedCount > 0 && (
+              <>
+                <span>&bull;</span>
+                <span className="text-amber-600 font-semibold">
+                  {infoRequestedCount} info requested
+                </span>
+              </>
+            )}
           </p>
         </div>
       </div>
 
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
-        {/* Row 1: KPI Strip */}
         <motion.div variants={itemVariants}>
           <PartnerKpiStrip />
         </motion.div>
 
-        {/* Row 2: Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-          {/* Left Column (2/3 width) - Recent Referrals */}
           <motion.div variants={itemVariants} className="lg:col-span-2 flex flex-col h-full">
             <PartnerRecentReferrals />
           </motion.div>
 
-          {/* Right Column (1/3 width) - Submit Widget & Updates */}
           <div className="lg:col-span-1 flex flex-col gap-4">
             <motion.div variants={itemVariants}>
               <ReferralSubmitWidget />
             </motion.div>
 
-            {/* Agency Updates */}
-            <motion.div variants={itemVariants} className="bg-gradient-to-br from-[#0e354a] to-slate-900 rounded-2xl p-4 text-white shadow-[0_6px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)] hover:border-brand-teal/60 transition-all duration-300 relative overflow-hidden flex-1">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-brand-teal/20 rounded-bl-full -z-0" />
+            <motion.div
+              variants={itemVariants}
+              className="bg-gradient-to-br from-[#141D3C] to-[#0E152E] rounded-2xl p-4 text-white shadow-[0_6px_32px_rgba(0,0,0,0.06)] border border-[#2A3B75] relative overflow-hidden flex-1"
+            >
               <div className="relative z-10 flex items-center gap-2 mb-3">
-                <Bell className="w-5 h-5 text-brand-teal" />
-                <h3 className="font-semibold text-lg">Agency Updates</h3>
+                <Bell className="w-5 h-5 text-[#57EAB6]" />
+                <h3 className="font-semibold text-base">Live Agency Intake Sync</h3>
               </div>
-              <p className="text-xs text-slate-300 mb-3 lg:mb-4 leading-relaxed">
-                We&apos;ve recently expanded our service area to include the North County region. You can now refer patients in zip codes starting with 902xx.
+              <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+                {state.clients.length} active client(s) admitted across service zones. Urgent 24–48h hospital discharges are auto-triaged to Clinical RN review within 15 minutes.
               </p>
-              <div className="text-xs font-medium text-brand-teal">
-                Posted 2 days ago
+              <div className="text-xs font-semibold text-[#57EAB6]">
+                Primary Contact: {state.partnerOrg.primaryContact}
               </div>
             </motion.div>
           </div>

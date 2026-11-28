@@ -2,11 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
-import { MapPin, Navigation, ExternalLink, Activity } from "lucide-react";
-import { mockCaregivers } from "@/lib/mockTrackerData";
+import { Navigation, ExternalLink } from "lucide-react";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function CompactCoverageMap() {
-  const activeCaregivers = mockCaregivers.slice(0, 4);
+  const { state } = useAgencyStore();
+  const activeCaregivers = state.caregivers.slice(0, 3);
+  const pinPositions = [
+    "top-[20%] left-[6%] sm:left-[18%]",
+    "top-[55%] left-[30%] sm:left-[52%]",
+    "top-[28%] right-[4%] sm:right-[14%]",
+  ];
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-5">
@@ -20,10 +26,12 @@ export function CompactCoverageMap() {
               <span>Live Field Coverage Map</span>
               <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live EVV GPS
+                Live EVV GPS ({state.caregivers.length} Staff)
               </span>
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500">Real-time caregiver position & active visits</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">
+              Real-time caregiver position &amp; active visits
+            </p>
           </div>
         </div>
 
@@ -38,18 +46,14 @@ export function CompactCoverageMap() {
         </Link>
       </div>
 
-      {/* Embedded Map Visual */}
-      <div className="relative w-full h-[190px] sm:h-[220px] rounded-xl overflow-hidden bg-slate-900 border border-slate-700/60 shadow-inner group">
-        {/* Map grid background pattern */}
+      <div className="relative w-full h-[190px] sm:h-[220px] rounded-xl overflow-hidden bg-slate-900 border border-slate-700/60 shadow-inner">
         <div
           className="absolute inset-0 opacity-20"
           style={{
-            backgroundImage: `radial-gradient(#38bdf8 1px, transparent 1px)`,
+            backgroundImage: "radial-gradient(#38bdf8 1px, transparent 1px)",
             backgroundSize: "20px 20px",
           }}
         />
-
-        {/* Map lines simulating roads */}
         <svg className="absolute inset-0 w-full h-full stroke-slate-700/50 stroke-2 fill-none">
           <path d="M 0 60 Q 150 120 400 80 T 800 150" />
           <path d="M 120 0 Q 180 100 220 220" />
@@ -57,54 +61,36 @@ export function CompactCoverageMap() {
           <path d="M 0 160 Q 300 140 800 190" />
         </svg>
 
-        {/* Pulsing Active Caregiver Markers */}
-        <div className="absolute top-[20%] left-[6%] sm:left-[20%] flex items-center gap-1.5 sm:gap-2 group/marker cursor-pointer">
-          <div className="relative">
-            <span className="absolute -inset-2 rounded-full bg-emerald-400/40 animate-ping" />
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-emerald-500 border-2 border-white text-white font-bold text-[10px] sm:text-xs flex items-center justify-center shadow-lg">
-              MO
+        {activeCaregivers.map((cg, idx) => {
+          const initials = cg.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
+          const activeShift = state.visits.find(
+            (v) => v.caregiverId === cg.id && v.status === "In Progress"
+          );
+          return (
+            <div
+              key={cg.id}
+              className={`absolute ${pinPositions[idx] ?? pinPositions[0]} flex items-center gap-1.5 sm:gap-2`}
+            >
+              <div className="relative">
+                <span className="absolute -inset-2 rounded-full bg-emerald-400/40 animate-ping" />
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-emerald-500 border-2 border-white text-white font-bold text-[10px] sm:text-xs flex items-center justify-center shadow-lg">
+                  {initials}
+                </div>
+              </div>
+              <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] sm:text-[11px] px-2 py-1 rounded-lg border border-slate-700 shadow-md whitespace-nowrap">
+                {cg.name.split(",")[0]}{" "}
+                <span className="text-emerald-400 font-semibold">
+                  • {activeShift ? "On Shift" : "Ready"}
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-md whitespace-nowrap">
-            Mabel O. <span className="text-emerald-400 font-semibold">• On Shift</span>
-          </div>
-        </div>
-
-        <div className="absolute top-[55%] left-[30%] sm:left-[55%] flex items-center gap-1.5 sm:gap-2 group/marker cursor-pointer">
-          <div className="relative">
-            <span className="absolute -inset-2 rounded-full bg-emerald-400/40 animate-ping" />
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-emerald-500 border-2 border-white text-white font-bold text-[10px] sm:text-xs flex items-center justify-center shadow-lg">
-              MA
-            </div>
-          </div>
-          <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-md whitespace-nowrap">
-            Maria A. <span className="text-emerald-400 font-semibold">• Transit</span>
-          </div>
-        </div>
-
-        <div className="absolute top-[28%] right-[4%] sm:right-[15%] flex items-center gap-1.5 sm:gap-2 group/marker cursor-pointer">
-          <div className="relative">
-            <span className="absolute -inset-2 rounded-full bg-blue-400/40 animate-ping" />
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-500 border-2 border-white text-white font-bold text-[10px] sm:text-xs flex items-center justify-center shadow-lg">
-              JO
-            </div>
-          </div>
-          <div className="hidden xs:block bg-slate-900/90 backdrop-blur-md text-white text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-md whitespace-nowrap">
-            James O. <span className="text-blue-400 font-semibold">• Scheduled</span>
-          </div>
-        </div>
-
-        {/* Legend / Overlay */}
-        <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-slate-700/80 text-[10px] sm:text-[11px] text-slate-300 flex items-center gap-2.5 sm:gap-4">
-          <span className="flex items-center gap-1 sm:gap-1.5">
-            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 shrink-0" />
-            <span>On-Site (14)</span>
-          </span>
-          <span className="flex items-center gap-1 sm:gap-1.5">
-            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-500 shrink-0" />
-            <span>Transit (4)</span>
-          </span>
-        </div>
+          );
+        })}
       </div>
     </div>
   );

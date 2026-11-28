@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Mic, Pause, Square, ArrowLeft, CheckCircle2, ArrowRight } from "lucide-react";
-import clsx from "clsx";
+import React, { useState } from "react";
+import { Mic, Pause, Square, ArrowLeft } from "lucide-react";
 import { ComprehensiveCarePlanForm } from "./ComprehensiveCarePlanForm";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+
+const WAVEFORM_BARS = [35, 65, 85, 45, 90, 55, 75, 40, 80, 60, 95, 50, 70, 45, 88, 62, 78, 42, 68, 52];
 
 interface CarePlanCaptureProps {
   initialMode: "voice" | "manual";
@@ -15,22 +16,17 @@ interface CarePlanCaptureProps {
   onBack?: () => void;
 }
 
-export function CarePlanCapture({ initialMode, patientId, templateId, onComplete, onSwitchMode, onBack }: CarePlanCaptureProps) {
-  const [mode, setMode] = useState<"voice" | "manual">(initialMode);
+export function CarePlanCapture({ initialMode, patientId, onComplete, onSwitchMode, onBack }: CarePlanCaptureProps) {
+  const { getClientById } = useAgencyStore();
+  const client = getClientById(patientId);
+  const clientDisplayName = client?.name ?? "Assigned Client";
   const [isRecording, setIsRecording] = useState(true);
-  const [recordingTime, setRecordingTime] = useState(4); // Start at 00:04 for mockup
-
-  // Sync internal mode with props if needed, though they should stay in sync
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
 
   const handleSwitchMode = (newMode: "voice" | "manual") => {
-    setMode(newMode);
     onSwitchMode(newMode);
   };
 
-  if (mode === "manual") {
+  if (initialMode === "manual") {
     return (
       <div className="h-full flex flex-col">
         {/* Simple top bar for manual capture mode if we want it, or just rely on stepper */}
@@ -73,13 +69,13 @@ export function CarePlanCapture({ initialMode, patientId, templateId, onComplete
           01:13
         </div>
 
-        {/* Simulated Waveform */}
+        {/* Deterministic Audio Waveform */}
         <div className="flex items-center gap-1 h-8 mb-4 opacity-80">
-          {[...Array(20)].map((_, i) => (
+          {WAVEFORM_BARS.map((height, i) => (
             <div
               key={i}
               className="w-1 bg-red-500 rounded-full"
-              style={{ height: `${Math.max(30, Math.random() * 100)}%`, transition: 'height 0.2s ease' }}
+              style={{ height: `${height}%`, transition: "height 0.2s ease" }}
             />
           ))}
         </div>
@@ -110,12 +106,11 @@ export function CarePlanCapture({ initialMode, patientId, templateId, onComplete
           <span className="text-xs font-semibold text-brand-teal bg-brand-teal/10 px-3 py-1 rounded-lg">16 fields mapped</span>
         </div>
         <div className="text-slate-900 text-xs leading-relaxed space-y-1.5">
-          <p>Good morning, this is Rachel Miller, RN, conducting the comprehensive assessment for Evelyn Harper.</p>
+          <p>Good morning, this is Rachel Miller, RN, conducting the comprehensive assessment for {clientDisplayName}.</p>
           <p>Patient reports difficulty dressing lower extremities due to right hip stiffness.</p>
           <p>She has trouble getting in and out of the shower without assistance.</p>
-          <p>Her regular doctor, Dr. Osei, wants a follow-up scheduled within two weeks.</p>
-          <p>She's at home by herself, one floor, no stairs to the bedroom.</p>
-          <p>Fall risk assessment — Morse score calculates to 65, so we'll flag that as high risk.</p>
+          <p>Primary attending physician requested follow-up within two weeks.</p>
+          <p>Single-floor layout assessed with {client?.fallRiskLevel ?? "High"} fall risk precautions active.</p>
         </div>
       </div>
     </div>

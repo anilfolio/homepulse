@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { SessionSecurityGuard } from "./SessionSecurityGuard";
 
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -10,6 +11,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-page-bg">
+      <SessionSecurityGuard />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden relative">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />

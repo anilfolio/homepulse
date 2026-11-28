@@ -16,12 +16,28 @@ import {
   mockScheduledReports,
   ReportDefinition
 } from "@/lib/reports-mock-data";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const categories: ReportCategory[] = ["Financial", "Custom Reports"];
 
 export default function BillingReportsPage() {
+  const { state, logAuditEvent } = useAgencyStore();
   const [activeCategory, setActiveCategory] = useState<ReportCategory>("Financial");
   const [activeReport, setActiveReport] = useState<ReportDefinition | null>(null);
+
+  const totalClaimsAmount = state.claims.reduce((s, c) => s + c.amount, 0);
+  const deniedCount = state.claims.filter((c) => c.status === "Denied").length;
+
+  const handleViewReport = (r: ReportDefinition) => {
+    logAuditEvent({
+      action: "EXPORT",
+      resourceType: "Claim",
+      resourceId: r.id,
+      summary: `Opened Financial Report: ${r.title} ($${totalClaimsAmount.toFixed(0)} claim volume, ${deniedCount} denied).`,
+      status: "Success",
+    });
+    setActiveReport(r);
+  };
 
   const categoryReports = allPrebuiltReports.filter(r => r.category === activeCategory);
 
@@ -66,7 +82,7 @@ export default function BillingReportsPage() {
                 <ReportCard
                   key={report.id}
                   report={report}
-                  onView={(r) => setActiveReport(r)}
+                  onView={handleViewReport}
                 />
               ))}
               {categoryReports.length === 0 && (

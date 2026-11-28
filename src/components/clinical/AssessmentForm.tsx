@@ -7,7 +7,6 @@ import {
   Activity,
   Home,
   Users,
-  Heart,
   Save,
   CheckCircle2,
   FileSignature,
@@ -17,15 +16,17 @@ import {
   User
 } from "lucide-react";
 import clsx from "clsx";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 type FormSection = "physical" | "environment" | "social" | "careplan" | "signoff";
 
 export function AssessmentForm() {
+  const { state, syncCarePlanToClientVisits, logAuditEvent } = useAgencyStore();
   const [activeSection, setActiveSection] = useState<FormSection>("physical");
   const [stateConfig, setStateConfig] = useState("generic"); // e.g., "generic", "NY", "CA"
-  const [selectedPatient, setSelectedPatient] = useState("p1");
+  const [selectedPatient, setSelectedPatient] = useState(() => state.clients[0]?.id ?? "");
 
-  // Minimal mock state for form handling to demonstrate UI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -40,11 +41,29 @@ export function AssessmentForm() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const client = state.clients.find((c) => c.id === selectedPatient) ?? state.clients[0];
+    if (client) {
+      syncCarePlanToClientVisits({
+        clientId: client.id,
+        goals: client.carePlanGoals ?? ["Fall prevention & safe ambulation", "Medication adherence"],
+        taskTitles: ["Morning ADL Support", "Mobility Check & Vitals"],
+        medicationReminders: ["Morning Maintenance Dose"],
+        signedBy: `Assessment (${stateConfig.toUpperCase()})`,
+      });
+      logAuditEvent({
+        action: "CARE_PLAN_SYNC",
+        resourceType: "CarePlan",
+        resourceId: client.id,
+        summary: `Completed ${stateConfig.toUpperCase()} initial assessment & synced client care plan.`,
+        status: "Success",
+      });
+    }
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
+      toast.success("Assessment signed and synchronized with Client Care Plan");
       setTimeout(() => setIsSuccess(false), 3000);
-    }, 1000);
+    }, 500);
   };
 
   return (
@@ -68,10 +87,12 @@ export function AssessmentForm() {
               onChange={(e) => setSelectedPatient(e.target.value)}
               className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal font-medium text-slate-700"
             >
-              <option value="">Select Patient...</option>
-              <option value="p1">Evelyn Harper</option>
-              <option value="p2">Robert Chen</option>
-              <option value="p3">Marcus Johnson</option>
+              <option value="">Select Client...</option>
+              {state.clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name} ({client.mrn})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -256,7 +277,7 @@ export function AssessmentForm() {
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                       <h4 className="text-sm font-semibold text-amber-800 mb-1">Medication Oversight Notice</h4>
                       <p className="text-xs text-amber-700">
-                        In this non-medical care plan, caregivers may only "remind" or "observe" self-administration. Do not use the term "administer" unless assigning to a licensed nurse.
+                        In this non-medical care plan, caregivers may only &ldquo;remind&rdquo; or &ldquo;observe&rdquo; self-administration. Do not use the term &ldquo;administer&rdquo; unless assigning to a licensed nurse.
                       </p>
                     </div>
 

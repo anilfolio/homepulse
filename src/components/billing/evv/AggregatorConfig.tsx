@@ -5,8 +5,11 @@ import { mockStateConfigs } from "@/lib/mock-data/evv";
 import { AltEVVCertification } from "./AltEVVCertification";
 import { Settings, Save, Server, Globe, Key, Shield } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 export function AggregatorConfig() {
+  const { logAuditEvent } = useAgencyStore();
   const [configs] = useState(mockStateConfigs);
   const [selectedState, setSelectedState] = useState(configs[0]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -14,10 +17,16 @@ export function AggregatorConfig() {
 
   const handleSave = () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      showToast("EVV Aggregator configuration saved successfully.");
-    }, 1500);
+    logAuditEvent({
+      action: "UPDATE",
+      resourceType: "Compliance",
+      resourceId: `evv-${selectedState.state}`,
+      summary: `Updated EVV aggregator endpoint & rounding settings for ${selectedState.state} (${selectedState.aggregator}).`,
+      status: "Success",
+    });
+    setIsSaving(false);
+    toast.success(`EVV Aggregator config saved & audited for ${selectedState.state}`);
+    showToast(`EVV Aggregator configuration saved for ${selectedState.state}.`);
   };
 
   const showToast = (message: string) => {

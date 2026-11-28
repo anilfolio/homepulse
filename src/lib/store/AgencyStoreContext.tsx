@@ -28,22 +28,38 @@ import {
   buildCaregiverFromCandidate,
   evaluateCandidateHireReadiness,
 } from "@/lib/engine/hrAndLmsAutomation";
+import {
+  loadPersistedOfflineEvvQueue,
+  persistOfflineEvvQueue,
+  signEvvPayloadHmac,
+} from "@/lib/engine/offlineEvvQueue";
 import { buildInitialAgencyStoreState } from "@/lib/store/agencySeedData";
-import { ReferralStatus as PartnerReferralStatus } from "@/lib/partner/types";
+import {
+  PartnerOrganization,
+  PartnerTeamMember,
+  ReferralStatus as PartnerReferralStatus,
+} from "@/lib/partner/types";
 import { Candidate } from "@/types/hr";
 import {
+  AgencyAuditAction,
+  AgencyAuditLogEntry,
   AgencyCaregiver,
   AgencyCarePlanReview,
   AgencyClaim,
   AgencyClaimStatus,
   AgencyClient,
+  AgencyConversationCategory,
   AgencyFieldFinding,
   AgencyLmsCourse,
+  AgencyMessageChannel,
   AgencyNotification,
   AgencyReferral,
+  AgencyShiftStatus,
   AgencyShiftVisit,
   AgencyStoreState,
+  AgencyVisitTask,
   BriefingActionItem,
+  OfflineEvvRecord,
   RankedCaregiverCandidate,
 } from "@/types/agency";
 
@@ -196,6 +212,63 @@ interface AgencyStoreContextValue {
     findings: { description: string; severity: "minor" | "moderate" | "urgent" }[];
   }) => void;
   resolveFieldFinding: (findingId: string, action: "followup" | "escalate") => void;
+  // Wave 4: HIPAA Audit, Offline HMAC EVV, Care Plan Sync, Authorizations, Private-Pay & Unified Comms
+  logAuditEvent: (input: {
+    action: AgencyAuditAction;
+    resourceType: AgencyAuditLogEntry["resourceType"];
+    resourceId: string;
+    summary: string;
+    status?: "Success" | "Flagged";
+  }) => void;
+  updateVisitStatus: (visitId: string, status: AgencyShiftStatus) => void;
+  queueOfflineEvvClock: (input: {
+    visitId: string;
+    actionType: "CLOCK_IN" | "CLOCK_OUT";
+    method: "gps" | "ivr" | "fvv";
+    gpsDistanceMeters: number;
+    notes?: string;
+    signatureCaptured?: boolean;
+    mileage?: number;
+  }) => Promise<OfflineEvvRecord | null>;
+  syncOfflineEvvQueue: () => number;
+  syncCarePlanToClientVisits: (input: {
+    clientId: string;
+    goals: string[];
+    taskTitles: string[];
+    medicationReminders: string[];
+    signedBy?: string;
+  }) => number;
+  requestAuthorizationRenewal: (clientId: string) => void;
+  createClientAuthorization: (input: {
+    clientId: string;
+    authNumber: string;
+    additionalUnits: number;
+    expiresInDays: number;
+    serviceCode?: string;
+  }) => void;
+  processDraftInvoices: () => number;
+  markInvoicePaid: (invoiceId: string) => void;
+  sendConversationMessage: (input: {
+    conversationId: string;
+    content: string;
+    channelMode: AgencyMessageChannel;
+    isInternalNote: boolean;
+  }) => void;
+  createConversationThread: (input: {
+    categoryId: AgencyConversationCategory;
+    title: string;
+    participantRole: string;
+    initialMessage: string;
+    channelMode: AgencyMessageChannel;
+    linkedClientId?: string;
+  }) => string;
+  markConversationRead: (conversationId: string) => void;
+  // Role 1: Partner Organization, Team & Two-Way Info Sync
+  updatePartnerOrgProfile: (updates: Partial<PartnerOrganization>) => void;
+  addPartnerTeamMember: (member: { name: string; email: string; role: string; phone?: string }) => void;
+  updatePartnerTeamMemberRole: (memberId: string, role: string) => void;
+  removePartnerTeamMember: (memberId: string) => void;
+  respondToPartnerReferralInfo: (referralId: string, note: string, attachmentName?: string) => void;
   // Admin / Scenarios / Notifications
   executeBriefingAction: (actionType: BriefingActionItem["actionType"]) => void;
   simulateOutOfRadiusException: () => void;
@@ -263,6 +336,23 @@ export function AgencyStoreProvider({ children }: { children: React.ReactNode })
               fieldFindings: Array.isArray(parsed.fieldFindings)
                 ? parsed.fieldFindings
                 : fallback.fieldFindings,
+              auditLogs: Array.isArray(parsed.auditLogs)
+                ? parsed.auditLogs
+                : fallback.auditLogs,
+              offlineEvvQueue:
+                Array.isArray(parsed.offlineEvvQueue) && parsed.offlineEvvQueue.length > 0
+                  ? parsed.offlineEvvQueue
+                  : loadPersistedOfflineEvvQueue(),
+              invoices: Array.isArray(parsed.invoices)
+                ? parsed.invoices
+                : fallback.invoices,
+              conversations: Array.isArray(parsed.conversations)
+                ? parsed.conversations
+                : fallback.conversations,
+              partnerOrg: parsed.partnerOrg ? parsed.partnerOrg : fallback.partnerOrg,
+              partnerTeamMembers: Array.isArray(parsed.partnerTeamMembers)
+                ? parsed.partnerTeamMembers
+                : fallback.partnerTeamMembers,
             });
           }
         }
@@ -814,11 +904,44 @@ export function AgencyStoreProvider({ children }: { children: React.ReactNode })
               read: false,
             };
 
+        const clockOutAudit: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}-${Math.floor(Math.random() * 999)}`,
+          timestampUtc: new Date().toISOString(),
+          actorName,
+          actorRole,
+          action: "UPDATE",
+          resourceType: "Visit",
+          resourceId: finalVisit.evvId,
+          summary: `Visit clocked out (${finalVisit.evvCompliance}); claim ${newClaimId} scrub=${newClaim.scrubStatus}`,
+          status: evalResult.shouldCreateCleanClaim ? "Success" : "Flagged",
+        };
+
+        const shouldCreatePrivateInvoice = client?.payer === "Private Pay" && evalResult.shouldCreateCleanClaim;
+        const nextInvoices = shouldCreatePrivateInvoice
+          ? [
+              {
+                id: `INV-${new Date().getFullYear()}-${Math.floor(1100 + Math.random() * 8899)}`,
+                clientId: client.id,
+                clientName: client.name,
+                visitIds: [finalVisit.id],
+                visitCount: 1,
+                totalHours: finalVisit.scheduledHours,
+                amount: claimAmount,
+                status: "Draft" as const,
+                scheduledDateLabel: "Today, 5:00 PM",
+                createdAtIso: new Date().toISOString(),
+              },
+              ...prev.invoices,
+            ]
+          : prev.invoices;
+
         return {
           ...prev,
           visits: prev.visits.map((v) => (v.id === visitId ? finalVisit : v)),
           claims: nextClaims,
           clients: nextClients,
+          invoices: nextInvoices,
+          auditLogs: [clockOutAudit, ...prev.auditLogs].slice(0, 150),
           notifications: [notif, ...prev.notifications],
         };
       });
@@ -2242,6 +2365,678 @@ export function AgencyStoreProvider({ children }: { children: React.ReactNode })
     }));
   }, [commitState, state.clients]);
 
+  // =========================================================================
+  // WAVE 4: AUDIT TRAIL, OFFLINE HMAC EVV, CARE PLAN SYNC, AUTHS, INVOICING & COMMS
+  // =========================================================================
+
+  const logAuditEvent = useCallback(
+    (input: {
+      action: AgencyAuditAction;
+      resourceType: AgencyAuditLogEntry["resourceType"];
+      resourceId: string;
+      summary: string;
+      status?: "Success" | "Flagged";
+    }) => {
+      const entry: AgencyAuditLogEntry = {
+        id: `aud-${Date.now()}-${Math.floor(Math.random() * 999)}`,
+        timestampUtc: new Date().toISOString(),
+        actorName,
+        actorRole,
+        action: input.action,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId,
+        summary: input.summary,
+        status: input.status ?? "Success",
+      };
+      commitState((prev) => ({
+        ...prev,
+        auditLogs: [entry, ...prev.auditLogs].slice(0, 150),
+      }));
+    },
+    [actorName, actorRole, commitState]
+  );
+
+  const updateVisitStatus = useCallback(
+    (visitId: string, status: AgencyShiftStatus) => {
+      commitState((prev) => ({
+        ...prev,
+        visits: prev.visits.map((v) => {
+          if (v.id !== visitId) return v;
+          if (status === "Unfilled") {
+            return {
+              ...v,
+              status,
+              caregiverId: null,
+              evvCompliance: "Exception",
+              exceptionCategory: "Missed Call",
+              exceptionDetail: "Moved back to Unfilled queue from Dispatch Board.",
+            };
+          }
+          return { ...v, status };
+        }),
+      }));
+    },
+    [commitState]
+  );
+
+  const queueOfflineEvvClock = useCallback(
+    async (input: {
+      visitId: string;
+      actionType: "CLOCK_IN" | "CLOCK_OUT";
+      method: "gps" | "ivr" | "fvv";
+      gpsDistanceMeters: number;
+      notes?: string;
+      signatureCaptured?: boolean;
+      mileage?: number;
+    }): Promise<OfflineEvvRecord | null> => {
+      const visit = state.visits.find((v) => v.id === input.visitId);
+      if (!visit) return null;
+
+      const capturedAtIso = new Date().toISOString();
+      const hmacSignature = await signEvvPayloadHmac({
+        visitId: visit.id,
+        actionType: input.actionType,
+        capturedAtIso,
+        gpsDistanceMeters: input.gpsDistanceMeters,
+      });
+
+      const record: OfflineEvvRecord = {
+        id: `off-${Date.now()}`,
+        visitId: visit.id,
+        evvId: visit.evvId,
+        actionType: input.actionType,
+        method: input.method,
+        gpsDistanceMeters: input.gpsDistanceMeters,
+        capturedAtIso,
+        hmacSignature,
+        notes: input.notes,
+        signatureCaptured: input.signatureCaptured,
+        mileage: input.mileage,
+        synced: false,
+      };
+
+      commitState((prev) => {
+        const nextQueue = [record, ...prev.offlineEvvQueue];
+        persistOfflineEvvQueue(nextQueue);
+        const auditEntry: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: capturedAtIso,
+          actorName,
+          actorRole,
+          action: "EVV_OFFLINE_SYNC",
+          resourceType: "Visit",
+          resourceId: visit.evvId,
+          summary: `Offline ${input.actionType} cached with HMAC signature (${hmacSignature.slice(0, 18)}...)`,
+          status: "Success",
+        };
+        return {
+          ...prev,
+          offlineEvvQueue: nextQueue,
+          auditLogs: [auditEntry, ...prev.auditLogs].slice(0, 150),
+        };
+      });
+
+      return record;
+    },
+    [actorName, actorRole, commitState, state.visits]
+  );
+
+  const syncOfflineEvvQueue = useCallback((): number => {
+    const pending = state.offlineEvvQueue.filter((r) => !r.synced);
+    if (pending.length === 0) return 0;
+
+    pending.forEach((rec) => {
+      if (rec.actionType === "CLOCK_IN") {
+        clockInVisit(
+          rec.visitId,
+          rec.method,
+          rec.gpsDistanceMeters,
+          `Offline HMAC sync (${rec.hmacSignature.slice(0, 16)})`,
+          true
+        );
+      } else {
+        clockOutVisit(rec.visitId, {
+          notes: rec.notes || `Offline HMAC clock-out synced (${rec.hmacSignature.slice(0, 16)})`,
+          signatureCaptured: rec.signatureCaptured ?? true,
+          mileage: rec.mileage,
+        });
+      }
+    });
+
+    commitState((prev) => {
+      const nextQueue = prev.offlineEvvQueue.map((r) => ({ ...r, synced: true }));
+      persistOfflineEvvQueue(nextQueue);
+      return {
+        ...prev,
+        offlineEvvQueue: nextQueue,
+        notifications: [
+          {
+            id: `notif-${Date.now()}`,
+            type: "success",
+            title: "Offline HMAC EVV Queue Synced",
+            description: `${pending.length} cryptographically signed EVV event(s) reconciled to live visits.`,
+            timeLabel: "Just now",
+            route: "/evv-monitoring",
+            read: false,
+          },
+          ...prev.notifications,
+        ],
+      };
+    });
+
+    return pending.length;
+  }, [clockInVisit, clockOutVisit, commitState, state.offlineEvvQueue]);
+
+  const syncCarePlanToClientVisits = useCallback(
+    (input: {
+      clientId: string;
+      goals: string[];
+      taskTitles: string[];
+      medicationReminders: string[];
+      signedBy?: string;
+    }): number => {
+      let updatedVisitsCount = 0;
+      const signer = input.signedBy || actorName;
+      const nowIso = new Date().toISOString();
+
+      commitState((prev) => {
+        const client = prev.clients.find((c) => c.id === input.clientId);
+        if (!client) return prev;
+
+        const nextClients = prev.clients.map((c) =>
+          c.id === input.clientId
+            ? {
+                ...c,
+                carePlanVersion: "v2.2 (RN Signed)",
+                carePlanGoals: input.goals,
+                carePlanUpdatedAt: nowIso,
+              }
+            : c
+        );
+
+        const nextVisits = prev.visits.map((v) => {
+          if (v.clientId !== input.clientId) return v;
+          if (v.status === "Completed") return v;
+          updatedVisitsCount += 1;
+
+          const existingTitles = new Set(v.tasks.map((t) => t.title.toLowerCase()));
+          const addedTasks: AgencyVisitTask[] = input.taskTitles
+            .filter((title) => !existingTitles.has(title.toLowerCase()))
+            .map((title, idx) => ({
+              id: `cp-task-${Date.now()}-${idx}`,
+              category: "Personal Care",
+              title,
+              description: "Synced from RN Comprehensive Care Plan",
+              completed: false,
+            }));
+
+          const existingMeds = new Set(
+            v.medications.map((m) => m.medicationName.toLowerCase())
+          );
+          const addedMeds = input.medicationReminders
+            .filter((m) => m.trim().length > 0 && !existingMeds.has(m.toLowerCase()))
+            .map((medName, idx) => ({
+              id: `cp-med-${Date.now()}-${idx}`,
+              medicationName: medName,
+              dosage: "Per Care Plan",
+              scheduleTime: v.scheduledStart,
+              instructions: "Reminder only — synced from RN Care Plan",
+              status: "pending" as const,
+            }));
+
+          return {
+            ...v,
+            tasks: [...v.tasks, ...addedTasks],
+            medications: [...v.medications, ...addedMeds],
+          };
+        });
+
+        const nextReviews = prev.carePlanReviews.map((r) =>
+          r.clientId === input.clientId && r.status !== "completed"
+            ? {
+                ...r,
+                status: "completed" as const,
+                signedBy: signer,
+                signedAt: "Just now",
+              }
+            : r
+        );
+
+        const carePlanAudit: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: nowIso,
+          actorName: signer,
+          actorRole,
+          action: "CARE_PLAN_SYNC",
+          resourceType: "CarePlan",
+          resourceId: client.id,
+          summary: `Care Plan signed & synced (${input.taskTitles.length} tasks) to ${updatedVisitsCount} active/upcoming visit(s).`,
+          status: "Success",
+        };
+
+        return {
+          ...prev,
+          clients: nextClients,
+          visits: nextVisits,
+          carePlanReviews: nextReviews,
+          auditLogs: [carePlanAudit, ...prev.auditLogs].slice(0, 150),
+          notifications: [
+            {
+              id: `notif-${Date.now()}`,
+              type: "success",
+              title: "Care Plan Synced to Field Caregivers",
+              description: `${client.name}'s updated ADL tasks & meds pushed to ${updatedVisitsCount} visit(s).`,
+              timeLabel: "Just now",
+              route: "/caregiver",
+              read: false,
+            },
+            ...prev.notifications,
+          ],
+        };
+      });
+
+      return updatedVisitsCount;
+    },
+    [actorName, actorRole, commitState]
+  );
+
+  const requestAuthorizationRenewal = useCallback(
+    (clientId: string) => {
+      commitState((prev) => {
+        const client = prev.clients.find((c) => c.id === clientId);
+        if (!client) return prev;
+        const authAudit: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: new Date().toISOString(),
+          actorName,
+          actorRole,
+          action: "UPDATE",
+          resourceType: "Authorization",
+          resourceId: client.authNumber,
+          summary: `Payer authorization renewal packet queued for ${client.payer} (${client.authNumber}).`,
+          status: "Success",
+        };
+        return {
+          ...prev,
+          auditLogs: [authAudit, ...prev.auditLogs].slice(0, 150),
+          notifications: [
+            {
+              id: `notif-${Date.now()}`,
+              type: "info",
+              title: "Authorization Renewal Requested",
+              description: `278 Prior Auth renewal sent to ${client.payer} for ${client.name} (${client.authNumber}).`,
+              timeLabel: "Just now",
+              route: "/billing/authorizations",
+              read: false,
+            },
+            ...prev.notifications,
+          ],
+        };
+      });
+    },
+    [actorName, actorRole, commitState]
+  );
+
+  const createClientAuthorization = useCallback(
+    (input: {
+      clientId: string;
+      authNumber: string;
+      additionalUnits: number;
+      expiresInDays: number;
+      serviceCode?: string;
+    }) => {
+      commitState((prev) => {
+        const client = prev.clients.find((c) => c.id === input.clientId);
+        if (!client) return prev;
+
+        const nextClients = prev.clients.map((c) =>
+          c.id === input.clientId
+            ? {
+                ...c,
+                authNumber: input.authNumber,
+                serviceCode: input.serviceCode || c.serviceCode,
+                authorizedUnitsRemaining: c.authorizedUnitsRemaining + input.additionalUnits,
+                authorizedUnitsTotal: c.authorizedUnitsTotal + input.additionalUnits,
+                authExpiresInDays: Math.max(c.authExpiresInDays, input.expiresInDays),
+              }
+            : c
+        );
+
+        const nextClaims = prev.claims.map((cl) =>
+          cl.patientId === input.clientId &&
+          cl.scrubIssues.some((i) => i.toLowerCase().includes("auth"))
+            ? {
+                ...cl,
+                authNumber: input.authNumber,
+                scrubIssues: cl.scrubIssues.filter((i) => !i.toLowerCase().includes("auth")),
+                scrubStatus:
+                  cl.scrubIssues.filter((i) => !i.toLowerCase().includes("auth")).length === 0
+                    ? ("Passed" as const)
+                    : ("Blocked" as const),
+              }
+            : cl
+        );
+
+        const createAuthAudit: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: new Date().toISOString(),
+          actorName,
+          actorRole,
+          action: "CREATE",
+          resourceType: "Authorization",
+          resourceId: input.authNumber,
+          summary: `Added ${input.additionalUnits} authorized units (${input.expiresInDays}d window) for Client ID ${client.id}.`,
+          status: "Success",
+        };
+
+        return {
+          ...prev,
+          clients: nextClients,
+          claims: nextClaims,
+          auditLogs: [createAuthAudit, ...prev.auditLogs].slice(0, 150),
+        };
+      });
+    },
+    [actorName, actorRole, commitState]
+  );
+
+  const processDraftInvoices = useCallback((): number => {
+    const drafts = state.invoices.filter((inv) => inv.status === "Draft");
+    if (drafts.length === 0) return 0;
+
+    const invoiceAudit: AgencyAuditLogEntry = {
+      id: `aud-${Date.now()}`,
+      timestampUtc: new Date().toISOString(),
+      actorName,
+      actorRole,
+      action: "UPDATE",
+      resourceType: "Invoice",
+      resourceId: drafts.map((d) => d.id).join(","),
+      summary: `Auto-dispatched ${drafts.length} private-pay draft invoice(s).`,
+      status: "Success",
+    };
+
+    commitState((prev) => ({
+      ...prev,
+      invoices: prev.invoices.map((inv) =>
+        inv.status === "Draft"
+          ? { ...inv, status: "Sent", scheduledDateLabel: "Sent just now" }
+          : inv
+      ),
+      auditLogs: [invoiceAudit, ...prev.auditLogs].slice(0, 150),
+    }));
+
+    return drafts.length;
+  }, [actorName, actorRole, commitState, state.invoices]);
+
+  const markInvoicePaid = useCallback(
+    (invoiceId: string) => {
+      commitState((prev) => ({
+        ...prev,
+        invoices: prev.invoices.map((inv) =>
+          inv.id === invoiceId
+            ? { ...inv, status: "Paid", scheduledDateLabel: "Paid today" }
+            : inv
+        ),
+      }));
+    },
+    [commitState]
+  );
+
+  const sendConversationMessage = useCallback(
+    (input: {
+      conversationId: string;
+      content: string;
+      channelMode: AgencyMessageChannel;
+      isInternalNote: boolean;
+    }) => {
+      const trimmed = input.content.trim();
+      if (!trimmed) return;
+
+      const msgId = `msg-${Date.now()}`;
+      const timeLabel = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      commitState((prev) => {
+        const targetConv = prev.conversations.find((c) => c.id === input.conversationId);
+        if (!targetConv) return prev;
+
+        const nextMessage = {
+          id: msgId,
+          conversationId: input.conversationId,
+          senderName: actorName,
+          senderRole: actorRole,
+          isCurrentUser: true,
+          content: trimmed,
+          timestampLabel: timeLabel,
+          channelMode: input.channelMode,
+          isInternalNote: input.isInternalNote,
+          deliveryStatus: "delivered" as const,
+        };
+
+        const msgAudit: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: new Date().toISOString(),
+          actorName,
+          actorRole,
+          action: "MESSAGE_SENT",
+          resourceType: "Communication",
+          resourceId: input.conversationId,
+          summary: `Sent ${input.isInternalNote ? "internal clinical note" : input.channelMode} message on thread ${input.conversationId}.`,
+          status: "Success",
+        };
+
+        return {
+          ...prev,
+          conversations: prev.conversations.map((c) =>
+            c.id === input.conversationId
+              ? {
+                  ...c,
+                  unreadCount: 0,
+                  messages: [...c.messages, nextMessage],
+                }
+              : c
+          ),
+          auditLogs: [msgAudit, ...prev.auditLogs].slice(0, 150),
+        };
+      });
+    },
+    [actorName, actorRole, commitState]
+  );
+
+  const createConversationThread = useCallback(
+    (input: {
+      categoryId: AgencyConversationCategory;
+      title: string;
+      participantRole: string;
+      initialMessage: string;
+      channelMode: AgencyMessageChannel;
+      linkedClientId?: string;
+    }): string => {
+      const id = `conv-${Date.now()}`;
+      const timeLabel = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const linkedClient = input.linkedClientId
+        ? state.clients.find((c) => c.id === input.linkedClientId)
+        : undefined;
+
+      commitState((prev) => ({
+        ...prev,
+        conversations: [
+          {
+            id,
+            categoryId: input.categoryId,
+            title: input.title,
+            participantRole: input.participantRole,
+            participantStatus: "online",
+            phoneMasked: linkedClient ? "(•••) •••-0194" : "(•••) •••-0100",
+            linkedRecord: linkedClient
+              ? {
+                  id: linkedClient.id,
+                  type: "Client",
+                  label: `Client Chart • ${linkedClient.id}`,
+                  route: `/patients/${linkedClient.id}`,
+                }
+              : undefined,
+            unreadCount: 0,
+            isUrgent: false,
+            messages: [
+              {
+                id: `msg-${Date.now()}`,
+                conversationId: id,
+                senderName: actorName,
+                senderRole: actorRole,
+                isCurrentUser: true,
+                content: input.initialMessage,
+                timestampLabel: timeLabel,
+                channelMode: input.channelMode,
+                isInternalNote: input.channelMode === "in-app",
+                deliveryStatus: "delivered",
+              },
+            ],
+          },
+          ...prev.conversations,
+        ],
+      }));
+
+      return id;
+    },
+    [actorName, actorRole, commitState, state.clients]
+  );
+
+  const markConversationRead = useCallback(
+    (conversationId: string) => {
+      commitState((prev) => ({
+        ...prev,
+        conversations: prev.conversations.map((c) =>
+          c.id === conversationId ? { ...c, unreadCount: 0 } : c
+        ),
+      }));
+    },
+    [commitState]
+  );
+
+  const updatePartnerOrgProfile = useCallback(
+    (updates: Partial<PartnerOrganization>) => {
+      commitState((prev) => ({
+        ...prev,
+        partnerOrg: { ...prev.partnerOrg, ...updates },
+      }));
+    },
+    [commitState]
+  );
+
+  const addPartnerTeamMember = useCallback(
+    (member: { name: string; email: string; role: string; phone?: string }) => {
+      const created: PartnerTeamMember = {
+        id: `tm-${Date.now()}`,
+        name: member.name.trim(),
+        email: member.email.trim(),
+        role: member.role,
+        phone: member.phone?.trim() || "(555) 019-2000",
+        status: "Active",
+      };
+      commitState((prev) => ({
+        ...prev,
+        partnerTeamMembers: [...prev.partnerTeamMembers, created],
+      }));
+    },
+    [commitState]
+  );
+
+  const updatePartnerTeamMemberRole = useCallback(
+    (memberId: string, role: string) => {
+      commitState((prev) => ({
+        ...prev,
+        partnerTeamMembers: prev.partnerTeamMembers.map((m) =>
+          m.id === memberId ? { ...m, role } : m
+        ),
+      }));
+    },
+    [commitState]
+  );
+
+  const removePartnerTeamMember = useCallback(
+    (memberId: string) => {
+      commitState((prev) => ({
+        ...prev,
+        partnerTeamMembers: prev.partnerTeamMembers.filter((m) => m.id !== memberId),
+      }));
+    },
+    [commitState]
+  );
+
+  const respondToPartnerReferralInfo = useCallback(
+    (referralId: string, note: string, attachmentName?: string) => {
+      const nowIso = new Date().toISOString();
+      commitState((prev) => {
+        const target = prev.referrals.find((r) => r.id === referralId);
+        if (!target) return prev;
+
+        const nextReferrals = prev.referrals.map((r) => {
+          if (r.id !== referralId) return r;
+          const updatedDocs = attachmentName
+            ? [
+                ...r.documents,
+                { name: attachmentName, status: "Uploaded" as const },
+              ]
+            : r.documents;
+          return {
+            ...r,
+            partnerStatus: "Under Review" as const,
+            intakeNotes: note ? `${r.intakeNotes ?? ""} | Partner Update: ${note}`.trim() : r.intakeNotes,
+            documents: updatedDocs,
+            communications: [
+              {
+                id: `comm-${Date.now()}`,
+                timestamp: nowIso,
+                author: prev.partnerOrg.primaryContact,
+                type: "note" as const,
+                content: `Partner response: ${note}${attachmentName ? ` [Attached: ${attachmentName}]` : ""}`,
+              },
+              ...r.communications,
+            ],
+          };
+        });
+
+        const auditEntry: AgencyAuditLogEntry = {
+          id: `aud-${Date.now()}`,
+          timestampUtc: nowIso,
+          actorName,
+          actorRole,
+          action: "UPDATE",
+          resourceType: "Client",
+          resourceId: referralId,
+          summary: `Partner submitted requested clinical/intake documentation for Referral ${referralId}.`,
+          status: "Success",
+        };
+
+        return {
+          ...prev,
+          referrals: nextReferrals,
+          auditLogs: [auditEntry, ...prev.auditLogs].slice(0, 150),
+          notifications: [
+            {
+              id: `notif-${Date.now()}`,
+              type: "info",
+              title: "Partner Sent Requested Referral Info",
+              description: `${prev.partnerOrg.name} updated referral ${target.clientName}${attachmentName ? ` (+${attachmentName})` : ""}.`,
+              timeLabel: "Just now",
+              route: "/intake/referrals",
+              read: false,
+            },
+            ...prev.notifications,
+          ],
+        };
+      });
+    },
+    [actorName, actorRole, commitState]
+  );
+
   const markNotificationRead = useCallback(
     (notifId: string) => {
       commitState((prev) => ({
@@ -2326,6 +3121,23 @@ export function AgencyStoreProvider({ children }: { children: React.ReactNode })
         simulateCaregiverFallIncident,
         simulateHrCandidateHire,
         simulateFieldFindingEscalation,
+        logAuditEvent,
+        updateVisitStatus,
+        queueOfflineEvvClock,
+        syncOfflineEvvQueue,
+        syncCarePlanToClientVisits,
+        requestAuthorizationRenewal,
+        createClientAuthorization,
+        processDraftInvoices,
+        markInvoicePaid,
+        sendConversationMessage,
+        createConversationThread,
+        markConversationRead,
+        updatePartnerOrgProfile,
+        addPartnerTeamMember,
+        updatePartnerTeamMemberRole,
+        removePartnerTeamMember,
+        respondToPartnerReferralInfo,
         markNotificationRead,
         markAllNotificationsRead,
         resetDemoData,

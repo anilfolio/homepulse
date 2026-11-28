@@ -17,13 +17,25 @@ import {
   mockScheduledReports,
   ReportDefinition
 } from "@/lib/reports-mock-data";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const categories: ReportCategory[] = ["Clinical", "HR", "Scheduling", "Financial", "Compliance", "Custom Reports"];
 
 export default function ReportsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { logAuditEvent } = useAgencyStore();
   const [activeCategory, setActiveCategory] = useState<ReportCategory>("Clinical");
   const [activeReport, setActiveReport] = useState<ReportDefinition | null>(null);
+
+  const handleViewReport = (r: ReportDefinition) => {
+    logAuditEvent({
+      action: "EXPORT",
+      resourceType: "Compliance",
+      resourceId: r.id,
+      summary: `Opened Executive Report: ${r.title} (${r.category}).`,
+      status: "Success",
+    });
+    setActiveReport(r);
+  };
 
   // Filter reports for the active category
   const categoryReports = allPrebuiltReports.filter(r => r.category === activeCategory);
@@ -70,7 +82,7 @@ export default function ReportsPage() {
                   <ReportCard
                     key={report.id}
                     report={report}
-                    onView={(r) => setActiveReport(r)}
+                    onView={handleViewReport}
                   />
                 ))}
                 {categoryReports.length === 0 && (

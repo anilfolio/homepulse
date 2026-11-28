@@ -7,11 +7,14 @@ import Link from "next/link";
 import { documentsData } from "@/lib/portalMockData";
 import { motion } from "framer-motion";
 import { ESignatureFlow } from "@/components/documents/ESignatureFlow";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 export default function DocumentDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { logAuditEvent } = useAgencyStore();
   const [isSignModalOpen, setIsSignModalOpen] = React.useState(false);
 
   const document = documentsData.find(d => d.id === id);
@@ -66,11 +69,35 @@ export default function DocumentDetailsPage() {
                   Sign Now
                 </motion.button>
               )}
-              <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-border-subtle hover:bg-slate-50 text-text-primary rounded-xl text-sm font-medium transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+              <button
+                type="button"
+                onClick={() => {
+                  logAuditEvent({
+                    action: "VIEW_PHI",
+                    resourceType: "Compliance",
+                    resourceId: document.id,
+                    summary: `Generated HIPAA secure share link for ${document.name}.`,
+                    status: "Success",
+                  });
+                  toast.success("Encrypted share link copied & logged");
+                }}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-border-subtle hover:bg-slate-50 text-text-primary rounded-xl text-sm font-medium transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
                 <Share2 className="w-4 h-4" />
                 Share
               </button>
-              <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-teal hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+              <button
+                type="button"
+                onClick={() => {
+                  logAuditEvent({
+                    action: "EXPORT",
+                    resourceType: "Compliance",
+                    resourceId: document.id,
+                    summary: `Downloaded portal document: ${document.name}.`,
+                    status: "Success",
+                  });
+                  toast.success(`Downloading ${document.name}...`);
+                }}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-teal hover:bg-teal-700 text-white rounded-xl text-sm font-medium transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
                 <Download className="w-4 h-4" />
                 Download
               </button>
@@ -90,8 +117,15 @@ export default function DocumentDetailsPage() {
         onClose={() => setIsSignModalOpen(false)}
         documentName={document.name}
         onSuccess={() => {
+          logAuditEvent({
+            action: "UPDATE",
+            resourceType: "Compliance",
+            resourceId: document.id,
+            summary: `E-signature attested via Client/Family portal on ${document.name}.`,
+            status: "Success",
+          });
+          toast.success(`${document.name} electronically signed & stored`);
           setIsSignModalOpen(false);
-          // In real app, we'd update document status here
         }}
       />
     </div>

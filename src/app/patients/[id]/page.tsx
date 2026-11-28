@@ -1,25 +1,21 @@
 import React from "react";
-import { notFound } from "next/navigation";
 import { mockPatients } from "@/lib/patients/mockData";
-import { PatientHeader } from "@/components/patients/PatientHeader";
-import { PatientTabs } from "@/components/patients/PatientTabs";
+import { INITIAL_AGENCY_CLIENTS } from "@/lib/store/agencySeedData";
+import { PatientHubClient } from "@/components/patients/PatientHubClient";
 
-export default async function PatientHubPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PatientHubPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = await params;
-  const patient = mockPatients[resolvedParams.id];
-
-  if (!patient) {
-    notFound();
-  }
-
-  return (
-    <div className="w-full">
-      <PatientHeader patient={patient} />
-      <PatientTabs patient={patient} />
-    </div>
-  );
+  return <PatientHubClient patientId={resolvedParams.id} />;
 }
 
 export function generateStaticParams() {
-  return Object.keys(mockPatients).map((id) => ({ id }));
+  const ids = new Set<string>([
+    ...Object.keys(mockPatients),
+    ...INITIAL_AGENCY_CLIENTS.map((c) => c.id),
+  ]);
+  return Array.from(ids).map((id) => ({ id }));
 }

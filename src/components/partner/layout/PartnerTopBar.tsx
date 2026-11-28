@@ -2,13 +2,14 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { mockOrganization } from "@/lib/partner/mockData";
 import { SidebarToggleButton } from "@/components/layout/SidebarToggleButton";
 import { DemoStudioMenu } from "@/components/layout/DemoStudioMenu";
 import { NotificationsCenter } from "@/components/layout/NotificationsCenter";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function PartnerTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
+  const { state } = useAgencyStore();
 
   const getPageTitle = () => {
     if (pathname.startsWith("/partner/submit")) return "Submit Referral";
@@ -16,7 +17,7 @@ export function PartnerTopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     if (pathname.startsWith("/partner/analytics")) return "Analytics";
     if (pathname.startsWith("/partner/messages")) return "Messages";
     if (pathname.startsWith("/partner/settings")) return "Account Settings";
-    return `Welcome back, ${mockOrganization.name}`;
+    return `Welcome back, ${state.partnerOrg.name}`;
   };
 
   return (

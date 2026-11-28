@@ -1,6 +1,10 @@
 import { AuditEvent, EVVComplianceStatus, EVVMethod, ExceptionCategory, VisitStatus } from "@/app/evv-monitoring/types";
 import { Referral } from "@/components/referrals/types";
-import { ReferralStatus as PartnerReferralStatus } from "@/lib/partner/types";
+import {
+  PartnerOrganization,
+  PartnerTeamMember,
+  ReferralStatus as PartnerReferralStatus,
+} from "@/lib/partner/types";
 import { StateDeadlineIncident } from "@/lib/mock-data/compliance-dashboard";
 import { VerificationQueueItem } from "@/types/compliance";
 import { ActionQueueItem, Candidate, CredentialWatchItem } from "@/types/hr";
@@ -46,6 +50,112 @@ export interface AgencyClient {
   authNumber: string;
   authExpiresInDays: number;
   fallRiskLevel: "Low" | "Medium" | "High";
+  carePlanVersion?: string;
+  carePlanGoals?: string[];
+  carePlanUpdatedAt?: string;
+}
+
+export type AgencyAuditAction =
+  | "VIEW_PHI"
+  | "CREATE"
+  | "UPDATE"
+  | "EXPORT"
+  | "EVV_OFFLINE_SYNC"
+  | "AUTH_LOCKOUT"
+  | "CARE_PLAN_SYNC"
+  | "PAYROLL_EXPORT"
+  | "MESSAGE_SENT";
+
+export interface AgencyAuditLogEntry {
+  id: string;
+  timestampUtc: string;
+  actorName: string;
+  actorRole: string;
+  action: AgencyAuditAction;
+  resourceType:
+    | "Client"
+    | "Visit"
+    | "Claim"
+    | "CarePlan"
+    | "Authorization"
+    | "Payroll"
+    | "Invoice"
+    | "Compliance"
+    | "Session"
+    | "Communication";
+  resourceId: string;
+  /** Strictly non-PHI anonymized event summary per RULES.md 3.1 */
+  summary: string;
+  status: "Success" | "Flagged";
+}
+
+export interface OfflineEvvRecord {
+  id: string;
+  visitId: string;
+  evvId: string;
+  actionType: "CLOCK_IN" | "CLOCK_OUT";
+  method: "gps" | "ivr" | "fvv";
+  gpsDistanceMeters: number;
+  capturedAtIso: string;
+  hmacSignature: string;
+  notes?: string;
+  signatureCaptured?: boolean;
+  mileage?: number;
+  synced: boolean;
+}
+
+export interface AgencyPrivatePayInvoice {
+  id: string;
+  clientId: string;
+  clientName: string;
+  visitIds: string[];
+  visitCount: number;
+  totalHours: number;
+  amount: number;
+  status: "Draft" | "Sent" | "Paid";
+  scheduledDateLabel: string;
+  createdAtIso: string;
+}
+
+export type AgencyMessageChannel = "in-app" | "sms" | "email";
+export type AgencyConversationCategory =
+  | "Clients"
+  | "Family Members"
+  | "Staff & Caregivers"
+  | "Care Team Channels"
+  | "Announcements";
+
+export interface AgencyMessageItem {
+  id: string;
+  conversationId: string;
+  senderName: string;
+  senderRole: string;
+  isCurrentUser?: boolean;
+  content: string;
+  timestampLabel: string;
+  channelMode: AgencyMessageChannel;
+  isInternalNote: boolean;
+  deliveryStatus: "sent" | "delivered" | "read";
+}
+
+export interface AgencyConversation {
+  id: string;
+  categoryId: AgencyConversationCategory;
+  title: string;
+  participantRole: string;
+  participantStatus: "online" | "away" | "offline";
+  phoneMasked: string;
+  preferredLanguage?: string;
+  linkedRecord?: {
+    id: string;
+    type: "Visit" | "Incident" | "Care Plan" | "Client" | "Claim";
+    label: string;
+    route: string;
+  };
+  unreadCount: number;
+  isUrgent: boolean;
+  isArchived?: boolean;
+  messages: AgencyMessageItem[];
 }
 
 export interface AgencyVisitTask {
@@ -301,6 +411,14 @@ export interface AgencyStoreState {
   credentialWatchlist: CredentialWatchItem[];
   lmsCourses: AgencyLmsCourse[];
   fieldFindings: AgencyFieldFinding[];
+  // Wave 4 Unified Audit, Offline EVV, Private-Pay & Communications
+  auditLogs: AgencyAuditLogEntry[];
+  offlineEvvQueue: OfflineEvvRecord[];
+  invoices: AgencyPrivatePayInvoice[];
+  conversations: AgencyConversation[];
+  // Role 1: Partner Organization & Team
+  partnerOrg: PartnerOrganization;
+  partnerTeamMembers: PartnerTeamMember[];
   lastUpdatedAt: string;
 }
 

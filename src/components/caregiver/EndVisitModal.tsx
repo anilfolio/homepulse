@@ -2,10 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
-  FileText,
-  Camera,
-  PenTool,
-  Navigation,
   CheckCircle2,
   Mic,
   MicOff,
@@ -17,8 +13,15 @@ import {
   ArrowRight,
   ArrowLeft,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Visit } from "@/lib/caregiver/caregiverPortalData";
+
+export interface CapturedVisitPhoto {
+  id: string;
+  name: string;
+  isSensitive: boolean;
+  preview: string;
+}
 
 interface EndVisitModalProps {
   isOpen: boolean;
@@ -28,7 +31,7 @@ interface EndVisitModalProps {
     notes: string;
     signatureUrl?: string;
     unableToSignReason?: string;
-    photos: any[];
+    photos: CapturedVisitPhoto[];
     mileage: number;
   }) => void;
 }
@@ -170,16 +173,22 @@ export function EndVisitModal({
 
   const handleFinalSubmit = () => {
     setIsSubmitting(true);
+    const signatureDataUrl =
+      hasSignature && canvasRef.current
+        ? canvasRef.current.toDataURL("image/png")
+        : hasSignature
+          ? "data:image/png;base64,captured"
+          : undefined;
     setTimeout(() => {
       setIsSubmitting(false);
       onComplete({
         notes: visitNote,
-        signatureUrl: hasSignature ? "data:image/png;base64,mock..." : undefined,
+        signatureUrl: signatureDataUrl,
         unableToSignReason: unableToSign ? unableReason : undefined,
         photos: uploadedPhotos,
         mileage: mileage,
       });
-    }, 1000);
+    }, 600);
   };
 
   return (
@@ -207,13 +216,12 @@ export function EndVisitModal({
         {/* Step Indicator Tabs */}
         <div className="px-6 py-3 bg-white border-b border-gray-100 flex items-center justify-between text-xs font-semibold">
           {[
-            { num: 1, label: "1. Visit Note", icon: FileText },
-            { num: 2, label: "2. Photos", icon: Camera },
-            { num: 3, label: "3. Signature", icon: PenTool },
-            { num: 4, label: "4. Mileage", icon: Navigation },
-            { num: 5, label: "5. Complete", icon: CheckCircle2 },
+            { num: 1, label: "1. Visit Note" },
+            { num: 2, label: "2. Photos" },
+            { num: 3, label: "3. Signature" },
+            { num: 4, label: "4. Mileage" },
+            { num: 5, label: "5. Complete" },
           ].map((s) => {
-            const Icon = s.icon;
             const isDone = step > s.num;
             const isCurrent = step === s.num;
             return (
@@ -505,7 +513,7 @@ export function EndVisitModal({
           {step > 1 && step < 5 ? (
             <button
               type="button"
-              onClick={() => setStep((prev) => (prev - 1) as any)}
+              onClick={() => setStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
               className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-slate-200 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back
@@ -517,7 +525,7 @@ export function EndVisitModal({
           {step < 5 ? (
             <button
               type="button"
-              onClick={() => setStep((prev) => (prev + 1) as any)}
+              onClick={() => setStep((prev) => Math.min(5, prev + 1) as 1 | 2 | 3 | 4 | 5)}
               className="px-5 py-2.5 text-xs font-bold text-white bg-brand-teal hover:bg-brand-teal/90 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
             >
               <span>Next Step</span>

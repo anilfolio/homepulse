@@ -8,36 +8,27 @@ import {
   Plus,
   Download,
   RefreshCw,
-  SlidersHorizontal,
   X,
   ChevronRight,
   Eye,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
   ShieldCheck,
-  Briefcase,
-  UserCheck,
   HeartHandshake,
-  FileText,
   Check,
   ExternalLink,
-  Star,
   UserX,
-  Clock,
   ArrowUpDown,
   CheckCircle2,
-  AlertTriangle
 } from "lucide-react";
-import { mockCaregivers, Caregiver } from "@/lib/caregivers/mockData";
+import { mockCaregivers, Caregiver, CaregiverStatus } from "@/lib/caregivers/mockData";
 import { StatusChangeModal } from "@/components/hr/StatusChangeModal";
 import { ExitInterviewModal } from "@/components/hr/ExitInterviewModal";
 import { AddCandidateModal } from "@/components/hr/AddCandidateModal";
 import { Candidate } from "@/types/hr";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import clsx from "clsx";
 
 export default function HrCaregiversRosterPage() {
+  const { state, addCandidate, logAuditEvent } = useAgencyStore();
   const [caregivers, setCaregivers] = useState<Record<string, Caregiver>>(mockCaregivers);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -67,14 +58,51 @@ export default function HrCaregiversRosterPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const allList = useMemo(() => Object.values(caregivers), [caregivers]);
+  const allList = useMemo(() => {
+    const liveRecords: Caregiver[] = state.caregivers.map((cg) => {
+      const assignedVisits = state.visits.filter((v) => v.caregiverId === cg.id);
+      return {
+        id: cg.id,
+        name: cg.name,
+        avatarUrl: cg.avatarUrl ?? "",
+        role: cg.roleTitle,
+        status: caregivers[cg.id]?.status ?? (cg.complianceValid ? "Active" : "On Leave"),
+        rating: cg.rating,
+        yearsWithAgency: 2,
+        phone: "(555) 234-8910",
+        email: `${cg.name.toLowerCase().replace(/[^a-z]+/g, ".")}@homepulse.com`,
+        address: `${cg.distanceMiles} mi from hub`,
+        emergencyContact: "On File in HR",
+        languages: ["English"],
+        skills: cg.skills,
+        hireDate: "2024-03-15",
+        employmentType: "W2",
+        payRate: cg.hourlyRate,
+        complianceScore: cg.complianceValid ? 98 : 74,
+        assignedPatientsCount: new Set(assignedVisits.map((v) => v.clientId)).size,
+        lastActiveDate: "Today",
+        certifications: cg.credentials.map((cred, idx) => ({
+          id: `${cg.id}-cert-${idx}`,
+          name: cred,
+          issueDate: "2025-01-10",
+          expiryDate: `In ${cg.certExpiresInDays} days`,
+          status: cg.certExpiresInDays <= 14 ? "Expiring Soon" : "Active",
+          issuer: "State Registry",
+        })),
+        recentShifts: [],
+      };
+    });
+    const liveIds = new Set(liveRecords.map((r) => r.id));
+    const additional = Object.values(caregivers).filter((c) => !liveIds.has(c.id));
+    return [...liveRecords, ...additional];
+  }, [state.caregivers, state.visits, caregivers]);
 
   // KPI counts
   const totalCount = allList.length;
   const activeCount = allList.filter((c) => c.status === "Active").length;
   const onboardingCount = allList.filter((c) => c.status === "Onboarding").length;
-  const loaCount = allList.filter((c) => c.status === ("Leave of Absence" as any) || c.status === ("On Leave" as any)).length;
-  const terminatedCount = allList.filter((c) => c.status === ("Terminated" as any) || c.status === ("Inactive" as any)).length;
+  const loaCount = allList.filter((c) => c.status === "Leave of Absence" || c.status === "On Leave").length;
+  const terminatedCount = allList.filter((c) => c.status === "Terminated" || c.status === "Inactive").length;
 
   // Roles list for dropdown filter
   const rolesList = useMemo(() => {
@@ -100,8 +128,8 @@ export default function HrCaregiversRosterPage() {
         let matchStatus = true;
         if (statusFilter === "Active") matchStatus = cg.status === "Active";
         else if (statusFilter === "Onboarding") matchStatus = cg.status === "Onboarding";
-        else if (statusFilter === "Leave of Absence") matchStatus = cg.status === ("Leave of Absence" as any) || cg.status === ("On Leave" as any);
-        else if (statusFilter === "Terminated") matchStatus = cg.status === ("Terminated" as any) || cg.status === ("Inactive" as any);
+        else if (statusFilter === "Leave of Absence") matchStatus = cg.status === "Leave of Absence" || cg.status === "On Leave";
+        else if (statusFilter === "Terminated") matchStatus = cg.status === "Terminated" || cg.status === "Inactive";
 
         const matchRole = roleFilter === "All" || cg.role === roleFilter;
 
@@ -124,15 +152,23 @@ export default function HrCaregiversRosterPage() {
     if (!selectedCaregiverForStatus) return;
 
     const cgId = selectedCaregiverForStatus.id;
+    const baseRecord = caregivers[cgId] ?? selectedCaregiverForStatus;
     setCaregivers((prev) => ({
       ...prev,
       [cgId]: {
-        ...prev[cgId],
-        status: newStatus as any
+        ...baseRecord,
+        status: newStatus as CaregiverStatus,
       }
     }));
 
     const cgName = selectedCaregiverForStatus.name;
+    logAuditEvent({
+      action: "UPDATE",
+      resourceType: "Compliance",
+      resourceId: cgId,
+      summary: `Updated HR roster status to ${newStatus} for ${cgName}.`,
+      status: "Success",
+    });
     setSelectedCaregiverForStatus(null);
     showToast(`Status updated to "${newStatus}" for ${cgName}`);
 
@@ -147,7 +183,8 @@ export default function HrCaregiversRosterPage() {
   };
 
   const handleAddCandidate = (newCand: Candidate) => {
-    const newId = `cg-${Date.now().toString().slice(-4)}`;
+    addCandidate(newCand);
+    const newId = newCand.id || `cg-${allList.length + 101}`;
     const newCaregiver: Caregiver = {
       id: newId,
       name: newCand.name,
@@ -170,7 +207,7 @@ export default function HrCaregiversRosterPage() {
       lastActiveDate: "Today",
       certifications: [
         {
-          id: `cert-${Date.now()}`,
+          id: `cert-${newId}`,
           name: newCand.credentialVerification?.licenseType || "State Cert",
           issueDate: "2026-01-01",
           expiryDate: "2028-01-01",
@@ -187,7 +224,7 @@ export default function HrCaregiversRosterPage() {
     }));
 
     setIsAddCandidateOpen(false);
-    showToast(`Successfully added candidate "${newCand.name}" to roster!`);
+    showToast(`Successfully added candidate "${newCand.name}" to Recruiting & Roster!`);
   };
 
   const handleExportCSV = () => {
@@ -212,6 +249,13 @@ export default function HrCaregiversRosterPage() {
     link.click();
     document.body.removeChild(link);
 
+    logAuditEvent({
+      action: "EXPORT",
+      resourceType: "Compliance",
+      resourceId: "hr-caregiver-roster-csv",
+      summary: `Exported ${filteredCaregivers.length} HR caregiver roster record(s) to CSV.`,
+      status: "Success",
+    });
     showToast("Exported caregiver roster CSV file!");
   };
 
@@ -430,7 +474,7 @@ export default function HrCaregiversRosterPage() {
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as "name" | "status" | "compliance" | "payRate")}
               className="bg-transparent outline-none cursor-pointer text-xs font-semibold text-slate-700"
             >
               <option value="name">Sort: Name (A-Z)</option>
@@ -474,7 +518,7 @@ export default function HrCaregiversRosterPage() {
             </div>
             <h3 className="text-base font-bold text-slate-800">No Caregivers Found</h3>
             <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-              We couldn't find any caregiver matching your current search parameters. Try adjusting or clearing your filters.
+              We couldn&apos;t find any caregiver matching your current search parameters. Try adjusting or clearing your filters.
             </p>
             <button
               onClick={resetFilters}
@@ -497,8 +541,8 @@ export default function HrCaregiversRosterPage() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredCaregivers.map((cg) => {
-                  const isTerminated = cg.status === ("Terminated" as any) || cg.status === ("Inactive" as any);
-                  const isLoa = cg.status === ("Leave of Absence" as any) || cg.status === ("On Leave" as any);
+                  const isTerminated = cg.status === "Terminated" || cg.status === "Inactive";
+                  const isLoa = cg.status === "Leave of Absence" || cg.status === "On Leave";
                   const initials = cg.name
                     ? cg.name
                       .split(" ")
@@ -826,7 +870,7 @@ export default function HrCaregiversRosterPage() {
       <AddCandidateModal
         isOpen={isAddCandidateOpen}
         onClose={() => setIsAddCandidateOpen(false)}
-        existingCandidates={[]}
+        existingCandidates={state.candidates}
         onAddCandidate={handleAddCandidate}
       />
 
@@ -848,7 +892,7 @@ export default function HrCaregiversRosterPage() {
         caregiverName={exitInterviewData.caregiverName}
         reasonCode={exitInterviewData.reasonCode}
         effectiveDate={exitInterviewData.effectiveDate}
-        onSubmitExitInterview={(res) => {
+        onSubmitExitInterview={() => {
           showToast(`Exit interview saved for ${exitInterviewData.caregiverName}. Retention Pulse data updated.`);
         }}
       />

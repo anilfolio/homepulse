@@ -9,6 +9,8 @@ import {
   CheckCircle2, Mic, Check, ArrowLeft
 } from "lucide-react";
 import clsx from "clsx";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 type ConfidenceLevel = "high" | "review" | "missing";
 
@@ -37,6 +39,7 @@ export function ComprehensiveCarePlanForm({
   onComplete,
   onBack
 }: ComprehensiveCarePlanFormProps = {}) {
+  const { state, syncCarePlanToClientVisits } = useAgencyStore();
   const [activeSection, setActiveSection] = useState<FormSectionId>("id");
   const [stateConfig, setStateConfig] = useState("generic");
 
@@ -54,10 +57,12 @@ export function ComprehensiveCarePlanForm({
   const [outcomeAreas, setOutcomeAreas] = useState(['Functional Status', 'Health / Symptoms', 'Safety', 'Goal Achievement', 'Caregiver Capacity']);
   const [preferencesList, setPreferencesList] = useState(['Daily Routine', 'Care Preferences', 'Food / Dietary Preferences', 'Communication Preferences', 'Personal / Cultural Preferences', 'Activities / Interests', 'Family Involvement', 'Privacy / Dignity', 'Other']);
   const [approvalsList, setApprovalsList] = useState(['Patient / Representative', 'Caregiver', 'Care Coordinator', 'Nurse / Clinician', 'Other']);
-  const [selectedPatient, setSelectedPatient] = useState("p1");
+  const [selectedPatient, setSelectedPatient] = useState(state.clients[0]?.id ?? "cl-eleanor");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const selectedClient = state.clients.find((c) => c.id === selectedPatient) ?? state.clients[0];
 
   const sections = [
     { id: "id", label: "Patient Identification", icon: User },
@@ -83,14 +88,29 @@ export function ComprehensiveCarePlanForm({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const targetClientId = selectedClient?.id ?? state.clients[0]?.id;
     setTimeout(() => {
+      if (targetClientId) {
+        const syncedCount = syncCarePlanToClientVisits({
+          clientId: targetClientId,
+          goals: goalsList,
+          taskTitles: [
+            ...adlsList.slice(0, 3).map((a) => `Care Plan ADL: ${a}`),
+            ...caregiverInstructions.slice(0, 2),
+          ],
+          medicationReminders: ["Eliquis 5mg BID (Verify Compliance)", "Lisinopril 10mg Daily"],
+        });
+        toast.success(
+          `Care Plan synced to ${selectedClient?.name ?? "client"} (${syncedCount} active/upcoming visit(s) updated).`
+        );
+      }
       setIsSubmitting(false);
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         if (onComplete) onComplete();
-      }, 1000);
-    }, 1000);
+      }, 900);
+    }, 500);
   };
 
   return (
@@ -118,9 +138,19 @@ export function ComprehensiveCarePlanForm({
               <span className="text-xs font-semibold">Back</span>
             </button>
           )}
-          <div className="flex items-center gap-2 bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200">
-            <User className="w-4 h-4" />
-            <span className="text-xs font-medium">Evelyn Harper</span>
+          <div className="flex items-center gap-2 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
+            <User className="w-4 h-4 text-brand-teal" />
+            <select
+              value={selectedClient?.id ?? ""}
+              onChange={(e) => setSelectedPatient(e.target.value)}
+              className="bg-transparent text-xs font-semibold outline-none cursor-pointer"
+            >
+              {state.clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-2 bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200">
             <FileText className="w-4 h-4" />

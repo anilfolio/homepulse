@@ -2,23 +2,26 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { ArrowLeft, Mic, FileText, Upload, Video, Square, CheckCircle2 } from "lucide-react";
+import { Mic, FileText, CheckCircle2 } from "lucide-react";
 import { HybridCarePlanWorkspace } from "@/components/clinical/HybridCarePlanWorkspace";
 import clsx from "clsx";
 
 import { CarePlanStepper, CarePlanStep } from "@/components/clinical/CarePlanStepper";
 import { CarePlanCapture } from "@/components/clinical/CarePlanCapture";
 import { CarePlanSignOff } from "@/components/clinical/CarePlanSignOff";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import { Info } from "lucide-react";
 
 export default function ClinicalAssessmentsPage() {
+  const { state } = useAgencyStore();
   const [currentStep, setCurrentStep] = useState<CarePlanStep>("setup");
   const [captureMode, setCaptureMode] = useState<"voice" | "manual">("voice");
 
   // Context Selection
-  const [patientId, setPatientId] = useState("");
-  const [templateId, setTemplateId] = useState("");
+  const [patientId, setPatientId] = useState(() => state.clients[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState("initial");
+
+  const selectedClient = state.clients.find((c) => c.id === patientId);
 
   const isContextReady = patientId !== "" && templateId !== "";
 
@@ -73,9 +76,12 @@ export default function ClinicalAssessmentsPage() {
                     onChange={e => setPatientId(e.target.value)}
                     className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-teal outline-none bg-slate-50 focus:bg-white transition-colors"
                   >
-                    <option value="">Select a patient...</option>
-                    <option value="p1">Evelyn Harper — DOB 04/12/1952</option>
-                    <option value="p2">Robert Chen — DOB 08/24/1945</option>
+                    <option value="">Select a client...</option>
+                    {state.clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name} — {client.mrn} ({client.payer})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex-1 space-y-2">
@@ -95,7 +101,7 @@ export default function ClinicalAssessmentsPage() {
             </div>
             {/* Entry Paths */}
             <div className={clsx("bg-white p-4 rounded-2xl border border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-opacity duration-300 flex flex-col", !isContextReady && "opacity-50 pointer-events-none")}>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">Choose how you'd like to start</h3>
+              <h3 className="text-base font-semibold text-slate-900 mb-1">Choose how you&apos;d like to start</h3>
               <p className="text-xs text-slate-500 mb-6">Both paths open the same care plan workspace — you can dictate inside the manual form, or type over anything the AI transcribes.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -117,7 +123,7 @@ export default function ClinicalAssessmentsPage() {
                     </p>
                   </div>
                   <div className="w-full bg-brand-teal/5 text-brand-teal/80 text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 mt-2">
-                    <CheckCircle2 className="w-4 h-4" /> You'll review every AI-mapped field with a confidence score before anything is saved.
+                    <CheckCircle2 className="w-4 h-4" /> You&apos;ll review every AI-mapped field with a confidence score before anything is saved.
                   </div>
                 </div>
                 {/* Option B: Standard Manual Form */}
@@ -197,6 +203,8 @@ export default function ClinicalAssessmentsPage() {
             className="flex-1 min-h-0"
           >
             <CarePlanSignOff
+              patientId={patientId}
+              patientName={selectedClient?.name}
               onComplete={() => {
                 setCurrentStep("setup");
                 setPatientId("");

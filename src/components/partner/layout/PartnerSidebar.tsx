@@ -21,8 +21,8 @@ import clsx from "clsx";
 import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useAuth } from "@/hooks/useAuth";
 import { HomePulseLogo } from "@/components/brand/HomePulseLogo";
-import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
 import { SidebarTooltip, type SidebarTooltipData } from "@/components/layout/SidebarTooltip";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 const NAV_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, id: "dashboard", href: "/partner" },
@@ -42,6 +42,7 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const { state } = useAgencyStore();
   const { isCollapsed, hasMounted } = useSidebarCollapse();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [tooltip, setTooltip] = useState<SidebarTooltipData | null>(null);
@@ -124,7 +125,14 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
     return "dashboard";
   }, [pathname]);
 
-  const activeMember = mockTeamMembers[0];
+  const activeMember = state.partnerTeamMembers[0] ?? {
+    id: "tm-default",
+    name: state.partnerOrg.primaryContact,
+    role: "Partner Lead",
+    email: state.partnerOrg.primaryEmail,
+    phone: state.partnerOrg.primaryPhone,
+    status: "Active" as const,
+  };
 
   const collapsedFadeClass = !hasMounted
     ? "md:opacity-0 md:max-w-0 md:ml-0 md:pointer-events-none min-[1400px]:opacity-100 min-[1400px]:max-w-[180px] min-[1400px]:ml-3 min-[1400px]:pointer-events-auto"
@@ -260,7 +268,7 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
           <button
             type="button"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            onMouseEnter={(e) => showMiniTooltip(e.currentTarget, `${activeMember.name} · ${mockOrganization.name}`)}
+            onMouseEnter={(e) => showMiniTooltip(e.currentTarget, `${activeMember.name} · ${state.partnerOrg.name}`)}
             onMouseLeave={hideMiniTooltip}
             className="flex items-center w-full hover:bg-sidebar-active p-2 rounded-xl transition-colors text-left cursor-pointer"
           >
@@ -279,7 +287,7 @@ export function PartnerSidebar({ isOpen = false, onClose }: PartnerSidebarProps)
                 </div>
                 <div className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
                   <Building2 className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{mockOrganization.name}</span>
+                  <span className="truncate">{state.partnerOrg.name}</span>
                 </div>
               </div>
               <ChevronDown

@@ -2,10 +2,20 @@
 
 import React from "react";
 import { TrendingUp, AlertTriangle } from "lucide-react";
-import { mockQualityTrends, mockPatternAlerts } from "@/lib/mock-data/compliance-dashboard";
+import { mockQualityTrends } from "@/lib/mock-data/compliance-dashboard";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function QualityTrends() {
+  const { state } = useAgencyStore();
+  const evvExceptionCount = state.visits.filter((v) => v.evvCompliance === "Exception").length;
+  const openIncidentsCount = state.incidents.filter((i) => i.status !== "Closed").length;
+  const overdueSupCount = state.supervisoryVisits.filter((v) => v.status === "overdue").length;
+  const liveAlerts = [
+    `${openIncidentsCount} active incident(s) & ${state.stateDeadlines.length} state deadline(s) in QA queue.`,
+    `${evvExceptionCount} EVV geofence/timing exception(s) awaiting review across active visits.`,
+    `${overdueSupCount} overdue RN supervisory visit(s) impacting survey readiness.`,
+  ];
   return (
     <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-[0_6px_32px_rgba(0,0,0,0.06)] h-auto lg:h-full flex flex-col">
       <div className="pb-3 border-b border-slate-100 flex items-center justify-between mb-3">
@@ -90,7 +100,7 @@ export function QualityTrends() {
               Pattern Alerts
             </h4>
             <ul className="space-y-1">
-              {mockPatternAlerts.map((alert, i) => (
+              {liveAlerts.map((alert, i) => (
                 <li key={i} className="text-[12px] text-amber-800/80 leading-relaxed flex items-start gap-2.5 font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0 shadow-[0_6px_32px_rgba(0,0,0,0.06)]" />
                   {alert}

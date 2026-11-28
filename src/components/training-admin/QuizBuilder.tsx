@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import {
   Save,
   Settings,
@@ -14,6 +13,8 @@ import {
   Shuffle,
   AlertTriangle
 } from "lucide-react";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+import { toast } from "sonner";
 
 interface Question {
   id: string;
@@ -24,6 +25,7 @@ interface Question {
 }
 
 export function QuizBuilder() {
+  const { logAuditEvent } = useAgencyStore();
   const [quizTitle, setQuizTitle] = useState("Final Assessment: Infection Control");
   const [passingThreshold, setPassingThreshold] = useState(80);
   const [randomize, setRandomize] = useState(true);
@@ -119,7 +121,20 @@ export function QuizBuilder() {
           </div>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-brand-teal text-white font-semibold rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.04)] shadow-brand-teal/20 hover:bg-brand-teal/90 active:scale-95 transition-all">
+          <button
+            type="button"
+            onClick={() => {
+              logAuditEvent({
+                action: "UPDATE",
+                resourceType: "Compliance",
+                resourceId: "lms-quiz-builder",
+                summary: `Saved LMS competency quiz "${quizTitle}" (${questions.length} Qs, ${passingThreshold}% pass threshold).`,
+                status: "Success",
+              });
+              toast.success(`Quiz "${quizTitle}" saved & synced with LMS`);
+            }}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-brand-teal text-white font-semibold rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.04)] shadow-brand-teal/20 hover:bg-brand-teal/90 active:scale-95 transition-all"
+          >
             <Save className="w-4 h-4" /> Save Quiz
           </button>
         </div>
@@ -337,7 +352,7 @@ export function QuizBuilder() {
               <div className="pt-3">
                 <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">High-Failure Questions</h4>
                 <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                  <p className="text-xs text-slate-700 font-medium line-clamp-2">"Alcohol-based hand rubs are effective against all types of..."</p>
+                  <p className="text-xs text-slate-700 font-medium line-clamp-2">&ldquo;Alcohol-based hand rubs are effective against all types of...&rdquo;</p>
                   <div className="flex justify-between items-center mt-2 text-xs">
                     <span className="text-amber-700 font-semibold">42% Fail Rate</span>
                     <button className="text-amber-600 hover:underline">Edit</button>

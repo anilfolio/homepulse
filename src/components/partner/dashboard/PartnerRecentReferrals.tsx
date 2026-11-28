@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ReferralStatus } from "@/lib/partner/types";
@@ -27,6 +28,7 @@ export function getStatusColor(status: ReferralStatus) {
 }
 
 export function PartnerRecentReferrals() {
+  const router = useRouter();
   const { state } = useAgencyStore();
   // Show top 5 recent referrals synced live with Intake
   const recentReferrals = state.referrals.slice(0, 5).map((r) => ({
@@ -35,6 +37,7 @@ export function PartnerRecentReferrals() {
     patientInitials: r.clientInitials,
     submittedAt: r.dateReceived,
     status: r.partnerStatus,
+    intakeStage: r.stage,
     urgency: r.urgency === "High" ? ("Discharge within 24-48h" as const) : ("Normal" as const),
     serviceRequested: r.serviceRequested || r.diagnosis || "Home Care Services",
   }));
@@ -62,7 +65,11 @@ export function PartnerRecentReferrals() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {recentReferrals.map((ref) => (
-              <tr key={ref.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
+              <tr
+                key={ref.id}
+                onClick={() => router.push("/partner/referrals")}
+                className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
+              >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 whitespace-nowrap">

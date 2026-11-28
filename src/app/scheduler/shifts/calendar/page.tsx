@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Header } from "@/components/scheduling/Header";
 import { FilterBar } from "@/components/scheduling/FilterBar";
 import { UrgencyStrip } from "@/components/scheduling/UrgencyStrip";
 import { CalendarView } from "@/components/scheduling/CalendarView";
 import { ShiftModal } from "@/components/scheduling/ShiftModal";
 import { CreateShiftModal } from "@/components/scheduling/CreateShiftModal";
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import {
-  mockShifts,
-  mockCaregivers,
-  type Shift,
-  type ShiftStatus,
-} from "@/lib/scheduling/mockData";
+  mapAgencyCaregiversToScheduling,
+  mapAgencyVisitsToShifts,
+} from "@/lib/scheduling/agencyShiftAdapter";
+import type { Shift } from "@/lib/scheduling/mockData";
 
 export default function ScheduledShiftsCalendarPage() {
+  const { state, assignShift, triggerCallOff, createShift } = useAgencyStore();
   const [viewMode, setViewMode] = useState<"Day" | "Week" | "Month">("Day");
   const [activeFilter, setActiveFilter] = useState("All Shifts");
 
@@ -22,50 +24,56 @@ export default function ScheduledShiftsCalendarPage() {
   const [patientFilter, setPatientFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
 
-  const [shifts, setShifts] = useState<Shift[]>(mockShifts);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const openShiftsCount = shifts.filter((s) => s.status === "Unfilled").length;
+  const shifts = useMemo(
+    () => mapAgencyVisitsToShifts(state.visits, state.clients, state.caregivers),
+    [state.visits, state.clients, state.caregivers]
+  );
 
-  const handleShiftStatusChange = (shiftId: string, newStatus: ShiftStatus) => {
-    setShifts((prev) =>
-      prev.map((shift) => {
-        if (shift.id === shiftId) {
-          if (newStatus === "Unfilled") {
-            return { ...shift, status: newStatus, assignedCaregiverId: null, assignedCaregiverName: undefined };
-          }
-          return { ...shift, status: newStatus };
-        }
-        return shift;
-      })
-    );
-  };
+  const schedulingCaregivers = useMemo(
+    () => mapAgencyCaregiversToScheduling(state.caregivers),
+    [state.caregivers]
+  );
+
+  const openShiftsCount = shifts.filter(
+    (s) => s.status === "Unfilled" || s.status === "Call-Off"
+  ).length;
 
   const handleAssignCaregiver = (shiftId: string, caregiverId: string) => {
-    const cg = mockCaregivers.find((c) => c.id === caregiverId);
-    if (!cg) return;
-
-    setShifts((prev) =>
-      prev.map((shift) =>
-        shift.id === shiftId
-          ? {
-            ...shift,
-            status: "Pending Confirmation",
-            assignedCaregiverId: caregiverId,
-            assignedCaregiverName: cg.name,
-          }
-          : shift
-      )
-    );
+    assignShift(shiftId, caregiverId);
+    toast.success("Caregiver assigned & synced across Caregiver & EVV portals.");
   };
 
   const handleCallOff = (shiftId: string) => {
-    handleShiftStatusChange(shiftId, "Unfilled");
+    triggerCallOff(shiftId, "Calendar call-off");
+    toast.warning("Call-off triggered — backfill offers dispatched.");
+  };
+
+  const handleCreateShift = (newShift: Shift) => {
+    const client =
+      state.clients.find((c) =>
+        c.name.toLowerCase().includes(newShift.patientName.toLowerCase())
+      ) ?? state.clients[0];
+    if (!client) return;
+
+    createShift({
+      clientId: client.id,
+      caregiverId: null,
+      scheduledStart: "10:00 AM",
+      scheduledEnd: "02:00 PM",
+      scheduledHours: 4,
+      requiredSkills: newShift.requiredSkills,
+      region: newShift.region,
+    });
+    toast.success(`Shift created for ${client.name}.`);
   };
 
   const selectedShift = shifts.find((s) => s.id === selectedShiftId) || null;
-  const suggestedCaregivers = [...mockCaregivers].sort((a, b) => b.rating - a.rating).slice(0, 3);
+  const suggestedCaregivers = [...schedulingCaregivers]
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 3);
 
   const filteredShifts = shifts.filter((s) => {
     if (activeFilter === "Call-Offs") {
@@ -81,8 +89,12 @@ export default function ScheduledShiftsCalendarPage() {
     return true;
   });
 
-  const uniqueCaregivers = Array.from(new Set(shifts.map((s) => s.assignedCaregiverName).filter(Boolean))) as string[];
-  const uniquePatients = Array.from(new Set(shifts.map((s) => s.patientName).filter(Boolean)));
+  const uniqueCaregivers = Array.from(
+    new Set(shifts.map((s) => s.assignedCaregiverName).filter(Boolean))
+  ) as string[];
+  const uniquePatients = Array.from(
+    new Set(shifts.map((s) => s.patientName).filter(Boolean))
+  );
   const uniqueRegions = Array.from(new Set(shifts.map((s) => s.region).filter(Boolean)));
 
   return (
@@ -114,7 +126,7 @@ export default function ScheduledShiftsCalendarPage() {
         <CalendarView
           viewMode={viewMode}
           shifts={filteredShifts}
-          caregivers={mockCaregivers}
+          caregivers={schedulingCaregivers}
           onShiftClick={(shift) => setSelectedShiftId(shift.id)}
         />
       </div>
@@ -131,7 +143,7 @@ export default function ScheduledShiftsCalendarPage() {
       <CreateShiftModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCreate={(newShift) => setShifts((prev) => [...prev, newShift])}
+        onCreate={handleCreateShift}
       />
     </div>
   );

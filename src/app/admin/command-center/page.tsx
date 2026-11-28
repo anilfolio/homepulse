@@ -24,6 +24,11 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 import { buildExecutiveBriefing } from "@/lib/engine/aiCopilotSimulator";
+import {
+  computeSurveyReadiness,
+  forecastAuthorizationBurn,
+  predictCaregiverTurnoverAndCallOffRisk,
+} from "@/lib/engine/predictiveOpsEngine";
 
 interface EscalationItem {
   id: string;
@@ -35,39 +40,6 @@ interface EscalationItem {
   route: string;
   actionText: string;
 }
-
-const TOP_ESCALATIONS: EscalationItem[] = [
-  {
-    id: "esc-1",
-    department: "Scheduling",
-    priority: "CRITICAL",
-    title: "Unstaffed Afternoon Shift (Call-off)",
-    description: "Client PT-842 requires 14:00 clock-in. Caregiver CG-12 called out sick.",
-    time: "8m ago",
-    route: "/scheduler/requirements",
-    actionText: "Dispatch",
-  },
-  {
-    id: "esc-2",
-    department: "Clinical",
-    priority: "HIGH",
-    title: "Initial RN Assessment Past 48h Window",
-    description: "Client PT-911 admitted Wednesday. Supervisory nurse assignment pending.",
-    time: "24m ago",
-    route: "/clinical/pending-assessments",
-    actionText: "Assign RN",
-  },
-  {
-    id: "esc-3",
-    department: "Billing",
-    priority: "HIGH",
-    title: "Commercial Denial (Missing Prior Auth)",
-    description: "Claim #CLM-904 ($1,420.00) flagged. Payor auth code required.",
-    time: "1h ago",
-    route: "/billing/denials",
-    actionText: "Scrub & Resubmit",
-  },
-];
 
 export default function CommandCenterPage() {
   const router = useRouter();
@@ -91,21 +63,35 @@ export default function CommandCenterPage() {
     .filter((c) => c.scrubStatus === "Passed")
     .reduce((sum, c) => sum + c.amount, 0);
   const deniedCount = state.claims.filter((c) => c.status === "Denied").length;
+  const overdueSupCount = state.supervisoryVisits.filter((s) => s.status === "overdue").length;
+  const scheduledCount = state.visits.filter((v) => v.status === "Scheduled").length;
+
+  const totalClaimsAmount = state.claims.reduce((sum, c) => sum + c.amount, 0);
+  const cleanClaimsCount = state.claims.filter((c) => c.scrubStatus === "Passed").length;
+  const preBillCleanRate =
+    state.claims.length > 0 ? ((cleanClaimsCount / state.claims.length) * 100).toFixed(1) : "100.0";
+
+  const surveyReadiness = React.useMemo(() => computeSurveyReadiness(state), [state]);
+  const caregiverRisks = React.useMemo(
+    () => predictCaregiverTurnoverAndCallOffRisk(state).slice(0, 3),
+    [state]
+  );
+  const authForecasts = React.useMemo(
+    () => forecastAuthorizationBurn(state).slice(0, 2),
+    [state]
+  );
 
   const liveBriefing = React.useMemo(() => buildExecutiveBriefing(state), [state]);
-  const liveEscalations: EscalationItem[] =
-    liveBriefing.length > 0
-      ? liveBriefing.map((b) => ({
-          id: b.id,
-          department: b.category,
-          priority: b.severity === "critical" ? "CRITICAL" : "HIGH",
-          title: b.title,
-          description: b.summary,
-          time: "Live",
-          route: b.route,
-          actionText: b.actionLabel,
-        }))
-      : TOP_ESCALATIONS;
+  const liveEscalations: EscalationItem[] = liveBriefing.map((b) => ({
+    id: b.id,
+    department: b.category,
+    priority: b.severity === "critical" ? "CRITICAL" : "HIGH",
+    title: b.title,
+    description: b.summary,
+    time: "Live",
+    route: b.route,
+    actionText: b.actionLabel,
+  }));
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -143,10 +129,10 @@ export default function CommandCenterPage() {
       title: "Clinical Supervisory",
       icon: Stethoscope,
       iconColor: "text-teal-600 bg-teal-50",
-      statusText: "2 Overdue",
-      statusType: "warning" as const,
-      detail: "Initial RN supervisory assessments pending",
-      route: "/clinical/pending-assessments",
+      statusText: `${overdueSupCount} Overdue`,
+      statusType: (overdueSupCount > 0 ? "warning" : "normal") as "danger" | "warning" | "normal",
+      detail: `${state.carePlanReviews.filter((r) => r.status !== "completed").length} care plan review(s) • ${state.clinicalEscalations.length} clinical escalation(s)`,
+      route: "/clinical",
     },
     {
       id: "field",
@@ -269,11 +255,15 @@ export default function CommandCenterPage() {
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-slate-900 tracking-tight">98.7%</span>
-            <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Optimal</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tight">
+              {surveyReadiness.evvVerificationRate}%
+            </span>
+            <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">
+              {evvExceptionCount === 0 ? "Optimal" : "Review"}
+            </span>
           </div>
           <span className="text-[11px] text-amber-700 font-semibold block mt-1">
-            1 Late Arrival · 1 GPS Variance
+            {evvExceptionCount} EVV exception(s) · {state.offlineEvvQueue.filter((q) => !q.synced).length} offline pending
           </span>
         </div>
 
@@ -290,7 +280,7 @@ export default function CommandCenterPage() {
             </span>
           </div>
           <span className="text-[11px] text-slate-500 font-medium block mt-1">
-            2 shifts starting within 4 hours
+            {scheduledCount} scheduled shift(s) staffed
           </span>
         </div>
 
@@ -301,11 +291,15 @@ export default function CommandCenterPage() {
             <DollarSign className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-slate-900 tracking-tight">96.2%</span>
-            <span className="text-xs text-slate-400">$42.8k Queue</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tight">
+              {preBillCleanRate}%
+            </span>
+            <span className="text-xs text-slate-400">
+              ${(totalClaimsAmount / 1000).toFixed(1)}k Queue
+            </span>
           </div>
           <span className="text-[11px] text-slate-500 font-medium block mt-1">
-            1 Denial to scrub · 2 Auths due
+            {deniedCount} denial(s) · {authForecasts.filter((a) => a.urgency !== "Healthy").length} auth alert(s)
           </span>
         </div>
       </div>
@@ -393,53 +387,150 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="space-y-2.5">
-              {liveEscalations.map((esc) => {
-                const matchedBrief = liveBriefing.find((b) => b.id === esc.id);
-                return (
-                <div
-                  key={esc.id}
-                  className="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={clsx(
-                          "px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase tracking-wide",
-                          esc.priority === "CRITICAL"
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-amber-100 text-amber-900"
-                        )}
-                      >
-                        {esc.priority}
-                      </span>
-                      <span className="text-xs font-bold text-slate-800">{esc.title}</span>
-                      <span className="text-[11px] text-slate-400">· {esc.time}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 truncate">{esc.description}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {matchedBrief && (
-                      <button
-                        type="button"
-                        onClick={() => executeBriefingAction(matchedBrief.actionType)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
-                      >
-                        Auto-Fix
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => router.push(esc.route)}
-                      className="px-3 py-1.5 bg-[#141D3C] hover:bg-[#1E2B58] text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1"
-                    >
-                      <span>Open</span>
-                      <ArrowRight className="w-3 h-3 text-[#57EAB6]" />
-                    </button>
-                  </div>
+              {liveEscalations.length === 0 ? (
+                <div className="p-6 text-center rounded-xl border border-emerald-200 bg-emerald-50/50 text-xs font-semibold text-emerald-800">
+                  All agency operational queues are nominal — zero unresolved bottlenecks.
                 </div>
-                );
-              })}
+              ) : (
+                liveEscalations.map((esc) => {
+                  const matchedBrief = liveBriefing.find((b) => b.id === esc.id);
+                  return (
+                    <div
+                      key={esc.id}
+                      className="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={clsx(
+                              "px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase tracking-wide",
+                              esc.priority === "CRITICAL"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-amber-100 text-amber-900"
+                            )}
+                          >
+                            {esc.priority}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">{esc.title}</span>
+                          <span className="text-[11px] text-slate-400">· {esc.time}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 truncate">{esc.description}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {matchedBrief && (
+                          <button
+                            type="button"
+                            onClick={() => executeBriefingAction(matchedBrief.actionType)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                          >
+                            Auto-Fix
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => router.push(esc.route)}
+                          className="px-3 py-1.5 bg-[#141D3C] hover:bg-[#1E2B58] text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                        >
+                          <span>Open</span>
+                          <ArrowRight className="w-3 h-3 text-[#57EAB6]" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Predictive AI Intelligence & Survey Readiness (Next-Gen Leapfrog) */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                  Predictive Operations &amp; State Survey Readiness
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Proactive caregiver call-off risk, authorization burn forecasts, and audit readiness.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-[#141D3C] text-[#57EAB6] text-xs font-extrabold">
+                Survey Score: {surveyReadiness.overallScore}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Caregiver Call-Off / Burnout Risk
+                </div>
+                {caregiverRisks.map((risk) => (
+                  <div
+                    key={risk.caregiverId}
+                    className="flex items-center justify-between gap-2 text-xs bg-white p-2 rounded-lg border border-slate-200/70"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 truncate">
+                        {risk.caregiverName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {risk.primaryFactor}
+                      </div>
+                    </div>
+                    <span
+                      className={clsx(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0",
+                        risk.riskLevel === "High"
+                          ? "bg-rose-100 text-rose-700"
+                          : risk.riskLevel === "Moderate"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-emerald-100 text-emerald-700"
+                      )}
+                    >
+                      {risk.riskScore}% {risk.riskLevel}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Authorization Depletion Forecast
+                </div>
+                {authForecasts.map((auth) => (
+                  <div
+                    key={auth.clientId}
+                    className="flex items-center justify-between gap-2 text-xs bg-white p-2 rounded-lg border border-slate-200/70"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 truncate">{auth.clientName}</div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {auth.unitsRemaining} units left • {auth.projectedWeeklyBurn} u/wk burn
+                      </div>
+                    </div>
+                    <span
+                      className={clsx(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0",
+                        auth.urgency === "Critical"
+                          ? "bg-rose-100 text-rose-700"
+                          : "bg-amber-100 text-amber-800"
+                      )}
+                    >
+                      ~{auth.estimatedDaysToDepletion}d left
+                    </span>
+                  </div>
+                ))}
+                {surveyReadiness.topRemediations[0] && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(surveyReadiness.topRemediations[0].route)}
+                    className="w-full text-left text-[11px] font-semibold text-brand-teal hover:underline pt-1 cursor-pointer"
+                  >
+                    Top Survey Remediation (+{surveyReadiness.topRemediations[0].impactPoints} pts):{" "}
+                    {surveyReadiness.topRemediations[0].label} &rarr;
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -463,16 +554,16 @@ export default function CommandCenterPage() {
             {/* Distribution Count */}
             <div className="grid grid-cols-3 gap-2 bg-[#0E152E] p-3 rounded-xl border border-[#2A3B75]/70 text-center mb-3">
               <div>
-                <span className="text-xl font-black text-white">48</span>
+                <span className="text-xl font-black text-white">{inProgressCount}</span>
                 <span className="block text-[10px] text-slate-400 uppercase">On-Site</span>
               </div>
               <div>
-                <span className="text-xl font-black text-[#57EAB6]">4</span>
-                <span className="block text-[10px] text-slate-400 uppercase">En Route</span>
+                <span className="text-xl font-black text-[#57EAB6]">{scheduledCount}</span>
+                <span className="block text-[10px] text-slate-400 uppercase">Scheduled</span>
               </div>
               <div>
-                <span className="text-xl font-black text-amber-400">8</span>
-                <span className="block text-[10px] text-slate-400 uppercase">On-Call</span>
+                <span className="text-xl font-black text-amber-400">{openShiftsCount}</span>
+                <span className="block text-[10px] text-slate-400 uppercase">Open / Risk</span>
               </div>
             </div>
 

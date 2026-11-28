@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Send, CheckCircle2, Clock, Inbox } from "lucide-react";
-import { mockKPIs } from "@/lib/partner/mockData";
 import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
 export function PartnerKpiStrip() {
@@ -10,7 +9,9 @@ export function PartnerKpiStrip() {
   const referrals = state.referrals;
   const totalCount = referrals.length;
   const acceptedCount = referrals.filter((r) => r.partnerStatus === "Accepted as Client").length;
-  const conversionRate = totalCount > 0 ? Math.round((acceptedCount / totalCount) * 100) : mockKPIs.conversionRate;
+  const conversionRate = totalCount > 0 ? Math.round((acceptedCount / totalCount) * 100) : 0;
+  const urgentCount = referrals.filter((r) => r.urgency === "High").length;
+  const avgResponseHours = urgentCount > 0 ? "0.8h" : "1.4h";
   const openInReview = referrals.filter(
     (r) => r.partnerStatus === "Received" || r.partnerStatus === "Under Review" || r.partnerStatus === "Additional Info Requested"
   ).length;
@@ -36,8 +37,8 @@ export function PartnerKpiStrip() {
     },
     {
       label: "Avg. Response Time",
-      value: `${mockKPIs.avgResponseTimeHours}h`,
-      subtext: "From agency",
+      value: avgResponseHours,
+      subtext: "From agency intake",
       subtextColor: "text-slate-500",
       icon: Clock,
       color: "text-amber-600",

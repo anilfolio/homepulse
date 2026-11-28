@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShieldCheck,
   Search,
   BookOpen,
   Info,
@@ -12,61 +10,76 @@ import {
   ExternalLink
 } from "lucide-react";
 import Link from "next/link";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
 
-const MOCK_REQUIREMENTS = [
+const COMPLIANCE_FRAMEWORKS = [
   {
     id: "req_1",
     title: "Annual HIPAA & Privacy Training",
     regulatoryBasis: "Health Insurance Portability and Accountability Act (HIPAA) - 45 CFR Part 160",
     frequency: "Annual",
-    status: "compliant",
-    satisfyingCourses: [
-      { id: "c_1", title: "Annual HIPAA & Privacy Update V3.1", status: "published" }
-    ],
-    nextReview: "2026-10-01"
+    categoryMatch: "HIPAA",
+    nextReview: "2026-10-01",
   },
   {
     id: "req_2",
     title: "Abuse & Neglect Reporting",
     regulatoryBasis: "State Mandate - Elder Abuse Reporting Act",
     frequency: "Annual",
-    status: "review-needed",
-    satisfyingCourses: [
-      { id: "c_2", title: "Recognizing & Reporting Abuse", status: "archived" }
-    ],
-    nextReview: "Overdue"
+    categoryMatch: "Compliance",
+    nextReview: "2026-09-15",
   },
   {
     id: "req_3",
-    title: "Infection Control Standards",
+    title: "Infection Control & OSHA Standards",
     regulatoryBasis: "OSHA Bloodborne Pathogens Standard 1910.1030",
     frequency: "Annual",
-    status: "compliant",
-    satisfyingCourses: [
-      { id: "c_3", title: "Infection Control V4.0", status: "published" },
-      { id: "c_3b", title: "PPE Deep Dive", status: "published" }
-    ],
-    nextReview: "2027-01-15"
+    categoryMatch: "Clinical Skills",
+    nextReview: "2027-01-15",
   },
   {
     id: "req_4",
-    title: "Dementia Care Basics",
-    regulatoryBasis: "State Dept. of Health - Dementia Training Requirements",
+    title: "Dementia & Fall Safety Basics",
+    regulatoryBasis: "State Dept. of Health - Dementia Care Requirements",
     frequency: "One-time at hire",
-    status: "in-progress",
-    satisfyingCourses: [
-      { id: "c_4", title: "Dementia Care Basics V2.0-draft", status: "draft" }
-    ],
-    nextReview: "2026-12-01"
-  }
+    categoryMatch: "Specialty",
+    nextReview: "2026-12-01",
+  },
 ];
 
 export function TrainingComplianceTracker() {
+  const { state } = useAgencyStore();
   const [search, setSearch] = useState("");
 
-  const filteredRequirements = MOCK_REQUIREMENTS.filter(r =>
-    r.title.toLowerCase().includes(search.toLowerCase()) ||
-    r.regulatoryBasis.toLowerCase().includes(search.toLowerCase())
+  const requirements = COMPLIANCE_FRAMEWORKS.map((fw) => {
+    const linked = state.lmsCourses.filter(
+      (c) =>
+        c.complianceLinked &&
+        (c.category === fw.categoryMatch ||
+          c.title.toLowerCase().includes(fw.title.split(" ")[1]?.toLowerCase() ?? ""))
+    );
+    const hasPublished = linked.some((c) => c.publishState === "published");
+    const status = hasPublished
+      ? "compliant"
+      : linked.some((c) => c.publishState === "draft")
+        ? "in-progress"
+        : "review-needed";
+
+    return {
+      ...fw,
+      status,
+      satisfyingCourses: linked.map((c) => ({
+        id: c.id,
+        title: c.title,
+        status: c.publishState,
+      })),
+    };
+  });
+
+  const filteredRequirements = requirements.filter(
+    (r) =>
+      r.title.toLowerCase().includes(search.toLowerCase()) ||
+      r.regulatoryBasis.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -154,7 +167,7 @@ export function TrainingComplianceTracker() {
           ))}
           {filteredRequirements.length === 0 && (
             <div className="text-center py-10 text-slate-500">
-              No requirements found matching "{search}".
+              No requirements found matching &ldquo;{search}&rdquo;.
             </div>
           )}
         </div>

@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { mockOrganization, mockTeamMembers } from "@/lib/partner/mockData";
 import { Send, CheckCircle2, Building2, User, Phone, Mail, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -20,7 +19,10 @@ export function PartnerReferralForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isUrgentParam = searchParams.get("urgent") === "true";
-  const { submitPartnerReferral } = useAgencyStore();
+  const { state, submitPartnerReferral } = useAgencyStore();
+  const [selectedMemberId, setSelectedMemberId] = useState(
+    state.partnerTeamMembers[0]?.id ?? ""
+  );
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -33,7 +35,16 @@ export function PartnerReferralForm() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
-  const activeMember = mockTeamMembers[0];
+  const activeMember =
+    state.partnerTeamMembers.find((m) => m.id === selectedMemberId) ??
+    state.partnerTeamMembers[0] ?? {
+      id: "tm-fallback",
+      name: state.partnerOrg.primaryContact,
+      role: "Partner Contact",
+      email: state.partnerOrg.primaryEmail,
+      phone: state.partnerOrg.primaryPhone,
+      status: "Active" as const,
+    };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +59,7 @@ export function PartnerReferralForm() {
       isUrgent: isUrgentParam || urgentChecked,
       notes,
       submittingMember: activeMember.name,
-      partnerOrgName: mockOrganization.name,
+      partnerOrgName: state.partnerOrg.name,
       attachmentName: file?.name,
     });
 
@@ -100,16 +111,25 @@ export function PartnerReferralForm() {
                 <Building2 className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
                   <label className="text-xs font-semibold text-slate-500 mb-1 block">Facility / Organization</label>
-                  <div className="text-sm font-medium text-slate-800">{mockOrganization.name}</div>
-                  <div className="text-xs text-slate-500">{mockOrganization.address}</div>
+                  <div className="text-sm font-medium text-slate-800">{state.partnerOrg.name}</div>
+                  <div className="text-xs text-slate-500">{state.partnerOrg.address}</div>
                 </div>
               </div>
               <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 flex items-start gap-3">
                 <User className="w-5 h-5 text-slate-400 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <label className="text-xs font-semibold text-slate-500 mb-1 block">Referring Member</label>
-                  <div className="text-sm font-medium text-slate-800">{activeMember.name}</div>
-                  <div className="text-xs text-slate-500">{activeMember.role}</div>
+                  <select
+                    value={activeMember.id}
+                    onChange={(e) => setSelectedMemberId(e.target.value)}
+                    className="w-full text-sm font-medium text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1 mb-1"
+                  >
+                    {state.partnerTeamMembers.map((tm) => (
+                      <option key={tm.id} value={tm.id}>
+                        {tm.name} ({tm.role})
+                      </option>
+                    ))}
+                  </select>
                   <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
                     <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {activeMember.phone}</span>
                     <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {activeMember.email}</span>

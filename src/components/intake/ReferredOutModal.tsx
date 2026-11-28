@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink, Building2, Building } from "lucide-react";
+import { X, ExternalLink, Building } from "lucide-react";
 
 interface ReferredOutModalProps {
   isOpen: boolean;
@@ -11,7 +11,7 @@ interface ReferredOutModalProps {
   clientName?: string;
 }
 
-const mockAgencies = [
+const DESTINATION_AGENCIES = [
   "Visiting Angels (North County)",
   "Comfort Keepers (East Side)",
   "Hospice Care Partners",
@@ -28,7 +28,7 @@ const reasons = [
 
 export function ReferredOutModal({ isOpen, onClose, onConfirm, clientName }: ReferredOutModalProps) {
   const [selectedReason, setSelectedReason] = useState(reasons[0]);
-  const [selectedAgency, setSelectedAgency] = useState(mockAgencies[0]);
+  const [selectedAgency, setSelectedAgency] = useState(DESTINATION_AGENCIES[0]);
 
   if (!isOpen) return null;
 
@@ -103,7 +103,7 @@ export function ReferredOutModal({ isOpen, onClose, onConfirm, clientName }: Ref
                     onChange={(e) => setSelectedAgency(e.target.value)}
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-brand-teal focus:border-transparent outline-none appearance-none"
                   >
-                    {mockAgencies.map(a => (
+                    {DESTINATION_AGENCIES.map(a => (
                       <option key={a} value={a}>{a}</option>
                     ))}
                   </select>

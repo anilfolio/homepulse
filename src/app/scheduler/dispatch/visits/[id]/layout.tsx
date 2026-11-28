@@ -1,8 +1,8 @@
 import React from "react";
-import { mockVisits } from "@/lib/mockTrackerData";
+import { INITIAL_AGENCY_VISITS } from "@/lib/store/agencySeedData";
 
-export function generateStaticParams() { 
-  return mockVisits.map((visit) => ({
+export function generateStaticParams() {
+  return INITIAL_AGENCY_VISITS.map((visit) => ({
     id: visit.id,
   }));
 }

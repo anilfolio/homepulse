@@ -13,9 +13,15 @@ import {
   AlertTriangle
 } from "lucide-react";
 
+import { toast } from "sonner";
+import { useAgencyStore } from "@/lib/store/AgencyStoreContext";
+
+type ClinicalSettingsTab = "general" | "compliance" | "vitals" | "permissions" | "notifications";
+
 export default function ClinicalSettingsPage() {
+  const { logAuditEvent } = useAgencyStore();
   // Active Category Tab
-  const [activeTab, setActiveTab] = useState<"general" | "compliance" | "vitals" | "permissions" | "notifications">("general");
+  const [activeTab, setActiveTab] = useState<ClinicalSettingsTab>("general");
 
   // Success Toast state
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -46,6 +52,14 @@ export default function ClinicalSettingsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    logAuditEvent({
+      action: "UPDATE",
+      resourceType: "Compliance",
+      resourceId: `clinical-${activeTab}`,
+      summary: `Updated clinical governance configuration tab: ${activeTab}.`,
+      status: "Success",
+    });
+    toast.success("Clinical configuration saved & logged");
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
@@ -90,7 +104,7 @@ export default function ClinicalSettingsPage() {
             return (
               <button
                 key={t.id}
-                onClick={() => setActiveTab(t.id as any)}
+                onClick={() => setActiveTab(t.id as ClinicalSettingsTab)}
                 className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 cursor-pointer ${isActive
                   ? "bg-brand-teal text-white shadow-xs font-bold"
                   : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"

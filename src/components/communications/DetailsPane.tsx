@@ -1,10 +1,12 @@
+"use client";
+
 import React from "react";
-import { X, FileText, Image as ImageIcon, Link as LinkIcon, User, Phone, Mail, Settings } from "lucide-react";
-import { Conversation } from "./mockData";
-import clsx from "clsx";
+import Link from "next/link";
+import { X, Link as LinkIcon, Phone, Globe, ShieldCheck } from "lucide-react";
+import { AgencyConversation } from "@/types/agency";
 
 interface DetailsPaneProps {
-  conversation: Conversation | null;
+  conversation: AgencyConversation | null;
   onClose: () => void;
   isOpen: boolean;
 }
@@ -12,109 +14,72 @@ interface DetailsPaneProps {
 export function DetailsPane({ conversation, onClose, isOpen }: DetailsPaneProps) {
   if (!isOpen || !conversation) return null;
 
-  const primaryParticipant = conversation.participants[0];
+  const initials = conversation.title
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <div className="w-full bg-white flex flex-col h-full shrink-0 animate-in slide-in-from-right-10 duration-200 ease-out">
-      {/* Header */}
-      <div className="h-14 flex items-center justify-between px-6 border-b border-slate-200 shrink-0">
-        <h3 className="font-semibold text-slate-800">Details</h3>
+    <div className="w-full bg-white flex flex-col h-full shrink-0">
+      <div className="h-14 flex items-center justify-between px-5 border-b border-slate-200 shrink-0">
+        <h3 className="font-semibold text-slate-800 text-sm">Thread Context</h3>
         <button
+          type="button"
           onClick={onClose}
-          className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-md transition-colors"
+          className="p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-md cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {/* Contact Profile Info */}
-        <div className="p-6 text-center border-b border-slate-100">
-          {primaryParticipant.avatar ? (
-            <img
-              src={primaryParticipant.avatar}
-              alt={primaryParticipant.name}
-              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover shadow-[0_6px_32px_rgba(0,0,0,0.06)]"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full mx-auto mb-3 shadow-[0_6px_32px_rgba(0,0,0,0.06)] bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-2xl border border-white">
-              {primaryParticipant.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-            </div>
-          )}
-          <h2 className="font-semibold text-lg text-slate-900">{primaryParticipant.name}</h2>
-          <p className="text-sm text-slate-500 mb-4">{primaryParticipant.role}</p>
-
-          <div className="flex justify-center gap-3">
-            <button className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
-              <Phone className="w-4 h-4" />
-            </button>
-            <button className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
-              <Mail className="w-4 h-4" />
-            </button>
-            <button className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
-              <User className="w-4 h-4" />
-            </button>
+        <div className="p-5 text-center border-b border-slate-100">
+          <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xl border border-slate-200">
+            {initials}
           </div>
+          <h2 className="font-semibold text-base text-slate-900">{conversation.title}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{conversation.participantRole}</p>
         </div>
 
-        {/* Info List */}
-        <div className="p-6 space-y-4 border-b border-slate-100">
-          <div className="flex items-center gap-3 text-sm">
+        <div className="p-5 space-y-3 border-b border-slate-100 text-xs">
+          <div className="flex items-center gap-2.5 text-slate-600">
             <Phone className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-600">{primaryParticipant.phone}</span>
+            <span>{conversation.phoneMasked} (PHI Masked)</span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Mail className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-600">{primaryParticipant.email}</span>
-          </div>
-          {primaryParticipant.preferredLanguage && (
-            <div className="flex items-center gap-3 text-sm">
-              <Settings className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-600">Prefers {primaryParticipant.preferredLanguage}</span>
+          {conversation.preferredLanguage && (
+            <div className="flex items-center gap-2.5 text-slate-600">
+              <Globe className="w-4 h-4 text-slate-400" />
+              <span>Preferred Language: {conversation.preferredLanguage}</span>
             </div>
           )}
+          <div className="flex items-center gap-2.5 text-emerald-700 font-semibold">
+            <ShieldCheck className="w-4 h-4" />
+            <span>HIPAA Encrypted &amp; Audit-Logged</span>
+          </div>
         </div>
 
-        {/* Linked Records */}
         {conversation.linkedRecord && (
-          <div className="p-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Linked Records</h4>
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-brand-teal/30 hover:bg-brand-teal/5 transition-colors cursor-pointer">
-              <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center">
-                <LinkIcon className="w-4 h-4 text-slate-400" />
+          <div className="p-5">
+            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
+              Linked Agency Record
+            </h4>
+            <Link
+              href={conversation.linkedRecord.route}
+              className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-brand-teal/40 hover:bg-brand-teal/5 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                <LinkIcon className="w-4 h-4 text-brand-teal" />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-700">{conversation.linkedRecord.label}</p>
-                <p className="text-xs text-slate-500">{conversation.linkedRecord.type}</p>
+                <p className="text-xs font-semibold text-slate-800">
+                  {conversation.linkedRecord.label}
+                </p>
+                <p className="text-[11px] text-slate-500">{conversation.linkedRecord.type}</p>
               </div>
-            </div>
+            </Link>
           </div>
         )}
-
-        {/* Shared Media / Files (Mocked) */}
-        <div className="p-6">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Shared Files</h4>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
-              <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-700 truncate">care_plan_v2.pdf</p>
-                <p className="text-xs text-slate-400">Oct 12 • 2.4 MB</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
-              <div className="w-8 h-8 rounded bg-purple-50 flex items-center justify-center">
-                <ImageIcon className="w-4 h-4 text-purple-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-700 truncate">wound_photo_1.jpg</p>
-                <p className="text-xs text-slate-400">Oct 10 • 1.1 MB</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );
